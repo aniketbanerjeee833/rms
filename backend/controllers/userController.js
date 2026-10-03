@@ -535,7 +535,8 @@ const registerUser = async (req, res, next) => {
     if (!parsed.success) {
       return res.status(400).json({
         success: false,
-        errors: parsed.error.errors.map(e => e.message),
+        //errors: parsed.error.errors.map(e => e.message),
+        errors: parsed.error.issues.map(e => e.message)
       });
     }
 

@@ -30,6 +30,14 @@ export const tableApi = createApi({
       invalidatesTags: ["Table"],
     }),
 
+    regenerateTableQr: builder.mutation({
+  query: ({ Table_Id }) => ({
+    url: `/table/regenerate-qr/${Table_Id}`,
+    method: 'PATCH',
+  }),
+  invalidatesTags: ['Tables'], // use the same tag your getAllTables uses
+}),
+
  
 getAllTables: builder.query({
   query: ({ page = null, search = "" } = {}) => {
@@ -65,6 +73,6 @@ getAllTablesForPreBooking: builder.query({
   }),
 });
 
-export const { useAddTableMutation,useUpdateTableMutation, useGetAllTablesQuery,
+export const { useAddTableMutation,useUpdateTableMutation, useRegenerateTableQrMutation, useGetAllTablesQuery,
 useGetAllTablesForPreBookingQuery
  } = tableApi;

@@ -47,7 +47,7 @@ const PartySalesPurchasesDetails = lazy(() => import('./pages/Party/PartySalesPu
 
 
 const Table= lazy(() => import('./pages/Items/Table'));
-const AllTablesList = lazy(() => import('./pages/Items/AllTablesList'));
+const AllTablesList= lazy(() => import('./pages/Items/AllTablesList'));
 
 const DailyExpense= lazy(() => import('./pages/DailyExpense/DailyExpense'));
 const AllDailyExpense= lazy(() => import('./pages/DailyExpense/AllDailyExpense'));

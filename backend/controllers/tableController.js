@@ -1,4 +1,87 @@
 import db from "../config/db.js";
+import crypto from "crypto";
+
+// const addTable = async (req, res, next) => {
+//   let connection;
+//   try {
+//     connection = await db.getConnection();
+//     await connection.beginTransaction();
+
+//     const { Table_Name, Table_Capacity } = req.body;
+
+//     if (!Table_Name || !Table_Capacity) {
+//       await connection.rollback();
+//       return res.status(400).json({
+//         success: false,
+//         message: "Table_Name and Table_Capacity are required",
+//       });
+//     }
+
+//     // 1️⃣ Check if table name already exists
+//     const [exists] = await connection.query(
+//       "SELECT Table_Name FROM add_table WHERE Table_Name = ? LIMIT 1",
+//       [Table_Name]
+//     );
+
+//     if (exists.length > 0) {
+//       await connection.rollback();
+//       return res.status(400).json({
+//         success: false,
+//         message: "Table name already exists.",
+//       });
+//     }
+
+//     // 2️⃣ Generate Table_Id
+//     // const [lastTable] = await connection.query(
+//     //   "SELECT Table_Id FROM add_table ORDER BY id DESC LIMIT 1"
+//     // );
+
+//     // let newTableId = "TAB001";
+
+//     // if (lastTable.length > 0) {
+//     //   const lastNum = parseInt(lastTable[0].Table_Id.replace("TAB", "")) + 1;
+//     //   newTableId = "TAB" + lastNum.toString().padStart(3, "0");
+//     // }
+
+//     // 3️⃣ Insert Row
+//     const [result] = await connection.execute(
+//       `INSERT INTO add_table 
+//         ( Table_Name, Table_Capacity, created_at, updated_at)
+//        VALUES (?, ?, ?, NOW(), NOW())`,
+//       [ Table_Name, Table_Capacity]
+//     );
+
+//     const Table_Id= result.insertId;
+//       const newTableId = "TAB" + Table_Id.toString().padStart(3, "0");
+//       await connection.execute(
+//         `UPDATE add_table SET Table_Id = ? WHERE id = ?`,
+//         [newTableId, Table_Id]
+//       );
+//     await connection.commit();
+
+//     return res.status(201).json({
+//       success: true,
+//       message: "Table added successfully",
+//       tableId: newTableId,
+//     });
+
+//   } catch (err) {
+//     if (connection) await connection.rollback();
+//     console.error("❌ Error adding table:", err);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Internal Server Error",
+//       error: err.message,
+//     });
+//   } finally {
+//     if (connection) connection.release();
+//   }
+// };
+
+
+
+const generateQrSlug = () => crypto.randomBytes(12).toString("base64url");
+// Node < 15.7? use: crypto.randomBytes(12).toString("hex")
 
 const addTable = async (req, res, next) => {
   let connection;
@@ -6,7 +89,8 @@ const addTable = async (req, res, next) => {
     connection = await db.getConnection();
     await connection.beginTransaction();
 
-    const { Table_Name, Table_Capacity } = req.body;
+    const Table_Name = req.body.Table_Name?.trim();
+    const Table_Capacity = req.body.Table_Capacity;
 
     if (!Table_Name || !Table_Capacity) {
       await connection.rollback();
@@ -30,40 +114,38 @@ const addTable = async (req, res, next) => {
       });
     }
 
-    // 2️⃣ Generate Table_Id
-    // const [lastTable] = await connection.query(
-    //   "SELECT Table_Id FROM add_table ORDER BY id DESC LIMIT 1"
-    // );
+    // 2️⃣ Insert row (with permanent QR slug)
+    const Qr_Slug = generateQrSlug();
 
-    // let newTableId = "TAB001";
-
-    // if (lastTable.length > 0) {
-    //   const lastNum = parseInt(lastTable[0].Table_Id.replace("TAB", "")) + 1;
-    //   newTableId = "TAB" + lastNum.toString().padStart(3, "0");
-    // }
-
-    // 3️⃣ Insert Row
     const [result] = await connection.execute(
-      `INSERT INTO add_table 
-        ( Table_Name, Table_Capacity, created_at, updated_at)
+      `INSERT INTO add_table
+         (Table_Name, Table_Capacity, Qr_Slug, created_at, updated_at)
        VALUES (?, ?, ?, NOW(), NOW())`,
-      [ Table_Name, Table_Capacity]
+      [Table_Name, Table_Capacity, Qr_Slug]
     );
 
-    const Table_Id= result.insertId;
-      const newTableId = "TAB" + Table_Id.toString().padStart(3, "0");
-      await connection.execute(
-        `UPDATE add_table SET Table_Id = ? WHERE id = ?`,
-        [newTableId, Table_Id]
-      );
+    // 3️⃣ Generate Table_Id from the auto-increment id
+    const insertId = result.insertId;
+    const newTableId = "TAB" + insertId.toString().padStart(3, "0");
+
+    await connection.execute(
+      `UPDATE add_table SET Table_Id = ? WHERE id = ?`,
+      [newTableId, insertId]
+    );
+
     await connection.commit();
 
     return res.status(201).json({
       success: true,
       message: "Table added successfully",
       tableId: newTableId,
+      table: {
+        Table_Id: newTableId,
+        Table_Name,
+        Table_Capacity,
+        Qr_Slug,
+      },
     });
-
   } catch (err) {
     if (connection) await connection.rollback();
     console.error("❌ Error adding table:", err);
@@ -76,9 +158,31 @@ const addTable = async (req, res, next) => {
     if (connection) connection.release();
   }
 };
+const regenerateTableQr = async (req, res, next) => {
+  let connection;
+  try {
+    connection = await db.getConnection();
+    const { Table_Id } = req.params;
 
+   const Qr_Slug = generateQrSlug();
 
+    const [result] = await connection.query(
+      `UPDATE add_table SET Qr_Slug = ?, updated_at = NOW() WHERE Table_Id = ?`,
+      [Qr_Slug, Table_Id]
+    );
 
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "Table not found" });
+    }
+
+    return res.status(200).json({ success: true, Qr_Slug });
+  } catch (err) {
+    console.error("❌ Error regenerating QR:", err);
+    next(err);
+  } finally {
+    if (connection) connection.release();
+  }
+};
 const getAllTables = async (req, res, next) => {
   let connection;
   try {
@@ -319,4 +423,4 @@ const updateTable = async (req, res, next) => {
 
 
 
-export {addTable,getAllTables,getAllTablesForPreBooking,updateTable}
+export {addTable, regenerateTableQr,getAllTables,getAllTablesForPreBooking,updateTable}

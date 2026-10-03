@@ -237,7 +237,7 @@ export default function Coupon() {
                                         <button
                                             type="submit"
                                             disabled={isAddingCoupon || isUpdatingCoupon}
-                                            className="text-white font-bold py-2 px-4 rounded mt-4"
+                                            className="text-white font-bold py-2 px-4 rounded "
                                             style={{ backgroundColor: "#ff0000" }}
                                         >
                                             {isAddingCoupon || isUpdatingCoupon
