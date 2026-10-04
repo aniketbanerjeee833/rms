@@ -29,16 +29,7 @@ console.log(
   
   totalPurchasesByDate,
 );
-//    useEffect(() => {
-//      if (isLoading) return;
- 
-//      if (isError || !data?.user?.id) {
-//        dispatch(setLoggedIn(false));
-//        return;
-//      }
-//      dispatch(setUserId(data.user.id));
-//      dispatch(setLoggedIn(true));
-//    }, [data, isLoading, isError, dispatch]);
+
      const today = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
      console.log(today);
    const [currentDate, setCurrentDate] = useState(new Date());
