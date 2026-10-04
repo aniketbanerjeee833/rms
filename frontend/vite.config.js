@@ -15,13 +15,29 @@
 //   plugins: [react(),tailwindcss()],
 // })
 // vite.config.js
+
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig(({ mode }) => ({
   plugins: [react(), tailwindcss()],
+
+  server: {
+    host: "0.0.0.0",
+  },
+
   esbuild: mode === "production" ? {
-    drop: ["console", "debugger"], // removes ALL console.* and debugger
+    drop: ["console", "debugger"],
   } : {},
 }))
+// import { defineConfig } from 'vite'
+// import react from '@vitejs/plugin-react'
+// import tailwindcss from '@tailwindcss/vite'
+
+// export default defineConfig(({ mode }) => ({
+//   plugins: [react(), tailwindcss()],
+//   esbuild: mode === "production" ? {
+//     drop: ["console", "debugger"], // removes ALL console.* and debugger
+//   } : {},
+// }))

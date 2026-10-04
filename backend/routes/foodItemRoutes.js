@@ -85,7 +85,9 @@ import userAuth from "../middleware/userAuth.js";
 // Upload array of images, field name must match UI: "Item_Image"
 router.post("/add-food-item",userAuth, adminAuth, foodUpload.array("images"), addFoodItem);
 
-router.get("/all-food-items",userAuth, getAllFoodItems);
+//router.get("/all-food-items",userAuth, getAllFoodItems);
+
+router.get("/all-food-items", getAllFoodItems);
 
 router.patch(
   "/edit-food-item/:Item_Id",

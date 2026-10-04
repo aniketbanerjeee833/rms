@@ -5,7 +5,7 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 export const itemApi = createApi({
   reducerPath: "itemApi",
   baseQuery: fetchBaseQuery({
-    baseUrl: "http://localhost:4000/api/",
+    baseUrl: "http://192.168.29.2:4000/api/",
     credentials: "include",
   }),
   invalidatesTags: ["Item"],

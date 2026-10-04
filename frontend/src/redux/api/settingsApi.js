@@ -4,7 +4,7 @@ export const settingsApi = createApi({
   reducerPath: "settingsApi",
 
   baseQuery: fetchBaseQuery({
-    baseUrl: "http://localhost:4000/api/",
+    baseUrl: "http://192.168.29.2:4000/api/",
     credentials: "include", // send cookies for userAuth middleware
   }),
 

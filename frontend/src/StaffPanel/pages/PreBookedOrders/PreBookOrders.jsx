@@ -36,7 +36,7 @@ import { useGetAllCategoriesQuery } from "../../../redux/api/itemApi";
 
 
 
-const socket = io("http://localhost:4000", {
+const socket = io("http://192.168.29.2:4000", {
   transports: ["websocket"],
 });
 
@@ -1798,7 +1798,7 @@ onInput={(e) => {
                                                                            {item?.Item_Image && (
                                                                                                         <img
                                                                                                           loading="lazy"
-                                                                                                          src={`http://localhost:4000/uploads/food-item/${item.Item_Image}`}
+                                                                                                          src={`http://192.168.29.2:4000/uploads/food-item/${item.Item_Image}`}
                                                                                                           alt={item.Item_Name}
                                                                                                           className="w-full h-full object-cover opacity-90"
                                                                                                         />

@@ -18,6 +18,7 @@ import orderRoutes from "./routes/Staff/orderItemRoutes.js"
 import kitchenStaffRoutes from "./routes/KitchenStaff/KitchenStaffRoutes.js"
 import waiterRoutes from "./routes/Waiter/waiterRoutes.js"
 import couponRoutes from "./routes/couponRoutes.js"
+import customerOrderRoutes from "./routes/customerOrderRoutes.js"
 
 import "dotenv/config";
 import express from "express";
@@ -126,7 +127,7 @@ app.use(cookieParser());
 const allowedOrigins = [
   process.env.CLIENT_URL,               // e.g. http://localhost:5173
   "http://localhost:5174",              // second allowed origin
-
+"http://192.168.29.2:5173",
 ];
 
 app.use(cors({
@@ -170,6 +171,7 @@ app.use("/api/financial-year",financialYearRoutes)
 app.use("/api/kitchen-staff",kitchenStaffRoutes)
 app.use("/api/waiter",waiterRoutes)
 app.use("/api/coupon",couponRoutes)
+app.use("/api/customer",customerOrderRoutes)
 
 // ------------------------------
 // SOCKET.IO — GLOBAL CONNECTION
@@ -243,7 +245,16 @@ const PORT = process.env.PORT || 4000;
 clearExpiredSessions();
 clearExpiredLoginAttempts();
 dailyStockCarryForward();
-server.listen(PORT, (err) => {
+// server.listen(PORT, (err) => {
+//   if (err) {
+//     logger.error(`❌ Failed to start server on port ${PORT}`, err);
+//     process.exit(1);
+//   } else {
+//     console.log(`Server running on port ${PORT}`); // optional plain console
+//   }
+// });
+
+server.listen(PORT,"0.0.0.0", (err) => {
   if (err) {
     logger.error(`❌ Failed to start server on port ${PORT}`, err);
     process.exit(1);

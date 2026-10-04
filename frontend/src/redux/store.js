@@ -21,6 +21,7 @@ import { settingsApi } from "./api/settingsApi";
 import { kitchenStaffApi } from "./api/KitchenStaff/kitchenStaffApi";
 import { waiterApi } from "./Waiter/waiterApi";
 import { couponApi } from "./api/couponApi";
+import { customerOrderApi } from "./api/customerOrderApi";
 
 
 
@@ -48,6 +49,7 @@ const rootReducer = combineReducers({
 
   [kitchenStaffApi.reducerPath]: kitchenStaffApi.reducer,
   [waiterApi.reducerPath]: waiterApi.reducer,
+  [customerOrderApi.reducerPath]: customerOrderApi.reducer,
  
 });
 
@@ -85,7 +87,7 @@ const store = configureStore({
       orderApi.middleware,
       kitchenStaffApi.middleware,
       waiterApi.middleware,
-      
+      customerOrderApi.middleware
      
     ),
 });

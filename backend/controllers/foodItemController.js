@@ -198,47 +198,107 @@ const getAllFoodItems = async (req, res, next) => {
       params.push(like, like);
     }
 
-    const whereSQL = `WHERE ${whereClauses.join(" AND ")}`;
+    // const whereSQL = `WHERE ${whereClauses.join(" AND ")}`;
 
-    /* ==========================================================
-       👤 USER / STAFF FLOW
-       - orderType present
-       - NO pagination
-       - A → Z order
-       - Single price
-    ========================================================== */
-    if (orderType) {
-      const [rows] = await connection.query(
-        `
-        SELECT
-          afi.*,
-          fp.Order_Type AS Price_Type,
-          fp.Item_Price,
-          fp.Tax_Type,
-          fp.Tax_Amount,
-          fp.Amount,
-          COALESCE(dfs.Closing_Quantity, 0) AS Current_Quantity
-        FROM add_food_item afi
-        LEFT JOIN food_item_price fp
-          ON fp.Item_Id = afi.Item_Id
-         AND fp.Order_Type = ?
-        LEFT JOIN daily_food_stock dfs
-          ON dfs.Item_Id = afi.Item_Id
-         AND dfs.Stock_Date = ?
-        ${whereSQL}
-        ORDER BY LOWER(afi.Item_Name) ASC
-        `,
-        [orderType, stockDate, ...params]
-      );
+    // /* ==========================================================
+    //    👤 USER / STAFF FLOW
+    //    - orderType present
+    //    - NO pagination
+    //    - A → Z order
+    //    - Single price
+    // ========================================================== */
+    // if (orderType) {
+    //   const [rows] = await connection.query(
+    //     `
+    //     SELECT
+    //       afi.*,
+    //       fp.Order_Type AS Price_Type,
+    //       fp.Item_Price,
+    //       fp.Tax_Type,
+    //       fp.Tax_Amount,
+    //       fp.Amount,
+    //       COALESCE(dfs.Closing_Quantity, 0) AS Current_Quantity
+    //     FROM add_food_item afi
+    //     LEFT JOIN food_item_price fp
+    //       ON fp.Item_Id = afi.Item_Id
+    //      AND fp.Order_Type = ?
+    //     LEFT JOIN daily_food_stock dfs
+    //       ON dfs.Item_Id = afi.Item_Id
+    //      AND dfs.Stock_Date = ?
+    //     ${whereSQL}
+    //     ORDER BY LOWER(afi.Item_Name) ASC
+    //     `,
+    //     [orderType, stockDate, ...params]
+    //   );
 
-      return res.status(200).json({
-        success: true,
-        priceType: orderType,
-        totalItems: rows.length,
-        foodItems: rows,
-      });
-    }
+    //   return res.status(200).json({
+    //     success: true,
+    //     priceType: orderType,
+    //     totalItems: rows.length,
+    //     foodItems: rows,
+    //   });
+    // }
+if (orderType) {
+  const orderTypeWhereClauses = [`afi.is_deleted = 0`];
+  const orderTypeParams = [orderType, stockDate];
 
+  if (search) {
+    orderTypeWhereClauses.push(`
+      (
+        LOWER(afi.Item_Name) LIKE ?
+        OR LOWER(afi.Item_Category) LIKE ?
+        OR CAST(fp.Item_Price AS CHAR) LIKE ?
+      )
+    `);
+
+    const like = `%${search}%`;
+
+    orderTypeParams.push(
+      like, // Item_Name
+      like, // Item_Category
+      like  // Item_Price
+    );
+  }
+
+  const whereSQLForOrderType = `
+    WHERE ${orderTypeWhereClauses.join(" AND ")}
+  `;
+
+  const [rows] = await connection.query(
+    `
+    SELECT
+      afi.*,
+      fp.Order_Type AS Price_Type,
+      fp.Item_Price,
+      fp.Tax_Type,
+      fp.Tax_Amount,
+      fp.Amount,
+      COALESCE(dfs.Closing_Quantity, 0) AS Current_Quantity
+
+    FROM add_food_item afi
+
+    LEFT JOIN food_item_price fp
+      ON fp.Item_Id = afi.Item_Id
+     AND fp.Order_Type = ?
+
+    LEFT JOIN daily_food_stock dfs
+      ON dfs.Item_Id = afi.Item_Id
+     AND dfs.Stock_Date = ?
+
+    ${whereSQLForOrderType}
+
+    ORDER BY LOWER(afi.Item_Name) ASC
+    `,
+    orderTypeParams
+  );
+
+  return res.status(200).json({
+    success: true,
+    priceType: orderType,
+    totalItems: rows.length,
+    foodItems: rows,
+  });
+}
     /* ==========================================================
        👨‍💼 ADMIN FLOW
        - NO orderType

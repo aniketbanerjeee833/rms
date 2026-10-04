@@ -33,7 +33,7 @@ import PreBookBillModal from "../../../components/Modal/PreBookBillModal";
 import { useGetAllTablesQuery } from "../../../redux/api/tableApi";
 
 
-const socket = io("http://localhost:4000", {
+const socket = io("http://192.168.29.2:4000", {
   transports: ["websocket"],
 });
 
@@ -2286,7 +2286,7 @@ export default function UpdatePreBookOrders() {
                                 loading="lazy"
                                   src={
                                     item?.Item_Image
-                                      ? `http://localhost:4000/uploads/food-item/${item?.Item_Image}`
+                                      ? `http://192.168.29.2:4000/uploads/food-item/${item?.Item_Image}`
                                       : ""
                                   }
                                   alt={item?.Item_Name}
@@ -2295,7 +2295,7 @@ export default function UpdatePreBookOrders() {
                                 {item?.Item_Image && (
                                   <img
                                     loading="lazy"
-                                    src={`http://localhost:4000/uploads/food-item/${item.Item_Image}`}
+                                    src={`http://192.168.29.2:4000/uploads/food-item/${item.Item_Image}`}
                                     alt={item.Item_Name}
                                     className="w-full h-full object-cover opacity-90"
                                   />

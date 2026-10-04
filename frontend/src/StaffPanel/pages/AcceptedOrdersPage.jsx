@@ -32,7 +32,7 @@
 
 
 
-// const socket = io("http://localhost:4000", {
+// const socket = io("http://192.168.29.2:4000", {
 //   transports: ["websocket"],
 // });
 // export default function Orders() {
@@ -1512,7 +1512,7 @@
 //                                 )}
 //                                 <div className="relative h-32 bg-gradient-to-br from-[#4CA1AF22] to-[#4CA1AF44]">
 //                                   {item?.Item_Image && (
-//                                     <img loading="lazy" src={`http://localhost:4000/uploads/food-item/${item.Item_Image}`} alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
+//                                     <img loading="lazy" src={`http://192.168.29.2:4000/uploads/food-item/${item.Item_Image}`} alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
 //                                   )}
 //                                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
 //                                   <div className="absolute top-2 right-2">
@@ -1713,7 +1713,7 @@
 //                               )}
 //                               <div className="relative h-28 bg-gradient-to-br from-[#4CA1AF22] to-[#4CA1AF44]">
 //                                 {item?.Item_Image && (
-//                                   <img loading="lazy" src={`http://localhost:4000/uploads/food-item/${item.Item_Image}`} alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
+//                                   <img loading="lazy" src={`http://192.168.29.2:4000/uploads/food-item/${item.Item_Image}`} alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
 //                                 )}
 //                                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
 //                                 <div className="absolute top-1 right-1">
@@ -1967,7 +1967,7 @@
 // //                                                     <img
 // //                                                         src={
 // //                                                             item?.Item_Image
-// //                                                                 ? `http://localhost:4000/uploads/food-item/${item.Item_Image}`
+// //                                                                 ? `http://192.168.29.2:4000/uploads/food-item/${item.Item_Image}`
 // //                                                                 : ""
 // //                                                         }
 // //                                                         alt={item.Item_Name}
@@ -2204,7 +2204,7 @@
 // //   <div className="relative h-56 overflow-hidden bg-gradient-to-br from-orange-200 to-red-200">
 // //     <div className="absolute inset-0 flex items-center justify-center text-6xl opacity-20">
 // //       <img
-// //         src={item?.Item_Image ? `http://localhost:4000/uploads/food-item/${item.Item_Image}` : ''}
+// //         src={item?.Item_Image ? `http://192.168.29.2:4000/uploads/food-item/${item.Item_Image}` : ''}
 // //         alt={item.Item_Name}
 // //         className="w-full h-full object-cover"
 // //       />

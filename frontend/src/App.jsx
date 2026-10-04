@@ -112,9 +112,10 @@ const UpdateWaiterOrder=lazy(()=>import('./pages/Waiter/pages/UpdateWaiterOrder'
 // Kitchen Staff Panel Routes
 // ==========================================
 const KitchenStaff=lazy(()=>import('./KitchenStaffPanel/pages/KitchenStaff'))
-const MenuView=lazy(()=>import('./MenuView/MenuView'))
+
 
 const InvoicePublicView=lazy(()=>import('./pages/InvoicePublicView'))
+const CustomerQRMenuView=lazy(()=>import('./pages/CustomerQRMenuView/CustomerQRMenuView'))
 // ==========================================
 // 🔒 Auth Route Guards
 // ==========================================
@@ -171,6 +172,7 @@ function RoleAwareFallback({ userRole }) {
 function RouterWrapper({ userRole }) {
   const location = useLocation();
   console.log(location, userRole);
+  const isCustomerPage = /^\/(t|s)\/[^/]+$/.test(location.pathname);
   const isPublicInvoice =
   /^\/((TK)?INV\d+|PRBINV\d+|\d{1,10})$/i.test(location.pathname);
   const hideHeader = location.pathname === "/login" || 
@@ -181,7 +183,7 @@ function RouterWrapper({ userRole }) {
   location.pathname.startsWith("/party/party-sales-purchases-details")||
   location.pathname.startsWith("/menu")||
   location.pathname.startsWith("/staff/day-wise-pre-book-order-report")||
-  isPublicInvoice;
+  isPublicInvoice || isCustomerPage;
 ;
 
   return (
@@ -204,6 +206,13 @@ function RouterWrapper({ userRole }) {
             <Route path="/login" element={<Login />} />
    
           </Route>
+            {/* <Route
+              path="/customer/order"
+              element={
+                  <CustomerQRMenuView/>
+              }
+            /> */}
+            <Route path="/t/:qr_slug" element={<CustomerQRMenuView />} />
 {/* Admin Routes */}
           {userRole=="admin" && (
 
@@ -822,12 +831,7 @@ function RouterWrapper({ userRole }) {
               )}
 
 
-          <Route
-              path="/menu"
-              element={
-                  <MenuView/>
-              }
-            />
+        
 
           {/* Fallback */}
           <Route path="*" element={<RoleAwareFallback userRole={userRole} />} />

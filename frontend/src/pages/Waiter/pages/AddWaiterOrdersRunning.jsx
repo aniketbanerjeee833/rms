@@ -36,7 +36,7 @@ import { waiterApi } from "../../../redux/Waiter/waiterApi";
 
 
 
-// const socket = io("http://localhost:4000", {
+// const socket = io("http://192.168.29.2:4000", {
 //   transports: ["websocket"],
 // });
 
@@ -1322,7 +1322,7 @@ console.log(summaryItems,"summaryItems");
         <img
           src={
             item?.Item_Image
-              ? `http://localhost:4000/uploads/food-item/${item.Item_Image}`
+              ? `http://192.168.29.2:4000/uploads/food-item/${item.Item_Image}`
               : ""
           }
           alt={item.Item_Name}

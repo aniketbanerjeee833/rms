@@ -255,7 +255,7 @@
 //         if (!editingFoodItem) return;
 
 //         if (!foodItem) return;
-//         setPreview(`http://localhost:4000/uploads/food-item/${foodItem?.Item_Image}`);
+//         setPreview(`http://192.168.29.2:4000/uploads/food-item/${foodItem?.Item_Image}`);
 //         reset({
 //             Item_Name: foodItem.Item_Name,
 //             Item_Category: foodItem.Item_Category,
@@ -1115,7 +1115,7 @@ export default function EditFoodItemModal({ onClose, foodItem, editingFoodItem }
 
         if (!foodItem) return;
         //setPreview(`https://ancoinnovation.com/b/backend/uploads/food-item/${foodItem?.Item_Image}`);
-        setPreview(`http://localhost:4000/uploads/food-item/${foodItem?.Item_Image}`);
+        setPreview(`http://192.168.29.2:4000/uploads/food-item/${foodItem?.Item_Image}`);
         reset({
             Item_Name: foodItem.Item_Name,
             Item_Category: foodItem.Item_Category,

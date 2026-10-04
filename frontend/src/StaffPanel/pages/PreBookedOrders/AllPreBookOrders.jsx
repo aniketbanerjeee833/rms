@@ -17,7 +17,7 @@ import { useGetAllPreBookingOrdersQuery,  useLazyGetPreBookOrderItemsForKOTQuery
 // import { useTotalPreBookOrdersEachDayQuery } from '../../redux/api/Staff/orderApi';
 import { toast } from 'react-toastify';
 
-// const socket = io("http://localhost:4000", {
+// const socket = io("http://192.168.29.2:4000", {
 //   transports: ["websocket"],
 // });
 
