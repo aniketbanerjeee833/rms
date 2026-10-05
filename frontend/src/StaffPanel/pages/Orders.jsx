@@ -5,7 +5,7 @@ import { tableApi, useGetAllTablesQuery } from "../../redux/api/tableApi";
 
 
 import { useState } from "react";
-import { NavLink, useNavigate, useParams } from "react-router-dom";
+import {  useNavigate, useParams } from "react-router-dom";
 
 import { useFieldArray, useForm } from "react-hook-form";
 
@@ -18,7 +18,7 @@ import { toast } from "react-toastify";
 
 import { useDispatch, useSelector } from "react-redux";
 
-import { LayoutDashboard, Minus, Plus, ShoppingCart } from "lucide-react";
+import {  Minus, Plus, ShoppingCart } from "lucide-react";
 
 
 
@@ -34,7 +34,7 @@ import { useGetAllCategoriesQuery } from "../../redux/api/itemApi";
 
 
 
-const socket = io("http://192.168.29.2:4000", {
+const socket = io("http://192.168.0.101:4000", {
   transports: ["websocket"],
 });
 export default function Orders() {
@@ -150,13 +150,7 @@ export default function Orders() {
   //   phone: null,
   // });
 
-  // const itemUnits = {
 
-  //   "pcs": "Pcs",
-  //   "plates": "Plates",
-  //   "btl": "Bottle",
-
-  // }
   const { data: categories } = useGetAllCategoriesQuery()
 
   //const existingCategories=categories?.map((category) => category.Item_Category);
@@ -1543,7 +1537,7 @@ export default function Orders() {
                                 )}
                                 <div className="relative h-32 bg-gradient-to-br from-[#4CA1AF22] to-[#4CA1AF44]">
                                   {item?.Item_Image && (
-                                    <img loading="lazy" src={`http://192.168.29.2:4000/uploads/food-item/${item.Item_Image}`} alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
+                                    <img loading="lazy" src={`http://192.168.0.101:4000/uploads/food-item/${item.Item_Image}`} alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
                                   )}
                                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
                                   <div className="absolute top-2 right-2">
@@ -1744,7 +1738,7 @@ export default function Orders() {
                               )}
                               <div className="relative h-28 bg-gradient-to-br from-[#4CA1AF22] to-[#4CA1AF44]">
                                 {item?.Item_Image && (
-                                  <img loading="lazy" src={`http://192.168.29.2:4000/uploads/food-item/${item.Item_Image}`} alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
+                                  <img loading="lazy" src={`http://192.168.0.101:4000/uploads/food-item/${item.Item_Image}`} alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
                                 )}
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
                                 <div className="absolute top-1 right-1">

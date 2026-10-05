@@ -27,7 +27,7 @@
 // import { useMemo } from "react";
 
 
-// const socket = io("http://192.168.29.2:4000", {
+// const socket = io("http://192.168.0.101:4000", {
 //   transports: ["websocket"],
 // });
 
@@ -893,7 +893,7 @@
 //                                                     <img
 //                                                       src={
 //                                                         item?.Item_Image
-//                                                           ? `http://192.168.29.2:4000/uploads/food-item/${item?.Item_Image}`
+//                                                           ? `http://192.168.0.101:4000/uploads/food-item/${item?.Item_Image}`
 //                                                           : ""
 //                                                       }
 //                                                       alt={item?.Item_Name}

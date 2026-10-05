@@ -18,7 +18,7 @@
 // import { useGetAllTablesQuery } from '../../../redux/api/tableApi';
 // import { useGetOrdersByWaiterQuery } from '../../../redux/Waiter/waiterApi';
 
-// const socket = io("http://192.168.29.2:4000", { transports: ["websocket"] });
+// const socket = io("http://192.168.0.101:4000", { transports: ["websocket"] });
 
 // export default function WaiterOrders() {
 

@@ -32,7 +32,7 @@ import { waiterApi } from "../../../redux/Waiter/waiterApi";
 
 
 
-const socket = io("http://192.168.29.2:4000", {
+const socket = io("http://192.168.0.101:4000", {
   transports: ["websocket"],
 });
   
@@ -1516,7 +1516,7 @@ if (res?.elligibleItems && res?.elligibleItems &&   Object.keys(res.elligibleIte
                                 <img
                                   src={
                                     item?.Item_Image
-                                      ? `http://192.168.29.2:4000/uploads/food-item/${item?.Item_Image}`
+                                      ? `http://192.168.0.101:4000/uploads/food-item/${item?.Item_Image}`
                                       : ""
                                   }
                                   alt={item?.Item_Name}

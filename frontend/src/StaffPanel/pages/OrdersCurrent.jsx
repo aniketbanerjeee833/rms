@@ -32,7 +32,7 @@ import { useGetAllCategoriesQuery } from "../../redux/api/itemApi";
 
 
 
-const socket = io("http://192.168.29.2:4000", {
+const socket = io("http://192.168.0.101:4000", {
   transports: ["websocket"],
 });
 
@@ -1836,7 +1836,7 @@ console.log(summaryItems,"summaryItems");
                                 {item?.Item_Image && (
   <img
     loading="lazy"
-    src={`http://192.168.29.2:4000/uploads/food-item/${item.Item_Image}`}
+    src={`http://192.168.0.101:4000/uploads/food-item/${item.Item_Image}`}
     alt={item.Item_Name}
     className="w-full h-full object-cover opacity-90"
   />
@@ -1845,7 +1845,7 @@ console.log(summaryItems,"summaryItems");
          loading="lazy"
           src={
             item?.Item_Image
-              ? `http://192.168.29.2:4000/uploads/food-item/${item.Item_Image}`
+              ? `http://192.168.0.101:4000/uploads/food-item/${item.Item_Image}`
               : ""
           }
           alt={item.Item_Name}
@@ -2293,7 +2293,7 @@ console.log(summaryItems,"summaryItems");
 //                                                     <img
 //                                                         src={
 //                                                             item?.Item_Image
-//                                                                 ? `http://192.168.29.2:4000/uploads/food-item/${item.Item_Image}`
+//                                                                 ? `http://192.168.0.101:4000/uploads/food-item/${item.Item_Image}`
 //                                                                 : ""
 //                                                         }
 //                                                         alt={item.Item_Name}
@@ -2530,7 +2530,7 @@ console.log(summaryItems,"summaryItems");
 //   <div className="relative h-56 overflow-hidden bg-gradient-to-br from-orange-200 to-red-200">
 //     <div className="absolute inset-0 flex items-center justify-center text-6xl opacity-20">
 //       <img
-//         src={item?.Item_Image ? `http://192.168.29.2:4000/uploads/food-item/${item.Item_Image}` : ''}
+//         src={item?.Item_Image ? `http://192.168.0.101:4000/uploads/food-item/${item.Item_Image}` : ''}
 //         alt={item.Item_Name}
 //         className="w-full h-full object-cover"
 //       />

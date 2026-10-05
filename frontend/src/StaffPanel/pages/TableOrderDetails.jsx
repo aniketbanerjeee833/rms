@@ -27,7 +27,7 @@ import { useMemo } from "react";
 import { useGetAllCategoriesQuery } from "../../redux/api/itemApi";
 
 
-const socket = io("http://192.168.29.2:4000", {
+const socket = io("http://192.168.0.101:4000", {
   transports: ["websocket"],
 });
 
@@ -36,21 +36,20 @@ const socket = io("http://192.168.29.2:4000", {
 
 
 export default function TableOrderDetails() {
-  // const formatTime = (time) => {
-  //   if (!time) return "--";
-  //   const d = new Date(time);
-  //   d.setSeconds(0);
-  //   return d.toLocaleTimeString([], {
-  //     hour: "2-digit",
-  //     minute: "2-digit",
-  //   });
-  // };
-
+ 
   const { Order_Id } = useParams();
   const dispatch = useDispatch();
   const [orderDetailsModalOpen, setOrderDetailsModalOpen] = useState(false);
   //console.log(Order_Id);
-  const { data: tableOrderDetails } = useGetTableOrderDetailsQuery(Order_Id);
+  // const { data: tableOrderDetails } = useGetTableOrderDetailsQuery(Order_Id);
+  const {
+  data: tableOrderDetails,
+  refetch: refetchTableOrderDetails,
+} = useGetTableOrderDetailsQuery(Order_Id);
+//   const {
+//   data: tableOrderDetails,
+//   refetch: refetchTableOrderDetails,
+// } = useGetTableOrderDetailsQuery(Order_Id);
   //console.log(tableOrderDetails, "tableOrderDetails");
   const TAX_RATES = {
     "None": 0,
@@ -105,13 +104,7 @@ export default function TableOrderDetails() {
   //console.log(tables, isLoading, "tables", menuItems, isMenuItemsLoading);
   const items = menuItems?.foodItems
   const [updateOrder, { isLoading: isUpdateOrderLoading }] = useUpdateOrderMutation();
-  //const lastUpdatedItemRef = useRef(null);
-
-  // const [rows, setRows] = useState([
-  //   {
-  //     CategoryOpen: false, categorySearch: "", preview: null
-  //   }
-  // ]);
+ 
   const [cart, setCart] = useState({});
 
   const { data: categories } = useGetAllCategoriesQuery()
@@ -124,6 +117,13 @@ export default function TableOrderDetails() {
   const lastCategoryRef = useRef(activeCategory);
 
   const [kotNotifications, setKotNotifications] = useState([]);
+  useEffect(() => {
+  socket.emit("join_staff_room");
+
+  return () => {
+    socket.emit("leave_staff_room");
+  };
+}, []);
   useEffect(() => {
     const handleAvailabilityChange = (data) => {
       console.log("📢 Food status changed:", data);
@@ -173,7 +173,47 @@ export default function TableOrderDetails() {
     setKotNotifications(fresh);
 
   }, [tableOrderDetails]);
+useEffect(() => {
+  const handleCustomerOrder = (data) => {
+    console.log("📢 Customer order received:", data);
 
+    // Only handle this if it is the order currently open
+    if (String(data.Order_Id) !== String(Order_Id)) {
+      return;
+    }
+
+    toast.info(`New items added to ${data.Table_Name} by customer`);
+
+    // Get latest order data
+    refetchTableOrderDetails();
+  };
+
+  socket.on("customer_order", handleCustomerOrder);
+
+  return () => {
+    socket.off("customer_order", handleCustomerOrder);
+  };
+}, [Order_Id, refetchTableOrderDetails]);
+
+useEffect(() => {
+  const handleWaiterOrderUpdate = (data) => {
+    console.log("📢 Waiter order updated:", data);
+
+    if (String(data.Order_Id) !== String(Order_Id)) {
+      return;
+    }
+
+    toast.info("Waiter updated this order.");
+
+    refetchTableOrderDetails();
+  };
+
+  socket.on("waiter_order_update", handleWaiterOrderUpdate);
+
+  return () => {
+    socket.off("waiter_order_update", handleWaiterOrderUpdate);
+  };
+}, [Order_Id, refetchTableOrderDetails]);
   useEffect(() => {
     const handleKotUpdate = (data) => {
 
@@ -324,88 +364,7 @@ export default function TableOrderDetails() {
   });
 
 
-  // const filteredItems = activeCategory === 'All'
-  //     ? items
-  //     : items?.filter(item => item?.Item_Category === activeCategory);
-
-
-  // const filteredItems = useMemo(() => {
-  //   if (!items) return [];
-
-  //   const search = searchTerm.trim().toLowerCase();
-  //   const categoryChanged = lastCategoryRef.current !== activeCategory;
-
-  //   // 1️⃣ Filter first
-  //   const filtered = items.filter((item) => {
-  //     const matchesCategory =
-  //       activeCategory === "All" ||
-  //       item.Item_Category === activeCategory;
-
-  //     const matchesSearch =
-  //       categoryChanged ||
-  //       !search ||
-  //       item.Item_Name.toLowerCase().includes(search);
-
-  //     return matchesCategory && matchesSearch;
-  //   });
-
-  //   // 2️⃣ Split: already-added vs not-added
-  //   const addedItems = [];
-  //   const newItems = [];
-
-  //   filtered.forEach((item) => {
-  //     if (cart?.[item.Item_Id]) {
-  //       addedItems.push(item);   // 🔥 SHOW FIRST
-  //     } else {
-  //       newItems.push(item);
-  //     }
-  //   });
-
-  //   lastCategoryRef.current = activeCategory;
-
-  //   // 3️⃣ Merge → added items on top
-  //   return [...addedItems, ...newItems];
-  // }, [items, activeCategory, searchTerm, cart]);
-  // const filteredItems = useMemo(() => {
-  //   if (!items) return [];
-
-  //   const term = searchTerm.trim().toLowerCase();
-  //   const categoryChanged = lastCategoryRef.current !== activeCategory;
-
-  //   const filtered = items.filter((item) => {
-  //     const matchesCategory =
-  //       activeCategory === "All" ||
-  //       item.Item_Category === activeCategory;
-
-  //     // 🔥 Ignore search when category JUST changed
-  //     const matchesSearch = categoryChanged
-  //       ? true
-  //       : !term || item.Item_Name?.toLowerCase().includes(term);
-
-  //     return matchesCategory && matchesSearch;
-  //   });
-
-  //   // update category ref AFTER filtering
-  //   lastCategoryRef.current = activeCategory;
-
-  //   return [...filtered].sort((a, b) => {
-  //     const aId = a.id;
-  //     const bId = b.id;
-
-  //     const aInCart = cart[aId] ? 1 : 0;
-  //     const bInCart = cart[bId] ? 1 : 0;
-
-  //     // 🔥 MOST RECENT ITEM ALWAYS ON TOP
-  //     if (aId === lastUpdatedItemRef.current) return -1;
-  //     if (bId === lastUpdatedItemRef.current) return 1;
-
-  //     // 🔥 CART ITEMS ABOVE NON-CART ITEMS
-  //     if (aInCart !== bInCart) return bInCart - aInCart;
-
-  //     return 0;
-  //   });
-  // }, [items, activeCategory, searchTerm, cart]);
-
+ 
 
 
   const totalItems = Object.values(cart).reduce((sum, qty) => sum + qty, 0);
@@ -1465,7 +1424,7 @@ export default function TableOrderDetails() {
                       </div>
                     </div>
 
-                    {/* ⭐ KITCHEN ITEMS GRID */}
+                    {/*  KITCHEN ITEMS GRID */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full">
                       {kotNotifications?.length === 0 ? (
                         <p className="text-gray-500 text-sm text-center col-span-full py-8">
@@ -1776,7 +1735,7 @@ export default function TableOrderDetails() {
                                 )}
                                 <div className="relative h-32 bg-gradient-to-br from-[#4CA1AF22] to-[#4CA1AF44]">
                                   {item?.Item_Image && (
-                                    <img loading="lazy" src={`http://192.168.29.2:4000/uploads/food-item/${item.Item_Image}`} alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
+                                    <img loading="lazy" src={`http://192.168.0.101:4000/uploads/food-item/${item.Item_Image}`} alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
                                   )}
                                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
                                   <div className="absolute top-2 right-2">
@@ -1985,7 +1944,7 @@ export default function TableOrderDetails() {
                               )}
                               <div className="relative h-28 bg-gradient-to-br from-[#4CA1AF22] to-[#4CA1AF44]">
                                 {item?.Item_Image && (
-                                  <img loading="lazy" src={`http://192.168.29.2:4000/uploads/food-item/${item.Item_Image}`} alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
+                                  <img loading="lazy" src={`http://192.168.0.101:4000/uploads/food-item/${item.Item_Image}`} alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
                                 )}
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
                                 <div className="absolute top-1 right-1">

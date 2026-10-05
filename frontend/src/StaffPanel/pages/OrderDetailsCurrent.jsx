@@ -11,7 +11,7 @@ import { useDispatch } from 'react-redux';
 import { toast } from 'react-toastify';
 
 
-const socket = io("http://192.168.29.2:4000", {
+const socket = io("http://192.168.0.101:4000", {
   transports: ["websocket"],
 });
 

@@ -28,7 +28,7 @@ import { useMemo } from "react";
 import { useGetAllCategoriesQuery } from "../../redux/api/itemApi";
 
 
-const socket = io("http://192.168.29.2:4000", {
+const socket = io("http://192.168.0.101:4000", {
   transports: ["websocket"],
 });
 
@@ -1684,7 +1684,7 @@ if (res?.elligibleItems && res?.elligibleItems &&   Object.keys(res.elligibleIte
                                 loading="lazy"
                                   src={
                                     item?.Item_Image
-                                      ? `http://192.168.29.2:4000/uploads/food-item/${item?.Item_Image}`
+                                      ? `http://192.168.0.101:4000/uploads/food-item/${item?.Item_Image}`
                                       : ""
                                   }
                                   alt={item?.Item_Name}
@@ -1693,7 +1693,7 @@ if (res?.elligibleItems && res?.elligibleItems &&   Object.keys(res.elligibleIte
                                  {item?.Item_Image && (
                                         <img
                                           loading="lazy"
-                                src={`http://192.168.29.2:4000/uploads/food-item/${item.Item_Image}`}
+                                src={`http://192.168.0.101:4000/uploads/food-item/${item.Item_Image}`}
                                                       alt={item?.Item_Name}
                                               className="w-full h-full object-cover opacity-90"
                                                    />

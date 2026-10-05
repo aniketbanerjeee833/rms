@@ -165,7 +165,7 @@ async function generateNextInvoiceId(connection, prefix, column, table) {
 // // const restaurantName = "Hello Guys Shakuntala Park";
 // const totalAmount = Number(Final_Amount).toFixed(2);
 // const billNumber = Invoice_Id; // or invoice display number
-// // const invoiceLink = `http://192.168.29.2:4000/api/staff/order/${billNumber}`;
+// // const invoiceLink = `http://192.168.0.101:4000/api/staff/order/${billNumber}`;
 // // const invoiceLink = `https://ancoinnovation.com/b/${billNumber}`
 // const invoiceLink = `${"http://localhost:5173"}/${billNumber}`
 // // const invoiceLink = `${"http://localhost:5173"}/invoice/view/${billNumber}`;
@@ -1193,7 +1193,7 @@ const getPublicInvoiceHtml = async (req, res, next) => {
 // // const invoiceLink = `https://ancoinnovation.com/b/${billNumber}`
 // //   const invoiceLink = `http://localhost:5173/${billNumber}`
 // // //  const invoiceLink = `${"http://localhost:5173"}/${billNumber}`
-// // // const invoiceLink = `http://192.168.29.2:4000/api/staff/order/${billNumber}`;
+// // // const invoiceLink = `http://192.168.0.101:4000/api/staff/order/${billNumber}`;
 // // // const invoiceLink = `${"http://localhost:5173"}/invoice/view/${billNumber}`;
 // // // const invoiceLink = `https://ancoinnovation.com/restaurant-mangement-system/invoice/view/${Public_Token}`
 // // // const smsMessage = `Hi, Your bill from Hello Guys Shakuntala Park : Total Rs.${totalAmount} (incl. Tax). Bill No. ${billNumber}. View full details: ${invoiceLink} CLPLSE.`;
@@ -1561,7 +1561,7 @@ const getPublicInvoiceHtml = async (req, res, next) => {
 // // const invoiceLink = `https://ancoinnovation.com/b/${billNumber}`
 //   const invoiceLink = `http://localhost:5173/${billNumber}`
 // //  const invoiceLink = `${"http://localhost:5173"}/${billNumber}`
-// // const invoiceLink = `http://192.168.29.2:4000/api/staff/order/${billNumber}`;
+// // const invoiceLink = `http://192.168.0.101:4000/api/staff/order/${billNumber}`;
 // // const invoiceLink = `${"http://localhost:5173"}/invoice/view/${billNumber}`;
 // // const invoiceLink = `https://ancoinnovation.com/restaurant-mangement-system/invoice/view/${Public_Token}`;
 
@@ -1853,7 +1853,7 @@ if (Waiter_Id) {
 // const invoiceLink = `https://ancoinnovation.com/b/${billNumber}`
 //   const invoiceLink = `http://localhost:5173/${billNumber}`
 // //  const invoiceLink = `${"http://localhost:5173"}/${billNumber}`
-// // const invoiceLink = `http://192.168.29.2:4000/api/staff/order/${billNumber}`;
+// // const invoiceLink = `http://192.168.0.101:4000/api/staff/order/${billNumber}`;
 // // const invoiceLink = `${"http://localhost:5173"}/invoice/view/${billNumber}`;
 // // const invoiceLink = `https://ancoinnovation.com/restaurant-mangement-system/invoice/view/${Public_Token}`
 // // const smsMessage = `Hi, Your bill from Hello Guys Shakuntala Park : Total Rs.${totalAmount} (incl. Tax). Bill No. ${billNumber}. View full details: ${invoiceLink} CLPLSE.`;
@@ -2139,7 +2139,7 @@ if (TEST_NUMBERS.includes(String(Customer_Phone))) {
 //  // const invoiceLink = `https://ancoinnovation.com/b/${billNumber}`
 // //   const invoiceLink = `http://localhost:5173/${billNumber}`
 // // //  const invoiceLink = `${"http://localhost:5173"}/${billNumber}`
-// // // const invoiceLink = `http://192.168.29.2:4000/api/staff/order/${billNumber}`;
+// // // const invoiceLink = `http://192.168.0.101:4000/api/staff/order/${billNumber}`;
 // // // const invoiceLink = `${"http://localhost:5173"}/invoice/view/${billNumber}`;
 // // // const invoiceLink = `https://ancoinnovation.com/restaurant-mangement-system/invoice/view/${Public_Token}`
 // // // const smsMessage = `Hi, Your bill from Hello Guys Shakuntala Park : Total Rs.${totalAmount} (incl. Tax). Bill No. ${billNumber}. View full details: ${invoiceLink} CLPLSE.`;
@@ -2595,7 +2595,7 @@ for (let item of items) {
  // const invoiceLink = `https://ancoinnovation.com/b/${billNumber}`
 //   const invoiceLink = `http://localhost:5173/${billNumber}`
 // //  const invoiceLink = `${"http://localhost:5173"}/${billNumber}`
-// // const invoiceLink = `http://192.168.29.2:4000/api/staff/order/${billNumber}`;
+// // const invoiceLink = `http://192.168.0.101:4000/api/staff/order/${billNumber}`;
 // // const invoiceLink = `${"http://localhost:5173"}/invoice/view/${billNumber}`;
 // // const invoiceLink = `https://ancoinnovation.com/restaurant-mangement-system/invoice/view/${Public_Token}`
 // // const smsMessage = `Hi, Your bill from Hello Guys Shakuntala Park : Total Rs.${totalAmount} (incl. Tax). Bill No. ${billNumber}. View full details: ${invoiceLink} CLPLSE.`;

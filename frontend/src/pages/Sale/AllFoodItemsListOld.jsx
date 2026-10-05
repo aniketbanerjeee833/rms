@@ -288,7 +288,7 @@ const handleSoftDeleteFoodItem = async () => {
           <img
             src={
               foodItem?.Item_Image &&
-              `http://192.168.29.2:4000/uploads/food-item/${foodItem?.Item_Image}`
+              `http://192.168.0.101:4000/uploads/food-item/${foodItem?.Item_Image}`
             }
             alt={foodItem?.Item_Name}
             style={{ width: "50px", height: "50px" }}
@@ -715,7 +715,7 @@ const handleSoftDeleteFoodItem = async () => {
                                  <td>
                               <img
                                 src={foodItem?.Item_Image &&
-                                  `http://192.168.29.2:4000/uploads/food-item/${foodItem?.Item_Image}`
+                                  `http://192.168.0.101:4000/uploads/food-item/${foodItem?.Item_Image}`
                                 }
                                 alt={foodItem?.Item_Name}
                                 style={{ width: "50px", height: "50px" }}

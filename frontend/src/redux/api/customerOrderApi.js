@@ -4,7 +4,7 @@ export const customerOrderApi = createApi({
   reducerPath: "customerOrderApi",
 
   baseQuery: fetchBaseQuery({
-    baseUrl: "http://192.168.29.2:4000/api/customer/",
+    baseUrl: "http://192.168.0.101:4000/api/customer/",
     credentials: "include",
   }),
 

@@ -127,7 +127,7 @@ app.use(cookieParser());
 const allowedOrigins = [
   process.env.CLIENT_URL,               // e.g. http://localhost:5173
   "http://localhost:5174",              // second allowed origin
-"http://192.168.29.2:5173",
+"http://192.168.0.101:5173",
 ];
 
 app.use(cors({
@@ -184,7 +184,17 @@ app.use("/api/customer",customerOrderRoutes)
 //   });
 // });
 io.on("connection", (socket) => {
-  console.log("📡 A user connected:", socket.id);
+  //console.log("📡 A user connected:", socket.id);
+    // ── STAFF ROOM ─────────────────────────────
+  socket.on("join_staff_room", () => {
+    socket.join("staff");
+    console.log(`👨‍💼 Staff ${socket.id} joined staff room`);
+  });
+
+  socket.on("leave_staff_room", () => {
+    socket.leave("staff");
+    console.log(`👨‍💼 Staff ${socket.id} left staff room`);
+  });
 
   // Join a specific order room
   socket.on("join_order_room", (KOT_Id) => {
@@ -234,6 +244,17 @@ socket.on("join_kitchen_categories", (categories = []) => {
     socket.leave(`waiter_${Waiter_Id}`);
     console.log(`🧑‍🍳 Waiter ${Waiter_Id} left waiter room`);
   });
+//   socket.on("join_customer_session", (token) => {
+//   socket.join(`customer_session_${token}`);
+
+//   console.log(`📱 Customer ${socket.id} joined customer_session_${token}`);
+// });
+
+// socket.on("leave_customer_session", (token) => {
+//   socket.leave(`customer_session_${token}`);
+
+//   console.log(`📱 Customer ${socket.id} left customer_session_${token}`);
+// });
   // On disconnect
   socket.on("disconnect", () => {
     console.log("❌ User disconnected:", socket.id);

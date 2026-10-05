@@ -1,5 +1,5 @@
 
-//  `http://192.168.29.2:4000/api/staff/order/${Invoice_Id}`
+//  `http://192.168.0.101:4000/api/staff/order/${Invoice_Id}`
 
 
 
@@ -26,7 +26,7 @@ const [tables, setTables] = useState([]);
     const fetchInvoice = async () => {
       try {
         const res = await axios.get(
-          `http://192.168.29.2:4000/api/staff/order/${Invoice_Id}`
+          `http://192.168.0.101:4000/api/staff/order/${Invoice_Id}`
         );
 
         // EXPECTED BACKEND RESPONSE:

@@ -37,7 +37,7 @@ import { waiterApi } from "../../../redux/Waiter/waiterApi";
 
 
 
-// const socket = io("http://192.168.29.2:4000", {
+// const socket = io("http://192.168.0.101:4000", {
 //   transports: ["websocket"],
 // });
 
@@ -152,7 +152,8 @@ export default function AddWaiterOrders() {
     const [activeCategory, setActiveCategory] = useState('All');
 const lastCategoryRef = useRef(activeCategory);
   const { data: tables, isLoading } = useGetAllTablesQuery({});
-  const { data: menuItems, isLoading: isMenuItemsLoading, refetch: refetchMenuItems, isFetching } = useGetAllFoodItemsQuery({});
+  const { data: menuItems, isLoading: isMenuItemsLoading, refetch: refetchMenuItems, isFetching } = 
+ useGetAllFoodItemsQuery({orderType: "DINE_IN"});
   const items = menuItems?.foodItems
   console.log(tables, isLoading, "tables", items, isMenuItemsLoading);
   const { Table_Name } = useParams();
@@ -1344,7 +1345,7 @@ console.log(summaryItems,"summaryItems");
                                  )}
                                  <div className="relative h-32 bg-gradient-to-br from-[#4CA1AF22] to-[#4CA1AF44]">
                                    {item?.Item_Image && (
-                                     <img loading="lazy" src={`http://192.168.29.2:4000/uploads/food-item/${item.Item_Image}`} alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
+                                     <img loading="lazy" src={`http://192.168.0.101:4000/uploads/food-item/${item.Item_Image}`} alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
                                    )}
                                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
                                    <div className="absolute top-2 right-2">
@@ -1539,7 +1540,7 @@ console.log(summaryItems,"summaryItems");
                                )}
                                <div className="relative h-28 bg-gradient-to-br from-[#4CA1AF22] to-[#4CA1AF44]">
                                  {item?.Item_Image && (
-                                   <img loading="lazy" src={`http://192.168.29.2:4000/uploads/food-item/${item.Item_Image}`} alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
+                                   <img loading="lazy" src={`http://192.168.0.101:4000/uploads/food-item/${item.Item_Image}`} alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
                                  )}
                                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
                                  <div className="absolute top-1 right-1">

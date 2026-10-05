@@ -115,7 +115,7 @@ const KitchenStaff=lazy(()=>import('./KitchenStaffPanel/pages/KitchenStaff'))
 
 
 const InvoicePublicView=lazy(()=>import('./pages/InvoicePublicView'))
-const CustomerQRMenuView=lazy(()=>import('./pages/CustomerQRMenuView/CustomerQRMenuView'))
+const CustomerQRMenuView=lazy(()=>import('./pages/Customer/CustomerQRMenuView'))
 // ==========================================
 // 🔒 Auth Route Guards
 // ==========================================

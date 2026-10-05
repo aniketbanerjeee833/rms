@@ -1,5 +1,6 @@
 import { io } from "../../app.js";
 import db from "../../config/db.js";
+import { closeSessionsForOrder } from "../customerOrderController.js";
 // import escpos from "escpos";
 // import Network from "escpos-network";
 
@@ -739,6 +740,15 @@ await connection.execute(
     });
 
     await connection.commit();
+    // 🔔 CASHIER / FRONTDESK
+io.to("staff").emit("waiter_order", {
+  Order_Id,
+  KOT_Id,
+  Table_Names,
+  User_Id: userId,
+  Source: "waiter",
+  at: new Date().toISOString(),
+});
 
     /* ---------------- SOCKET EMIT ---------------- */
     Object.entries(byCategory).forEach(([category, items]) => {
@@ -1250,52 +1260,77 @@ const getTablesHavingOrders = async (req, res, next) => {
         // ===========================
         // 1️⃣ DINE-IN ORDERS
         // ===========================
-        // const [dineinOrders] = await connection.query(
-        //     `SELECT 
-        //         o.Order_Id,
-        //         o.User_Id,
-        //         o.Status,
-        //         o.Sub_Total,
-        //         o.Discount,
-        //         o.Amount,
-        //         o.Payment_Status,
-        //         t.Table_Id,
-        //         t.Table_Name,
-        //         t.Start_Time AS Table_Start_Time
-        //     FROM orders o
-        //     JOIN order_tables ot ON o.Order_Id = ot.Order_Id
-        //     JOIN add_table t ON t.Table_Id = ot.Table_Id
-        //     WHERE o.Status = 'hold'`
-        // );
-const [dineinOrders] = await connection.query(
- `SELECT 
-    o.Order_Id,
-    o.User_Id,
-    u.name,       
-    u.username,   
-    u.role,       
-    o.Status,
-    o.Sub_Total,
-    o.Discount,
-    o.Amount,
-    o.Payment_Status,
-    t.Table_Id,
-    t.Table_Name,
-    t.Start_Time AS Table_Start_Time
-FROM orders o
-JOIN users u ON u.User_Id = o.User_Id     
-JOIN order_tables ot ON o.Order_Id = ot.Order_Id
-JOIN add_table t ON t.Table_Id = ot.Table_Id
-WHERE o.Status = 'hold'`
+        
+// const [dineinOrders] = await connection.query(
+//  `SELECT 
+//     o.Order_Id,
+//     o.User_Id,
+//     u.name,       
+//     u.username,   
+//     u.role,       
+//     o.Status,
+//     o.Sub_Total,
+//     o.Discount,
+//     o.Amount,
+//     o.Payment_Status,
+//     t.Table_Id,
+//     t.Table_Name,
+//     t.Start_Time AS Table_Start_Time
+// FROM orders o
+// JOIN users u ON u.User_Id = o.User_Id     
+// JOIN order_tables ot ON o.Order_Id = ot.Order_Id
+// JOIN add_table t ON t.Table_Id = ot.Table_Id
+// WHERE o.Status = 'hold'`
 
+// );
+
+const [dineinOrders] = await connection.query(
+  `SELECT 
+      o.Order_Id,
+      o.User_Id,
+      u.name,       
+      u.username,   
+      u.role,       
+      o.Status,
+      o.Sub_Total,
+      o.Discount,
+      o.Amount,
+      o.Payment_Status,
+      t.Table_Id,
+      t.Table_Name,
+      t.Start_Time AS Table_Start_Time
+   FROM orders o
+
+   LEFT JOIN users u 
+      ON u.User_Id = o.User_Id
+
+   JOIN order_tables ot 
+      ON o.Order_Id = ot.Order_Id
+
+   JOIN add_table t 
+      ON t.Table_Id = ot.Table_Id
+
+   WHERE o.Status = 'hold'`
 );
 
 
 
-     const dineInFormatted = dineinOrders.map(o => ({
+//      const dineInFormatted = dineinOrders.map(o => ({
+//   ...o,
+//   orderType: "dinein",
+//   orderBy: o.role === "waiter" ? "waiter" : "staff"
+// }));
+
+const dineInFormatted = dineinOrders.map((o) => ({
   ...o,
   orderType: "dinein",
-  orderBy: o.role === "waiter" ? "waiter" : "staff"
+
+  orderBy:
+    o.User_Id === null
+      ? "customer"
+      : o.role === "waiter"
+      ? "waiter"
+      : "staff",
 }));
 
         // ===========================
@@ -2527,87 +2562,16 @@ for (const d of deltaItems) {
     ]
   );
 }
-// for (const d of deltaItems) {
-//   const [[dbItem]] = await connection.execute(
-//     `SELECT Item_Id FROM add_food_item WHERE Item_Name = ? LIMIT 1`,
-//     [d.Item_Name]
-//   );
 
-//   if (!dbItem) continue;
-
-//   const Item_Id = dbItem.Item_Id;
-
-//   await connection.execute(
-//     `
-//     INSERT IGNORE INTO daily_food_stock
-//       (Item_Id, Stock_Date, Opening_Quantity, Added_Quantity, Sold_Quantity, Closing_Quantity)
-//     VALUES (?, ?, 0, 0, 0, 0)
-//     `,
-//     [Item_Id, stockDate]
-//   );
-
-//   const [[stock]] = await connection.execute(
-//     `
-//     SELECT id
-//     FROM daily_food_stock
-//     WHERE Item_Id = ? AND Stock_Date = ?
-//     FOR UPDATE
-//     `,
-//     [Item_Id, stockDate]
-//   );
-
-//   if (!stock) {
-//     await connection.rollback();
-//     return res.status(400).json({
-//       success: false,
-//       message: "Stock row missing",
-//     });
-//   }
-
-//   if (d.movementType === "DINE_IN") {
-//     await connection.execute(
-//       `
-//       UPDATE daily_food_stock
-//       SET
-//         Sold_Quantity = Sold_Quantity + ?,
-//         Closing_Quantity = Closing_Quantity - ?
-//       WHERE id = ?
-//       `,
-//       [d.diffQty, d.diffQty, stock.id]
-//     );
-//   }
-
-//   if (d.movementType === "RETURN") {
-//     await connection.execute(
-//       `
-//       UPDATE daily_food_stock
-//       SET
-//         Sold_Quantity = Sold_Quantity - ?,
-//         Closing_Quantity = Closing_Quantity + ?
-//       WHERE id = ?
-//       `,
-//       [d.diffQty, d.diffQty, stock.id]
-//     );
-//   }
-
-//   await connection.execute(
-//     `
-//     INSERT INTO food_stock_movements
-//       (Item_Id, Stock_Date, Movement_Type, Quantity, Ref_Id, User_Id)
-//     VALUES (?, ?, ?, ?, ?, ?)
-//     `,
-//     [
-//       Item_Id,
-//       stockDate,
-//       d.movementType,
-//       d.diffQty,
-//       Order_Id,
-//       userId,
-//     ]
-//   );
-// }
 
     await connection.commit();
+    // 🔔 Notify cashier/frontdesk that this order was updated
+io.to("staff").emit("waiter_order_update", {
+  Order_Id,
+  KOT_Id,
+  Source: "waiter",
+  at: new Date().toISOString(),
+});
 
     return res.status(200).json({
       success: true,
@@ -2907,6 +2871,7 @@ const confirmOrderBillPaidAndInvoiceGenerated = async (req, res, next) => {
         [tableIds.map((t) => t.Table_Id)]
       );
     }
+    await closeSessionsForOrder(connection, Order_Id);   
 
     /* ---------------------------------------
      6 Kitchen Status

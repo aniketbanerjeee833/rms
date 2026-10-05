@@ -41,7 +41,7 @@ import { io } from "socket.io-client";
 export default function OrdersTakeAway() {
   //const { userId } = useSelector((state) => state.user);
   // const dispatch = useDispatch();
-const socket = io("http://192.168.29.2:4000", {
+const socket = io("http://192.168.0.101:4000", {
   transports: ["websocket"],
 });
   
@@ -2601,7 +2601,7 @@ const handlePrintKOT = async () => {
                                   loading="lazy"
                                     src={
                                       item?.Item_Image
-                                        ? `http://192.168.29.2:4000/uploads/food-item/${item.Item_Image}`
+                                        ? `http://192.168.0.101:4000/uploads/food-item/${item.Item_Image}`
                                         : ""
                                     }
                                     alt={item.Item_Name}
@@ -2610,7 +2610,7 @@ const handlePrintKOT = async () => {
                                      {item?.Item_Image && (
                                         <img
                                           loading="lazy"
-                                src={`http://192.168.29.2:4000/uploads/food-item/${item.Item_Image}`}
+                                src={`http://192.168.0.101:4000/uploads/food-item/${item.Item_Image}`}
                                                       alt={item?.Item_Name}
                                               className="w-full h-full object-cover opacity-90"
                                                    />

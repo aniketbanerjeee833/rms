@@ -198,7 +198,7 @@ const getAllFoodItems = async (req, res, next) => {
       params.push(like, like);
     }
 
-    // const whereSQL = `WHERE ${whereClauses.join(" AND ")}`;
+    const whereSQL = `WHERE ${whereClauses.join(" AND ")}`;
 
     // /* ==========================================================
     //    👤 USER / STAFF FLOW
