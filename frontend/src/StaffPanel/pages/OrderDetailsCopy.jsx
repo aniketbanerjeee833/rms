@@ -17,7 +17,9 @@ import { useDispatch } from 'react-redux';
 import { toast } from 'react-toastify';
 import { useGetAllTablesQuery } from '../../redux/api/tableApi';
 
-const socket = io("http://192.168.0.101:4000", { transports: ["websocket"] });
+const socket = io("http://192.168.0.101:4000", {
+  transports: ["websocket"],
+});
 
 export default function OrderDetails() {
 
@@ -572,7 +574,7 @@ if (res?.elligibleItems && Object.keys(res.elligibleItems).length > 0) {
 // import { toast } from 'react-toastify';
 
 
-// const socket = io("http://192.168.0.101:4000", {
+// const socket = io("", {
 //   transports: ["websocket"],
 // });
 

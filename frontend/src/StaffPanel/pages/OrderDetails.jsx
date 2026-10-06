@@ -10,14 +10,17 @@ import { useNavigate } from 'react-router-dom';
 import {
   orderApi,
   useKOTOfOrdersTakenByWaiterMutation,
-  useGetTablesHavingOrdersQuery
+  useGetTablesHavingOrdersQuery,
+  useRejectCustomerOrderMutation
 } from '../../redux/api/Staff/orderApi';
 import { io } from 'socket.io-client';
 import { useDispatch } from 'react-redux';
 import { toast } from 'react-toastify';
 import { useGetAllTablesQuery } from '../../redux/api/tableApi';
 
-const socket = io("http://192.168.0.101:4000", { transports: ["websocket"] });
+const socket = io("http://192.168.0.101:4000", {
+  transports: ["websocket"],
+});
 
 export default function OrderDetails() {
 
@@ -41,6 +44,22 @@ export default function OrderDetails() {
 } = useGetTablesHavingOrdersQuery();
   const { data: tables } = useGetAllTablesQuery({});
   //console.log("Tables:", tables);
+  const [rejectCustomerOrder] = useRejectCustomerOrderMutation();
+
+const handleReject = async (order) => {
+  const ok = window.confirm(
+    `Reject the customer's order on ${order.Tables.join(", ")}?\n\n` +
+    `Everything on it will be cancelled and the table freed. Use this only if nobody is seated there.`
+  );
+  if (!ok) return;
+  try {
+    await rejectCustomerOrder({ Order_Id: order.Order_Id, reason: "No customer at table" }).unwrap();
+    toast.success("Customer order rejected");
+    refetchTablesHavingOrders();
+  } catch (e) {
+    toast.error(e?.data?.message || "Could not reject the order");
+  }
+};
   const [waiterOrdersToBePrinted] = useKOTOfOrdersTakenByWaiterMutation();
 
   // ── Sockets ────────────────────────────────────────────────────────────────
@@ -51,14 +70,12 @@ export default function OrderDetails() {
     socket.on("frontdesk_order_update", handleOrderUpdate);
     return () => socket.off("frontdesk_order_update", handleOrderUpdate);
   }, []);
+useEffect(() => {
+  const onRejected = () => refetchTablesHavingOrders();
+  socket.on("customer_order_rejected", onRejected);
+  return () => socket.off("customer_order_rejected", onRejected);
+}, [refetchTablesHavingOrders]);
 
-//   useEffect(() => {
-//   socket.emit("join_staff_room");
-
-//   return () => {
-//     socket.emit("leave_staff_room");
-//   };
-// }, []);
 useEffect(() => {
   const joinStaffRoom = () => {
     console.log("Socket connected:", socket.id);
@@ -84,24 +101,7 @@ useEffect(() => {
   };
 }, []);
 
-//   useEffect(() => {
-//   const handleCustomerOrder = (data) => {
-//     console.log(" Customer QR order received:", data);
 
-//     // Refresh the dine-in orders immediately
-//     dispatch(orderApi.util.invalidateTags(["Order"]));
-
-//     toast.success(
-//       `New customer order received for ${data.Table_Name}`
-//     );
-//   };
-
-//   socket.on("customer_order", handleCustomerOrder);
-
-//   return () => {
-//     socket.off("customer_order", handleCustomerOrder);
-//   };
-// }, [dispatch]);
 useEffect(() => {
   const handleCustomerOrder = (data) => {
     console.log("Customer QR order received:", data);
@@ -508,6 +508,17 @@ if (res?.elligibleItems && Object.keys(res.elligibleItems).length > 0) {
     className="text-white mt-2 font-bold py-2 px-4 rounded whitespace-nowrap"
   >
     Print KOT
+  </button>
+)}
+
+{order?.orderBy === "customer" && (
+  <button
+    type="button"
+    onClick={() => handleReject(order)}
+    className="text-white mt-2 font-bold py-2 px-4 rounded whitespace-nowrap"
+    style={{ backgroundColor: "black" }}
+  >
+    Reject order
   </button>
 )}
         </div>

@@ -755,7 +755,7 @@ if (orderType) {
 
 //             // 4️⃣ Delete old image from server
 //             if (oldImage) {
-//                 const oldPath = `./uploads/food-item/${oldImage}`;
+//                 const oldPath = `.http://192.168.0.101:4000/uploads/food-item/${oldImage}`;
 //                 if (fs.existsSync(oldPath)) {
 //                     fs.unlinkSync(oldPath);
 //                 }
@@ -852,7 +852,7 @@ if (orderType) {
 
 //             // Delete old image
 //             if (oldImage) {
-//                 const oldPath = `./uploads/food-item/${oldImage}`;
+//                 const oldPath = `.http://192.168.0.101:4000/uploads/food-item/${oldImage}`;
 //                 if (fs.existsSync(oldPath)) {
 //                     fs.unlinkSync(oldPath);
 //                 }
@@ -1385,7 +1385,7 @@ const editSingleFoodItem = async (req, res, next) => {
       newImage = req.file.filename;
 
       if (oldImage) {
-        const oldPath = `./uploads/food-item/${oldImage}`;
+        const oldPath = `.http://192.168.0.101:4000/uploads/food-item/${oldImage}`;
         if (fs.existsSync(oldPath)) {
           fs.unlinkSync(oldPath);
         }
@@ -1520,7 +1520,7 @@ const editSingleFoodItem = async (req, res, next) => {
 //       newImage = req.file.filename;
 
 //       if (oldImage) {
-//         const oldPath = `./uploads/food-item/${oldImage}`;
+//         const oldPath = `.http://192.168.0.101:4000/uploads/food-item/${oldImage}`;
 //         if (fs.existsSync(oldPath)) {
 //           fs.unlinkSync(oldPath);
 //         }

@@ -37,7 +37,7 @@ import { waiterApi } from "../../../redux/Waiter/waiterApi";
 
 
 
-// const socket = io("http://192.168.0.101:4000", {
+// const socket = io("", {
 //   transports: ["websocket"],
 // });
 

@@ -1518,7 +1518,7 @@ if (res?.elligibleItems && res?.elligibleItems &&   Object.keys(res.elligibleIte
                                 <img
                                   src={
                                     item?.Item_Image
-                                      ? `https://helloguys.co.in/billmeal/backend/uploads/food-item/${item?.Item_Image}`
+                                      ? `https://helloguys.co.in/billmeal/backendhttp://192.168.0.101:4000/uploads/food-item/${item?.Item_Image}`
                                       : ""
                                   }
                                   alt={item?.Item_Name}

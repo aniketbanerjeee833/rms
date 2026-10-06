@@ -57,6 +57,14 @@ getTableOrderDetails: builder.query({
     }),
     invalidatesTags: ["Order"],
   }),
+  rejectCustomerOrder: builder.mutation({
+  query: ({ Order_Id, reason }) => ({
+    url: `order/reject-customer-order/${Order_Id}`,   // match your base path
+    method: "PATCH",
+    body: { reason },
+  }),
+  invalidatesTags: ["Order"],
+}),
 
 
   updateTakeawayOrder: builder.mutation({
@@ -359,6 +367,7 @@ export const { useAddNewCustomerMutation,useGetAllCustomersQuery,
   useGetTakeawayOrderDetailsQuery,
   
   useUpdateOrderMutation,
+  useRejectCustomerOrderMutation,
   useUpdateTakeawayOrderMutation,
 
 useConfirmOrderBillPaidAndInvoiceGeneratedMutation,

@@ -6,7 +6,8 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 export const userApi = createApi({
   reducerPath: "userApi",
   baseQuery: fetchBaseQuery({
-    baseUrl: "http://192.168.0.101:4000/api/",
+    //baseUrl: "http://192.168.0.101:4000/api/",
+     baseUrl: "http://192.168.0.101:4000/api/",
     credentials: "include", // same as withCredentials: true
   }),
   tagTypes: ["User"], // 👈 added Location for countries/states/cities

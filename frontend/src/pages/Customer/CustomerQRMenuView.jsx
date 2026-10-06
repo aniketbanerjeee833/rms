@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Minus, Plus, ShoppingCart, Search } from "lucide-react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import {
@@ -13,12 +13,27 @@ import {
 import { useGetAllFoodItemsQuery } from "../../redux/api/foodItemApi";
 import { useGetAllCategoriesQuery } from "../../redux/api/itemApi";
 
-// put VITE_API_URL=http://192.168.0.101:4000 in frontend/.env and restart Vite
+// put VITE_API_URL= in frontend/.env and restart Vite
 const API_URL = "http://192.168.0.101:4000";
+const getDeviceId = () => {
+  let id = localStorage.getItem("restaurant_device_id");
 
+  if (!id) {
+    id =
+      crypto.randomUUID?.() ??
+      "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0;
+        return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+      });
+
+    localStorage.setItem("restaurant_device_id", id);
+  }
+
+  return id;
+};
 export default function CustomerQRMenuView() {
   const { qr_slug } = useParams();
-
+  const navigate = useNavigate();
   // =====================================================
   // SCAN: find or create the table's session
   // =====================================================
@@ -27,40 +42,85 @@ export default function CustomerQRMenuView() {
   const [scanError, setScanError] = useState("");
   const scanned = useRef(false); // StrictMode runs effects twice in dev
 
-  useEffect(() => {
-    if (scanned.current) return;
-    scanned.current = true;
+  // useEffect(() => {
+  //   if (scanned.current) return;
+  //   scanned.current = true;
 
-    scanTable(qr_slug)
-      .unwrap()
-      .then((res) => setToken(res.token))
-      .catch((e) =>
-        setScanError(e?.data?.message || "Invalid QR code. Please ask staff.")
-      );
-  }, [qr_slug, scanTable]);
+  //   scanTable(qr_slug)
+  //     .unwrap()
+  //     .then((res) => setToken(res.token))
+  //     .catch((e) =>
+  //       setScanError(e?.data?.message || "Invalid QR code. Please ask staff.")
+  //     );
+  // }, [qr_slug, scanTable]);
+
+  useEffect(() => {
+  if (scanned.current) return;
+
+  scanned.current = true;
+
+  const deviceId = getDeviceId();
+
+  scanTable({
+    qr_slug,
+    deviceId,
+  })
+    .unwrap()
+    .then((res) => setToken(res.token))
+    .catch((e) =>
+      setScanError(
+        e?.data?.message || "Invalid QR code. Please ask staff."
+      )
+    );
+}, [qr_slug, scanTable]);
 //LATER
+
+
+
+//COMBINED
 // useEffect(() => {
 //   if (scanned.current) return;
 
 //   scanned.current = true;
+
+//   // =====================================================
+//   // 1. GET DEVICE ID
+//   // =====================================================
+
+//   const deviceId = getDeviceId();
+
+//   //console.log("📱 Device ID:", deviceId);
+
+//   // =====================================================
+//   // 2. CHECK GEOLOCATION SUPPORT
+//   // =====================================================
 
 //   if (!navigator.geolocation) {
 //     setScanError("Location is not supported by this browser.");
 //     return;
 //   }
 
+//   // =====================================================
+//   // 3. GET CUSTOMER LOCATION
+//   // =====================================================
+
 //   navigator.geolocation.getCurrentPosition(
 //     (position) => {
 //       const { latitude, longitude, accuracy } = position.coords;
 
-//       console.log("📍 Location:", {
-//         latitude,
-//         longitude,
-//         accuracy,
-//       });
+//       // console.log("📍 Location:", {
+//       //   latitude,
+//       //   longitude,
+//       //   accuracy,
+//       // });
+
+//       // =====================================================
+//       // 4. SEND DEVICE ID + LOCATION + QR SLUG
+//       // =====================================================
 
 //       scanTable({
 //         qr_slug,
+//         deviceId,
 //         location: {
 //           lat: latitude,
 //           lng: longitude,
@@ -80,6 +140,11 @@ export default function CustomerQRMenuView() {
 //           );
 //         });
 //     },
+
+//     // =====================================================
+//     // 5. GEOLOCATION ERROR
+//     // =====================================================
+
 //     (error) => {
 //       console.log("❌ Geolocation error:", error);
 
@@ -98,6 +163,11 @@ export default function CustomerQRMenuView() {
 
 //       setScanError(message);
 //     },
+
+//     // =====================================================
+//     // 6. GEOLOCATION OPTIONS
+//     // =====================================================
+
 //     {
 //       enableHighAccuracy: true,
 //       timeout: 15000,
@@ -105,7 +175,6 @@ export default function CustomerQRMenuView() {
 //     }
 //   );
 // }, [qr_slug, scanTable]);
-
   // =====================================================
   // SESSION (polled so everyone at the table stays in sync)
   // =====================================================
@@ -265,51 +334,123 @@ export default function CustomerQRMenuView() {
       submittingRef.current = false;
     }
   };
+// useEffect(() => {
+//   if (token && sessionClosed) {
+//     localStorage.removeItem(`cart_${token}`);
 
+//     navigate("/menu", { replace: true });
+//   }
+// }, [token, sessionClosed, navigate]);
+const closedReason = sessionError?.data?.reason; // "COMPLETED" | "REJECTED"
+
+useEffect(() => {
+  if (!(token && sessionClosed)) return;
+
+  localStorage.removeItem(`cart_${token}`);
+
+  // cancelled orders stay on screen so the customer can read why
+  if (closedReason === "REJECTED") return;
+
+  // completed orders: show the thank-you, then go to the restaurant page
+  const t = setTimeout(() => navigate("/menu", { replace: true }), 5000);
+  return () => clearTimeout(t);
+}, [token, sessionClosed, closedReason, navigate]);
   // =====================================================
   // STATES: error / completed / loading
   // =====================================================
-  if (scanError) {
-    return <div className="p-8 text-center">{scanError}</div>;
-  }
+  // if (scanError) {
+  //   return <div className="p-8 text-center">{scanError}</div>;
+  // }
 
-if (sessionClosed) {
+// if (sessionClosed) {
+//   return (
+//     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+//       <div className="text-center">
+//         {/* Green success icon */}
+//         <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-green-100">
+//           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-500 shadow-lg">
+//             <svg
+//               xmlns="http://www.w3.org/2000/svg"
+//               viewBox="0 0 24 24"
+//               fill="none"
+//               stroke="white"
+//               strokeWidth="3"
+//               strokeLinecap="round"
+//               strokeLinejoin="round"
+//               className="h-9 w-9"
+//             >
+//               <path d="M5 12l4 4L19 7" />
+//             </svg>
+//           </div>
+//         </div>
+
+//         <h3 className="text-2xl font-bold text-gray-800">
+//           Order Completed
+//         </h3>
+
+//         <p className="mt-2 max-w-sm mx-auto text-gray-500">
+//           Thank you for your order!
+//         </p>
+
+//         <p className="mt-1 text-sm text-gray-400">
+//           Please scan the QR code on your table to order again.
+//         </p>
+//       </div>
+//     </div>
+//   );
+// }
+if (scanError) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="text-center">
-        {/* Green success icon */}
-        <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-green-100">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-500 shadow-lg">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="white"
-              strokeWidth="3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-9 w-9"
-            >
-              <path d="M5 12l4 4L19 7" />
-            </svg>
-          </div>
-        </div>
-
-        <h3 className="text-2xl font-bold text-gray-800">
-          Order Completed
-        </h3>
-
-        <p className="mt-2 max-w-sm mx-auto text-gray-500">
-          Thank you for your order!
-        </p>
-
-        <p className="mt-1 text-sm text-gray-400">
-          Please scan the QR code on your table to order again.
-        </p>
-      </div>
+    <div className="p-8 text-center">
+      <p>{scanError}</p>
+      <button
+        type="button"
+        onClick={() => window.location.reload()}
+        className="mt-4 bg-red-500 text-white px-4 py-2 rounded-lg"
+      >
+        Try again
+      </button>
     </div>
   );
 }
+
+if (sessionClosed && closedReason === "REJECTED") {
+  return (
+    <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-gray-50 px-6 text-center">
+      <h2 className="text-2xl font-bold mb-2">Order cancelled</h2>
+      <p className="text-gray-600">{sessionError?.data?.message}</p>
+      <button
+        type="button"
+        onClick={() => navigate("/menu", { replace: true })}
+        className="mt-6 bg-red-500 text-white px-6 py-3 rounded-lg font-bold"
+      >
+        Go to our menu
+      </button>
+    </div>
+  );
+}
+
+if (sessionClosed) {
+  return (
+    <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-gray-50 px-6 text-center">
+      <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-green-100">
+        <span className="text-5xl text-green-600">✓</span>
+      </div>
+      <h2 className="text-2xl font-bold text-gray-800">Order completed</h2>
+      <p className="mt-2 text-gray-500">Thank you for dining with us!</p>
+      <p className="mt-1 text-sm text-gray-400">Taking you to our menu...</p>
+      <button
+        type="button"
+        onClick={() => navigate("/menu", { replace: true })}
+        className="mt-6 bg-red-500 text-white px-6 py-3 rounded-lg font-bold"
+      >
+        Go now
+      </button>
+    </div>
+  );
+}
+
+
   if (!token || isSessionLoading || isMenuLoading) {
     return (
       <div className="min-h-[100dvh] flex items-center justify-center">
@@ -411,7 +552,7 @@ if (sessionClosed) {
                 <div className="aspect-[4/3] w-full bg-gray-100 flex items-center justify-center">
                   {item.Item_Image && (
                     <img
-                      src={`${API_URL}/uploads/food-item/${item.Item_Image}`}
+                      src={`${API_URL}http://192.168.0.101:4000/uploads/food-item/${item.Item_Image}`}
                       alt={item.Item_Name}
                       loading="lazy"
                       className="w-full h-full object-contain"

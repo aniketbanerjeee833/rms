@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useGetEachItemSalesPurchasesDetailsQuery, usePrintEachItemSalesPurchasesDetailsReportMutation } from "../../redux/api/itemApi";
+import { useGetEachItemSalesPurchasesDetailsQuery, 
+    usePrintEachItemSalesPurchasesDetailsReportMutation } from "../../redux/api/itemApi";
 import { useNavigate, useParams } from "react-router-dom";
 import { Eye } from "lucide-react";
 

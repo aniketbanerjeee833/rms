@@ -32,7 +32,7 @@
 
 
 
-// const socket = io("http://192.168.0.101:4000", {
+// const socket = io("", {
 //   transports: ["websocket"],
 // });
 // export default function Orders() {
@@ -2649,7 +2649,7 @@
 //                                                     <img
 //                                                         src={
 //                                                             item?.Item_Image
-//                                                                 ? `https://helloguys.co.in/billmeal/backend/uploads/food-item/${item.Item_Image}`
+//                                                                 ? `https://helloguys.co.in/billmeal/backendhttp://192.168.0.101:4000/uploads/food-item/${item.Item_Image}`
 //                                                                 : ""
 //                                                         }
 //                                                         alt={item.Item_Name}
@@ -2886,7 +2886,7 @@
 //   <div className="relative h-56 overflow-hidden bg-gradient-to-br from-orange-200 to-red-200">
 //     <div className="absolute inset-0 flex items-center justify-center text-6xl opacity-20">
 //       <img
-//         src={item?.Item_Image ? `https://helloguys.co.in/billmeal/backend/uploads/food-item/${item.Item_Image}` : ''}
+//         src={item?.Item_Image ? `https://helloguys.co.in/billmeal/backendhttp://192.168.0.101:4000/uploads/food-item/${item.Item_Image}` : ''}
 //         alt={item.Item_Name}
 //         className="w-full h-full object-cover"
 //       />

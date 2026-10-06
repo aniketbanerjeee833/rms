@@ -3179,7 +3179,7 @@ console.log(invoiceNumber,"invoiceNumber");
 //     toast.success("Invoice Generated!");
 
 //     /* 🔥 THERMAL PRINT */
-//     await axios.post("/api/print/thermal", {
+//     await axios.post("http://192.168.0.101:4000/api/print/thermal", {
 //       invoice: response.invoice, // backend must send full invoice
 //     });
 

@@ -116,6 +116,7 @@ const KitchenStaff=lazy(()=>import('./KitchenStaffPanel/pages/KitchenStaff'))
 
 const InvoicePublicView=lazy(()=>import('./pages/InvoicePublicView'))
 const CustomerQRMenuView=lazy(()=>import('./pages/Customer/CustomerQRMenuView'))
+const MenuView=lazy(()=>import('./pages/MenuView/MenuView'))
 // ==========================================
 // 🔒 Auth Route Guards
 // ==========================================
@@ -831,7 +832,12 @@ function RouterWrapper({ userRole }) {
               )}
 
 
-        
+          <Route
+              path="/menu"
+              element={
+                  <MenuView/>
+              }
+            />
 
           {/* Fallback */}
           <Route path="*" element={<RoleAwareFallback userRole={userRole} />} />

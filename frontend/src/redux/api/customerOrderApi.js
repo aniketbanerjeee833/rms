@@ -12,13 +12,33 @@ export const customerOrderApi = createApi({
 
   endpoints: (builder) => ({
     // Scan table QR
+    // scanTable: builder.mutation({
+    //   query: ({ qr_slug, deviceId }) => ({
+    //     url: `scan/${qr_slug}`,
+    //     method: "POST",
+    //   }),
+    //   invalidatesTags: ["CustomerSession"],
+    // }),
     scanTable: builder.mutation({
-      query: (qr_slug) => ({
-        url: `scan/${qr_slug}`,
-        method: "POST",
-      }),
-      invalidatesTags: ["CustomerSession"],
-    }),
+  query: ({ qr_slug, deviceId }) => ({
+    url: `/scan/${qr_slug}`,
+    method: "POST",
+    body: {
+      deviceId,
+    },
+  }),
+  invalidatesTags: ["CustomerSession"],
+}),
+// scanTable: builder.mutation({
+//   query: ({ qr_slug, deviceId, location }) => ({
+//     url: `/scan/${qr_slug}`,
+//     method: "POST",
+//     body: {
+//       deviceId,
+//       location,
+//     },
+//   }),
+// }),
 
     // Get current session + current order
     getSession: builder.query({

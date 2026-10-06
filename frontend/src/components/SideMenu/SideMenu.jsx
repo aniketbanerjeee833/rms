@@ -10,7 +10,7 @@ import {LayoutDashboard,Users, Package, ShoppingCart, DollarSign,
 import { useGetUserQuery } from "../../redux/api/userApi";
 
 
-const REACT_APP_API_URL = "http://192.168.0.101:4000";
+const REACT_APP_API_URL = "";
 
 const SideMenu = () => {
   // const { userId } = useSelector((state) => state.user);

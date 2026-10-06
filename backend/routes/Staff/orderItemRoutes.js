@@ -21,7 +21,8 @@ import { addNewCustomer, addOrder,  cancelTakeawayOrder, checkItemElligibleForKO
    
     updateAndPrintPreBookKOT,
     KOTOfOrdersTakenByWaiter,
-    getNextTakeawayInvoiceId} 
+    getNextTakeawayInvoiceId,
+    rejectCustomerOrder} 
     from "../../controllers/staff/orderItemController.js";
 import userAuth from "../../middleware/userAuth.js";
 import { generateSms, generateSmsForTakeaway, getPublicInvoiceHtml, generateSmsForPreBooked } from "../../controllers/smsController.js";
@@ -40,6 +41,7 @@ router.get("/get-table-order-details/:Order_Id",userAuth,getTableOrderDetails)
 router.get("/get-takeaway-order-details/:Takeaway_Order_Id",userAuth,getTakeawayOrderDetails)
 
 router.patch("/update-order/:Order_Id",userAuth,updateOrder)
+router.patch("/reject-customer-order/:Order_Id", userAuth, rejectCustomerOrder);
 
 router.patch("/update-takeaway-order/:Takeaway_Order_Id",userAuth,updateTakeawayOrder)
 router.post("/confirm-bill/:Order_Id",userAuth,

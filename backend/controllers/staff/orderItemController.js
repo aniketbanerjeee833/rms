@@ -431,14 +431,17 @@ const stockDate = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolka
 
   
     /* ---------------- TABLES ---------------- */
+    const tableIds = [];
     for (const tableName of Table_Names) {
       const [[tbl]] = await connection.execute(
         `SELECT Table_Id, Status FROM add_table WHERE Table_Name = ? FOR UPDATE`,
         [tableName]
       );
-      if (!tbl) {
+           if (!tbl) {
   throw new Error("Table not found");
 }
+      tableIds.push(tbl.Table_Id);
+ 
 
 if (tbl.Status === "occupied") {
   throw new Error("Table occupied");
@@ -740,6 +743,11 @@ await connection.execute(
     });
 
     await connection.commit();
+    io.to("all_waiters").emit("tables_occupied", {
+  Order_Id,
+  Table_Ids: tableIds, // better to send actual Table_Ids if available
+  Table_Names,
+});
     // 🔔 CASHIER / FRONTDESK
 io.to("staff").emit("waiter_order", {
   Order_Id,
@@ -1757,450 +1765,7 @@ const getTableOrderDetails = async (req, res, next) => {
   }
 };
 //OLD DUPLICATE ID GENERATION PROBLEM
-// const updateOrder = async (req, res, next) => {
-//   const stockDate = new Date().toLocaleDateString("en-CA", {
-//   timeZone: "Asia/Kolkata",
-// });
-//   let connection;
 
-//   try {
-//     const { Order_Id } = req.params;
-//     // const { items, Sub_Total, Amount} = req.body;
-// const { items, Sub_Total, Amount } = req.body;
-// const userId = req.user?.User_Id;
-
-//     if (!Order_Id) {
-//       return res.status(400).json({ success: false, message: "Order ID missing" });
-//     }
-
-//     if (!Array.isArray(items)) {
-//       return res.status(400).json({ success: false, message: "Items required" });
-//     }
-
-//     connection = await db.getConnection();
-//     await connection.beginTransaction();
-
-//     /* ---------------------------------------------------
-//        🔥 A️⃣ FETCH EXISTING KITCHEN ITEMS (BEFORE DELETE)
-//     --------------------------------------------------- */
-//     const [oldKitchenItems] = await connection.execute(
-//       `
-//       SELECT koi.Item_Name, koi.Quantity, fi.Item_Category
-//       FROM kitchen_order_items koi
-//       JOIN add_food_item fi ON fi.Item_Id = koi.Item_Id
-//       JOIN kitchen_orders ko ON ko.KOT_Id = koi.KOT_Id
-//       WHERE ko.Order_Id = ?
-//       `,
-//       [Order_Id]
-//     );
-
-//     const oldQtyMap = new Map();
-//     oldKitchenItems.forEach((it) => {
-//       oldQtyMap.set(it.Item_Name, it.Quantity);
-//     });
-
-//     /* ---------------------------------------------------
-//        1️⃣ UPDATE ORDER TOTALS
-//     --------------------------------------------------- */
-//     await connection.execute(
-//       `UPDATE orders 
-//        SET Sub_Total = ?, Amount = ? 
-//        WHERE Order_Id = ?`,
-//       [Sub_Total, Amount, Order_Id]
-//     );
-
-//     /* ---------------------------------------------------
-//        2️⃣ FETCH OR CREATE KOT
-//     --------------------------------------------------- */
-//     const [[existingKOT]] = await connection.execute(
-//       `SELECT KOT_Id FROM kitchen_orders WHERE Order_Id = ? LIMIT 1`,
-//       [Order_Id]
-//     );
-
-//     let KOT_Id;
-//     if (existingKOT) {
-//       KOT_Id = existingKOT.KOT_Id;
-//     } else {
-//       KOT_Id = await generateNextId(connection, "KOT", "KOT_Id", "kitchen_orders");
-//       await connection.execute(
-//         `INSERT INTO kitchen_orders (KOT_Id, Order_Id, Status)
-//          VALUES (?, ?, 'pending')`,
-//         [KOT_Id, Order_Id]
-//       );
-//     }
-
-//     /* ---------------------------------------------------
-//        3️⃣ DELETE EXISTING ITEMS (UNCHANGED)
-//     --------------------------------------------------- */
-//     await connection.execute(`DELETE FROM order_items WHERE Order_Id = ?`, [Order_Id]);
-//     await connection.execute(`DELETE FROM kitchen_order_items WHERE KOT_Id = ?`, [KOT_Id]);
-
-//     /* ---------------------------------------------------
-//        🔥 B️⃣ BUILD NEWLY ADDED ITEMS (DELTA)
-//     --------------------------------------------------- */
-//     const newlyAddedItems = [];
-
-//     // for (const item of items) {
-//     //   const prevQty = oldQtyMap.get(item.Item_Name) || 0;
-//     //   const newQty = Number(item.Item_Quantity) || 0;
-
-//     //   if (newQty > prevQty) {
-//     //     newlyAddedItems.push({
-//     //       Item_Name: item.Item_Name,
-//     //       Item_Quantity: newQty - prevQty, // 🔥 ONLY DELTA
-//     //     });
-//     //   }
-//     // }
-//     const deltaItems = [];
-
-// for (const item of items) {
-//   const prevQty = oldQtyMap.get(item.Item_Name) || 0;
-//   const newQty = Number(item.Item_Quantity) || 0;
-
-//   const diff = newQty - prevQty;
-
-//   if (diff !== 0) {
-//     deltaItems.push({
-//       Item_Name: item.Item_Name,
-//       diffQty: Math.abs(diff),
-//       movementType: diff > 0 ? "DINE_IN" : "RETURN",
-//     });
-//   }
-// }
-
-
-//     /* ---------------------------------------------------
-//        4️⃣ REINSERT ITEMS (UNCHANGED)
-//     --------------------------------------------------- */
-//     for (const item of items) {
-//       const [[dbItem]] = await connection.execute(
-//         `SELECT Item_Id, Item_Category
-//          FROM add_food_item
-//          WHERE Item_Name = ? LIMIT 1`,
-//         [item.Item_Name]
-//       );
-
-//       if (!dbItem) continue;
-
-//       const Order_Item_Id = await generateNextId(
-//         connection,
-//         "ODRITM",
-//         "Order_Item_Id",
-//         "order_items"
-//       );
-
-//       await connection.execute(
-//         `INSERT INTO order_items
-//          (Order_Item_Id, Order_Id, Item_Id, Quantity, Price, Amount)
-//          VALUES (?, ?, ?, ?, ?, ?)`,
-//         [
-//           Order_Item_Id,
-//           Order_Id,
-//           dbItem.Item_Id,
-//           item.Item_Quantity,
-//           item.Item_Price,
-//           item.Amount
-//         ]
-//       );
-
-//       const KOT_Item_Id = await generateNextId(
-//         connection,
-//         "KOTITM",
-//         "KOT_Item_Id",
-//         "kitchen_order_items"
-//       );
-
-//       await connection.execute(
-//         `INSERT INTO kitchen_order_items
-//          (KOT_Item_Id, KOT_Id, Item_Id, Item_Name, Quantity, Item_Status)
-//          VALUES (?, ?, ?, ?, ?, 'pending')`,
-//         [
-//           KOT_Item_Id,
-//           KOT_Id,
-//           dbItem.Item_Id,
-//           item.Item_Name,
-//           item.Item_Quantity
-//         ]
-//       );
-//     }
-
-//     /* ---------------------------------------------------
-//        🔥 C️⃣ CHECK KOT ELIGIBILITY (ONLY NEW ITEMS)
-//     --------------------------------------------------- */
-//     // const eligibilityResult = newlyAddedItems.length
-//     //   ? await checkDineInItemsElligibleForKOTPrint(newlyAddedItems)
-//     //   : { elligibleItems: {} };
-//     const addedItemsForKOT = deltaItems
-//   .filter(d => d.movementType === "DINE_IN")
-//   .map(d => ({
-//     Item_Name: d.Item_Name,
-//     Item_Quantity: d.diffQty
-//   }));
-
-// const eligibilityResult = addedItemsForKOT.length
-//   ? await checkDineInItemsElligibleForKOTPrint(addedItemsForKOT)
-//   : { success: true, elligibleItems: {} };
-
-//       console.log("Eligibility Result:", eligibilityResult);
-// /* =====================================================
-//    🔥 D️⃣ UPDATE STOCK FOR NEWLY ADDED ITEMS (DELTA)
-// ===================================================== */
-
-// // for (const deltaItem of newlyAddedItems) {
-// //   const [[dbItem]] = await connection.execute(
-// //     `SELECT Item_Id FROM add_food_item WHERE Item_Name = ? LIMIT 1`,
-// //     [deltaItem.Item_Name]
-// //   );
-
-// //   if (!dbItem) continue;
-
-// //   const Item_Id = dbItem.Item_Id;
-// //   const deltaQty = deltaItem.Item_Quantity;
-
-// //   // 1️⃣ Ensure today's stock row exists
-// //   await connection.execute(
-// //     `
-// //     INSERT IGNORE INTO daily_food_stock
-// //       (Item_Id, Stock_Date, Opening_Quantity, Added_Quantity, Sold_Quantity, Closing_Quantity)
-// //     VALUES (?, ?, 0, 0, 0, 0)
-// //     `,
-// //     [Item_Id, stockDate]
-// //   );
-
-// //   // 2️⃣ Lock stock row
-// //   const [[stock]] = await connection.execute(
-// //     `
-// //     SELECT id
-// //     FROM daily_food_stock
-// //     WHERE Item_Id = ?
-// //       AND Stock_Date = ?
-// //     FOR UPDATE
-// //     `,
-// //     [Item_Id, stockDate]
-// //   );
-
-// //   if (!stock) {
-// //     await connection.rollback();
-// //     return res.status(400).json({
-// //       success: false,
-// //       message: `Stock row missing for item ${deltaItem.Item_Name}`,
-// //     });
-// //   }
-
-// //   // 3️⃣ Reduce stock by DELTA
-// //   await connection.execute(
-// //     `
-// //     UPDATE daily_food_stock
-// //     SET
-// //       Sold_Quantity = Sold_Quantity + ?,
-// //       Closing_Quantity = Closing_Quantity - ?
-// //     WHERE id = ?
-// //     `,
-// //     [deltaQty, deltaQty, stock.id]
-// //   );
-
-// //   // 4️⃣ Insert stock history (DELTA SALE)
-// //   await connection.execute(
-// //   `
-// //   INSERT INTO food_stock_movements
-// //     (Item_Id,  Stock_Date, Movement_Type, Quantity, Ref_Id, User_Id)
-// //   VALUES (?,  ?, 'DINE_IN', ?, ?, ?)
-// //   `,
-// //   [
-// //     Item_Id,
-    
-// //     stockDate,
-// //     deltaQty, // sold qty
-// //     Order_Id,
-// //     userId,
-// //   ]
-// // );
-
-// // // await connection.execute(
-// // //   `
-// // //   INSERT INTO food_stock_movements
-// // //     (Item_Id, Item_Name, Stock_Date, Quantity, User_Id)
-// // //   VALUES (?, ?,?, ?, ?)
-// // //   `,
-// // //   [
-// // //     Item_Id,
-// // //     deltaItem.Item_Name.Item_Name,
-// // //     stockDate,
-// // //     deltaItem.Item_Name.Item_Quantity, // sold qty
-// // //     userId,             // waiter / cashier
-// // //   ]
-// // // );
-// // }
-// for (const d of deltaItems) {
-//   const [[dbItem]] = await connection.execute(
-//     `SELECT Item_Id FROM add_food_item WHERE Item_Name = ? LIMIT 1`,
-//     [d.Item_Name]
-//   );
-
-//   if (!dbItem) continue;
-
-//   const Item_Id = dbItem.Item_Id;
-
-//   /* ================= SAFE UPSERT STOCK ROW ================= */
-
-//   await connection.execute(
-//     `
-//     INSERT INTO daily_food_stock
-//       (Item_Id, Stock_Date,
-//        Opening_Quantity, Added_Quantity,
-//        Sold_Quantity, Closing_Quantity)
-//     VALUES (?, ?, 0, 0, 0, 0)
-//     ON DUPLICATE KEY UPDATE
-//       Stock_Date = daily_food_stock.Stock_Date
-//     `,
-//     [Item_Id, stockDate]
-//   );
-
-//   /* ================= APPLY DELTA ================= */
-
-//   if (d.movementType === "DINE_IN") {
-//     await connection.execute(
-//       `
-//       UPDATE daily_food_stock
-//       SET
-//         Sold_Quantity = Sold_Quantity + ?,
-//         Closing_Quantity = Closing_Quantity - ?
-//       WHERE Item_Id = ?
-//         AND Stock_Date = ?
-//       `,
-//       [d.diffQty, d.diffQty, Item_Id, stockDate]
-//     );
-//   }
-
-//   if (d.movementType === "RETURN") {
-//     await connection.execute(
-//       `
-//       UPDATE daily_food_stock
-//       SET
-//         Sold_Quantity = Sold_Quantity - ?,
-//         Closing_Quantity = Closing_Quantity + ?
-//       WHERE Item_Id = ?
-//         AND Stock_Date = ?
-//       `,
-//       [d.diffQty, d.diffQty, Item_Id, stockDate]
-//     );
-//   }
-
-//   /* ================= MOVEMENT HISTORY ================= */
-
-//   await connection.execute(
-//     `
-//     INSERT INTO food_stock_movements
-//       (Item_Id, Stock_Date, Movement_Type, Quantity, Ref_Id, User_Id)
-//     VALUES (?, ?, ?, ?, ?, ?)
-//     `,
-//     [
-//       Item_Id,
-//       stockDate,
-//       d.movementType,
-//       d.diffQty,
-//       Order_Id,
-//       userId,
-//     ]
-//   );
-// }
-// // for (const d of deltaItems) {
-// //   const [[dbItem]] = await connection.execute(
-// //     `SELECT Item_Id FROM add_food_item WHERE Item_Name = ? LIMIT 1`,
-// //     [d.Item_Name]
-// //   );
-
-// //   if (!dbItem) continue;
-
-// //   const Item_Id = dbItem.Item_Id;
-
-// //   await connection.execute(
-// //     `
-// //     INSERT IGNORE INTO daily_food_stock
-// //       (Item_Id, Stock_Date, Opening_Quantity, Added_Quantity, Sold_Quantity, Closing_Quantity)
-// //     VALUES (?, ?, 0, 0, 0, 0)
-// //     `,
-// //     [Item_Id, stockDate]
-// //   );
-
-// //   const [[stock]] = await connection.execute(
-// //     `
-// //     SELECT id
-// //     FROM daily_food_stock
-// //     WHERE Item_Id = ? AND Stock_Date = ?
-// //     FOR UPDATE
-// //     `,
-// //     [Item_Id, stockDate]
-// //   );
-
-// //   if (!stock) {
-// //     await connection.rollback();
-// //     return res.status(400).json({
-// //       success: false,
-// //       message: "Stock row missing",
-// //     });
-// //   }
-
-// //   if (d.movementType === "DINE_IN") {
-// //     await connection.execute(
-// //       `
-// //       UPDATE daily_food_stock
-// //       SET
-// //         Sold_Quantity = Sold_Quantity + ?,
-// //         Closing_Quantity = Closing_Quantity - ?
-// //       WHERE id = ?
-// //       `,
-// //       [d.diffQty, d.diffQty, stock.id]
-// //     );
-// //   }
-
-// //   if (d.movementType === "RETURN") {
-// //     await connection.execute(
-// //       `
-// //       UPDATE daily_food_stock
-// //       SET
-// //         Sold_Quantity = Sold_Quantity - ?,
-// //         Closing_Quantity = Closing_Quantity + ?
-// //       WHERE id = ?
-// //       `,
-// //       [d.diffQty, d.diffQty, stock.id]
-// //     );
-// //   }
-
-// //   await connection.execute(
-// //     `
-// //     INSERT INTO food_stock_movements
-// //       (Item_Id, Stock_Date, Movement_Type, Quantity, Ref_Id, User_Id)
-// //     VALUES (?, ?, ?, ?, ?, ?)
-// //     `,
-// //     [
-// //       Item_Id,
-// //       stockDate,
-// //       d.movementType,
-// //       d.diffQty,
-// //       Order_Id,
-// //       userId,
-// //     ]
-// //   );
-// // }
-
-//     await connection.commit();
-
-//     return res.status(200).json({
-//       success: true,
-//       message: "Order updated successfully",
-//       KOT_Id,
-//       elligibleItems: eligibilityResult.elligibleItems, // 🔥 ONLY NEW ITEMS
-//     });
-
-//   } catch (err) {
-//     if (connection) await connection.rollback();
-//     console.error("❌ Update Order Error:", err);
-//     next(err);
-//   } finally {
-//     if (connection) connection.release();
-//   }
-// };
 
 //NEW NO DUPLICATE ID GENERATION PROBLEM
 const updateOrder = async (req, res, next) => {
@@ -2588,9 +2153,471 @@ io.to("staff").emit("waiter_order_update", {
     if (connection) connection.release();
   }
 };
+// const rejectCustomerOrder = async (req, res, next) => {
+//   let connection;
+//   try {
+//     const { Order_Id } = req.params;
+//     const reason = String(req.body?.reason || "").slice(0, 255) || null;
+
+//     if (!["staff", "admin"].includes(req.user?.role)) {
+//       return res.status(403).json({ success: false, message: "Not allowed" });
+//     }
+
+//     connection = await db.getConnection();
+//     await connection.beginTransaction();
+
+//     // same lock order as placeCustomerOrder: session first, then order
+//     await connection.execute(
+//       `SELECT id FROM table_sessions WHERE Order_Id = ? AND Status = 'OPEN' FOR UPDATE`,
+//       [Order_Id]
+//     );
+
+//     const [[order]] = await connection.execute(
+//       `SELECT Order_Id, User_Id, Payment_Status, Amount FROM orders WHERE Order_Id = ? FOR UPDATE`,
+//       [Order_Id]
+//     );
+//     if (!order) {
+//       await connection.rollback();
+//       return res.status(404).json({ success: false, message: "Order not found" });
+//     }
+//     if (order.User_Id !== null) {
+//       await connection.rollback();
+//       return res.status(403).json({ success: false, message: "Only customer QR orders can be rejected" });
+//     }
+//     if (order.Payment_Status === "completed") {
+//       await connection.rollback();
+//       return res.status(409).json({ success: false, message: "This order is already paid" });
+//     }
+
+//     const [orderItems] = await connection.execute(
+//       `SELECT Item_Id, Quantity FROM order_items WHERE Order_Id = ?`, [Order_Id]
+//     );
+//     const [tableRows] = await connection.execute(
+//       `SELECT Table_Id FROM order_tables WHERE Order_Id = ?`, [Order_Id]
+//     );
+//     const [kotRows] = await connection.execute(
+//       `SELECT KOT_Id FROM kitchen_orders WHERE Order_Id = ?`, [Order_Id]
+//     );
+//     const tableIds = tableRows.map((t) => t.Table_Id);
+//     const kotIds = kotRows.map((k) => k.KOT_Id);
+
+//     // 1) put the stock back
+//     const stockDate = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+//     for (const it of orderItems) {
+//       await connection.execute(
+//         `INSERT INTO daily_food_stock
+//            (Item_Id, Stock_Date, Opening_Quantity, Added_Quantity, Sold_Quantity, Closing_Quantity)
+//          VALUES (?, ?, 0, 0, 0, 0)
+//          ON DUPLICATE KEY UPDATE Stock_Date = daily_food_stock.Stock_Date`,
+//         [it.Item_Id, stockDate]
+//       );
+//       await connection.execute(
+//         `UPDATE daily_food_stock
+//          SET Sold_Quantity = Sold_Quantity - ?, Closing_Quantity = Closing_Quantity + ?
+//          WHERE Item_Id = ? AND Stock_Date = ?`,
+//         [it.Quantity, it.Quantity, it.Item_Id, stockDate]
+//       );
+//       await connection.execute(
+//         `INSERT INTO food_stock_movements
+//            (Item_Id, Stock_Date, Movement_Type, Quantity, Ref_Id, User_Id)
+//          VALUES (?, ?, 'RETURN', ?, ?, ?)`,
+//         [it.Item_Id, stockDate, it.Quantity, Order_Id, req.user.User_Id]
+//       );
+//     }
+
+//     // 2) remove the fake order (children first)
+//     if (kotIds.length) {
+//       await connection.query(`DELETE FROM kitchen_order_items WHERE KOT_Id IN (?)`, [kotIds]);
+//       await connection.query(`DELETE FROM kitchen_orders WHERE KOT_Id IN (?)`, [kotIds]);
+//     }
+//     await connection.execute(`DELETE FROM order_items WHERE Order_Id = ?`, [Order_Id]);
+//     await connection.execute(`DELETE FROM order_tables WHERE Order_Id = ?`, [Order_Id]);
+//     await connection.execute(`DELETE FROM orders WHERE Order_Id = ?`, [Order_Id]);
+
+//     // 3) free the table(s)
+//     if (tableIds.length) {
+//       await connection.query(
+//         `UPDATE add_table SET Status = 'available', Start_Time = NULL, End_Time = NOW()
+//          WHERE Table_Id IN (?)`,
+//         [tableIds]
+//       );
+//     }
+
+//     // 4) close the customer's session as REJECTED
+//     await connection.execute(
+//       `UPDATE table_sessions SET Status = 'REJECTED', Closed_At = NOW()
+//        WHERE Order_Id = ? AND Status = 'OPEN'`,
+//       [Order_Id]
+//     );
+
+//     // 5) audit log
+//     await connection.execute(
+//       `INSERT INTO rejected_customer_orders (Order_Id, Table_Id, Amount, Rejected_By, Reason)
+//        VALUES (?, ?, ?, ?, ?)`,
+//       [Order_Id, tableIds[0] || "", order.Amount, String(req.user.User_Id), reason]
+//     );
+
+//     await connection.commit();
+
+//     kotIds.forEach((id) => io.emit("kitchen_order_removed", { KOT_Id: id }));
+//     io.to("staff").emit("customer_order_rejected", { Order_Id, Table_Ids: tableIds });
+
+//     return res.status(200).json({ success: true, message: "Customer order rejected" });
+//   } catch (err) {
+//     if (connection) await connection.rollback();
+//     console.error("❌ Reject customer order error:", err);
+//     next(err);
+//   } finally {
+//     if (connection) connection.release();
+//   }
+// };
+
+
 
 //NEW NO DUPLICACY PROBLEM
+const rejectCustomerOrder = async (req, res, next) => {
+  let connection;
 
+  try {
+    const { Order_Id } = req.params;
+    const reason = String(req.body?.reason || "").slice(0, 255) || null;
+
+    if (!["staff", "admin"].includes(req.user?.role)) {
+      return res.status(403).json({
+        success: false,
+        message: "Not allowed",
+      });
+    }
+
+    connection = await db.getConnection();
+    await connection.beginTransaction();
+
+    // =====================================================
+    // 1. LOCK CUSTOMER SESSION + GET DEVICE ID
+    // =====================================================
+
+    const [[customerSession]] = await connection.execute(
+      `SELECT id, Device_Id
+       FROM table_sessions
+       WHERE Order_Id = ?
+         AND Status = 'OPEN'
+       FOR UPDATE`,
+      [Order_Id]
+    );
+
+    if (!customerSession) {
+      await connection.rollback();
+
+      return res.status(404).json({
+        success: false,
+        message: "Customer session not found",
+      });
+    }
+
+    const deviceId = customerSession.Device_Id;
+
+    if (!deviceId) {
+      await connection.rollback();
+
+      return res.status(409).json({
+        success: false,
+        message: "Customer device information is missing.",
+      });
+    }
+
+    // =====================================================
+    // 2. LOCK ORDER
+    // =====================================================
+
+    const [[order]] = await connection.execute(
+      `SELECT
+         Order_Id,
+         User_Id,
+         Payment_Status,
+         Amount
+       FROM orders
+       WHERE Order_Id = ?
+       FOR UPDATE`,
+      [Order_Id]
+    );
+
+    if (!order) {
+      await connection.rollback();
+
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+
+    // Only customer QR orders
+    if (order.User_Id !== null) {
+      await connection.rollback();
+
+      return res.status(403).json({
+        success: false,
+        message: "Only customer QR orders can be rejected",
+      });
+    }
+
+    // Cannot reject already paid order
+    if (order.Payment_Status === "completed") {
+      await connection.rollback();
+
+      return res.status(409).json({
+        success: false,
+        message: "This order is already paid",
+      });
+    }
+
+    // =====================================================
+    // 3. GET ORDER DATA
+    // =====================================================
+
+    const [orderItems] = await connection.execute(
+      `SELECT Item_Id, Quantity
+       FROM order_items
+       WHERE Order_Id = ?`,
+      [Order_Id]
+    );
+
+    const [tableRows] = await connection.execute(
+      `SELECT Table_Id
+       FROM order_tables
+       WHERE Order_Id = ?`,
+      [Order_Id]
+    );
+
+    const [kotRows] = await connection.execute(
+      `SELECT KOT_Id
+       FROM kitchen_orders
+       WHERE Order_Id = ?`,
+      [Order_Id]
+    );
+
+    const tableIds = tableRows.map((t) => t.Table_Id);
+    const kotIds = kotRows.map((k) => k.KOT_Id);
+
+    // =====================================================
+    // 4. BLOCK DEVICE FOR 30 MINUTES
+    // =====================================================
+
+    await connection.execute(
+      `INSERT INTO customer_device_blocks
+         (Device_Id, Blocked_Until, Reason)
+       VALUES (
+         ?,
+         DATE_ADD(NOW(), INTERVAL 30 MINUTE),
+         ?
+       )
+       ON DUPLICATE KEY UPDATE
+         Blocked_Until = DATE_ADD(NOW(), INTERVAL 30 MINUTE),
+         Reason = VALUES(Reason)`,
+      [
+        deviceId,
+        reason || "Customer order rejected by restaurant",
+      ]
+    );
+
+    // =====================================================
+    // 5. PUT STOCK BACK
+    // =====================================================
+
+    const stockDate = new Date().toLocaleDateString(
+      "en-CA",
+      { timeZone: "Asia/Kolkata" }
+    );
+
+    for (const it of orderItems) {
+      await connection.execute(
+        `INSERT INTO daily_food_stock
+           (
+             Item_Id,
+             Stock_Date,
+             Opening_Quantity,
+             Added_Quantity,
+             Sold_Quantity,
+             Closing_Quantity
+           )
+         VALUES (?, ?, 0, 0, 0, 0)
+         ON DUPLICATE KEY UPDATE
+           Stock_Date = daily_food_stock.Stock_Date`,
+        [it.Item_Id, stockDate]
+      );
+
+      await connection.execute(
+        `UPDATE daily_food_stock
+         SET
+           Sold_Quantity = Sold_Quantity - ?,
+           Closing_Quantity = Closing_Quantity + ?
+         WHERE Item_Id = ?
+           AND Stock_Date = ?`,
+        [
+          it.Quantity,
+          it.Quantity,
+          it.Item_Id,
+          stockDate,
+        ]
+      );
+
+      await connection.execute(
+        `INSERT INTO food_stock_movements
+           (
+             Item_Id,
+             Stock_Date,
+             Movement_Type,
+             Quantity,
+             Ref_Id,
+             User_Id
+           )
+         VALUES (?, ?, 'RETURN', ?, ?, ?)`,
+        [
+          it.Item_Id,
+          stockDate,
+          it.Quantity,
+          Order_Id,
+          req.user.User_Id,
+        ]
+      );
+    }
+
+    // =====================================================
+    // 6. MARK SESSION REJECTED
+    // =====================================================
+
+    await connection.execute(
+      `UPDATE table_sessions
+       SET
+         Status = 'REJECTED',
+         Closed_At = NOW()
+       WHERE id = ?`,
+      [customerSession.id]
+    );
+
+    // =====================================================
+    // 7. REMOVE KOT
+    // =====================================================
+
+    if (kotIds.length) {
+      await connection.query(
+        `DELETE FROM kitchen_order_items
+         WHERE KOT_Id IN (?)`,
+        [kotIds]
+      );
+
+      await connection.query(
+        `DELETE FROM kitchen_orders
+         WHERE KOT_Id IN (?)`,
+        [kotIds]
+      );
+    }
+
+    // =====================================================
+    // 8. REMOVE ORDER
+    // =====================================================
+
+    await connection.execute(
+      `DELETE FROM order_items
+       WHERE Order_Id = ?`,
+      [Order_Id]
+    );
+
+    await connection.execute(
+      `DELETE FROM order_tables
+       WHERE Order_Id = ?`,
+      [Order_Id]
+    );
+
+    await connection.execute(
+      `DELETE FROM orders
+       WHERE Order_Id = ?`,
+      [Order_Id]
+    );
+
+    // =====================================================
+    // 9. FREE TABLE
+    // =====================================================
+
+    if (tableIds.length) {
+      await connection.query(
+        `UPDATE add_table
+         SET
+           Status = 'available',
+           Start_Time = NULL,
+           End_Time = NOW()
+         WHERE Table_Id IN (?)`,
+        [tableIds]
+      );
+    }
+
+    // =====================================================
+    // 10. AUDIT LOG
+    // =====================================================
+
+    await connection.execute(
+      `INSERT INTO rejected_customer_orders
+         (
+           Order_Id,
+           Table_Id,
+           Amount,
+           Rejected_By,
+           Reason
+         )
+       VALUES (?, ?, ?, ?, ?)`,
+      [
+        Order_Id,
+        tableIds[0] || "",
+        order.Amount,
+        String(req.user.User_Id),
+        reason,
+      ]
+    );
+
+    // =====================================================
+    // 11. COMMIT
+    // =====================================================
+
+    await connection.commit();
+
+    // =====================================================
+    // 12. SOCKET EVENTS
+    // =====================================================
+
+    kotIds.forEach((id) => {
+      io.emit("kitchen_order_removed", {
+        KOT_Id: id,
+      });
+    });
+
+    io.to("staff").emit("customer_order_rejected", {
+      Order_Id,
+      Table_Ids: tableIds,
+    });
+    io.to("all_waiters").emit("table_ready_for_order", {
+  Order_Id,
+  Table_Ids: tableIds,
+  message: "Table is now available for a new order.",
+});
+
+    return res.status(200).json({
+      success: true,
+      message: "Customer order rejected",
+    });
+
+  } catch (err) {
+    if (connection) {
+      await connection.rollback();
+    }
+
+    console.error("❌ Reject customer order error:", err);
+    next(err);
+
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+};
 const confirmOrderBillPaidAndInvoiceGenerated = async (req, res, next) => {
   let connection;
 
@@ -2907,6 +2934,12 @@ const confirmOrderBillPaidAndInvoiceGenerated = async (req, res, next) => {
         message: "Order completed & bill paid",
       });
     }
+    // Notify ALL waiters that table is available again
+io.to("all_waiters").emit("table_ready_for_order", {
+  Order_Id,
+  Table_Ids: tableIds.map((t) => t.Table_Id),
+  message: "Table is now available for a new order.",
+});
 
     return res.status(200).json({
       success: true,
@@ -2923,232 +2956,7 @@ const confirmOrderBillPaidAndInvoiceGenerated = async (req, res, next) => {
 };
 
 //OLD PROBLEMATIC
-// const confirmOrderBillPaidAndInvoiceGenerated = async (req, res, next) => {
-//   let connection;
 
-//   try {
-//     const { Order_Id } = req.params;
-
-//     const {
-//       Customer_Name,
-//       Customer_Phone,
-//       Discount_Type,
-//       Discount,
-//       Service_Charge,
-//       Service_Charge_Type,
-//       Payment_Type,
-//       Final_Amount,
-//     } = req.body;
-
-//     const normalizedCustomerName =
-//       Customer_Name && Customer_Name.trim() !== ""
-//         ? Customer_Name.trim()
-//         : null;
-
-//     /* ---------------- VALIDATION ---------------- */
-//     if (!Order_Id) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Order ID missing",
-//       });
-//     }
-
-//     if (!Final_Amount) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Final amount is required",
-//       });
-//     }
-
-//     connection = await db.getConnection();
-//     await connection.beginTransaction();
-// /* ---------------- FETCH WAITER ---------------- */
-//     const [[orderRow]] = await connection.execute(
-//       `SELECT User_Id FROM orders WHERE Order_Id = ? LIMIT 1`,
-//       [Order_Id]
-//     );
-
-//     const Waiter_Id = orderRow?.User_Id || null;
-//     /* ---------------------------------------
-//      0️⃣ Fetch KOT ID
-//     --------------------------------------- */
-//     const [[kotRow]] = await connection.execute(
-//       `SELECT KOT_Id FROM kitchen_orders WHERE Order_Id = ? LIMIT 1`,
-//       [Order_Id]
-//     );
-
-//     const KOT_Id = kotRow?.KOT_Id || null;
-
-//     /* ---------------------------------------
-//      1️ Generate Invoice ID
-//     --------------------------------------- */
-//     const Invoice_Id = await generateNextId(
-//       connection,
-//       "INV",
-//       "Invoice_Id",
-//       "invoices"
-//     );
-
-//     const [fy] = await connection.execute(
-//       `SELECT Financial_Year
-//        FROM financial_year
-//        WHERE Current_Financial_Year = 1
-//        LIMIT 1`
-//     );
-
-//     if (fy.length === 0) {
-//       await connection.rollback();
-//       return res.status(400).json({
-//         message: "No active financial year found.",
-//       });
-//     }
-
-//     const activeFY = fy[0].Financial_Year;
-
-//     /* ---------------------------------------
-//      2⃣ CUSTOMER (OPTIONAL — SAFE)
-//     --------------------------------------- */
-//     let Customer_Id = null;
-
-//     if (Customer_Phone) {
-//       const [customers] = await connection.execute(
-//         `SELECT Customer_Id FROM customers WHERE Customer_Phone = ? LIMIT 1`,
-//         [Customer_Phone]
-//       );
-
-//       if (customers.length === 0) {
-//         // create customer ONLY when phone exists
-//         Customer_Id = await generateNextId(
-//           connection,
-//           "CUST",
-//           "Customer_Id",
-//           "customers"
-//         );
-
-//         await connection.execute(
-//           `INSERT INTO customers (Customer_Id, Customer_Name, Customer_Phone)
-//            VALUES (?, ?, ?)`,
-//           [Customer_Id, normalizedCustomerName, Customer_Phone]
-//         );
-//       } else {
-//         Customer_Id = customers[0].Customer_Id;
-
-//         // update name if provided
-//         if (normalizedCustomerName) {
-//           await connection.execute(
-//             `UPDATE customers SET Customer_Name = ? WHERE Customer_Id = ?`,
-//             [normalizedCustomerName, Customer_Id]
-//           );
-//         }
-//       }
-
-//       // link order to customer
-//       await connection.execute(
-//         `UPDATE orders SET Customer_Id = ? WHERE Order_Id = ?`,
-//         [Customer_Id, Order_Id]
-//       );
-//     }
-
-//     /* ---------------------------------------
-//      3 Create Invoice (customer may be NULL)
-//     --------------------------------------- */
-//     await connection.execute(
-//       `INSERT INTO invoices
-//       (Invoice_Id, Order_Id, Invoice_Date, Financial_Year,
-//        Customer_Name, Customer_Phone, Customer_Id,
-//        Discount_Type, Discount, Service_Charge, Service_Charge_Type, Amount, Payment_Type)
-//        VALUES (?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-//       [
-//         Invoice_Id,
-//         Order_Id,
-//         activeFY,
-//         normalizedCustomerName,
-//         Customer_Phone || null,
-//         Customer_Id,
-//         Discount_Type,
-//         Discount || 0,
-//         Service_Charge || 0,
-//         Service_Charge_Type,
-//         Final_Amount,
-//         Payment_Type,
-//       ]
-//     );
-
-//     /* ---------------------------------------
-//      4 Mark Order Paid
-//     --------------------------------------- */
-//     await connection.execute(
-//       `UPDATE orders
-//        SET Payment_Status = 'completed', Status = 'paid'
-//        WHERE Order_Id = ?`,
-//       [Order_Id]
-//     );
-
-//     /* ---------------------------------------
-//      ⃣ Free Tables
-//     --------------------------------------- */
-//     const [tableIds] = await connection.execute(
-//       `SELECT Table_Id FROM order_tables WHERE Order_Id = ?`,
-//       [Order_Id]
-//     );
-
-//     if (tableIds.length) {
-//       await connection.query(
-//         `UPDATE add_table
-//          SET Status = 'available', Start_Time = NULL, End_Time = NOW()
-//          WHERE Table_Id IN (?)`,
-//         [tableIds.map((t) => t.Table_Id)]
-//       );
-//     }
-
-//     /* ---------------------------------------
-//      6 Kitchen Status
-//     --------------------------------------- */
-//     if (KOT_Id) {
-//       await connection.execute(
-//         `UPDATE kitchen_orders
-//          SET Status = 'ready', updated_at = NOW()
-//          WHERE KOT_Id = ?`,
-//         [KOT_Id]
-//       );
-
-//       await connection.execute(
-//         `UPDATE kitchen_order_items
-//          SET Item_Status = 'ready'
-//          WHERE KOT_Id = ?`,
-//         [KOT_Id]
-//       );
-//     }
-
-//     await connection.commit();
-
-//     /* ---------------------------------------
-//      SOCKET
-//     --------------------------------------- */
-//     if (KOT_Id) {
-//       io.emit("kitchen_order_removed", { KOT_Id });
-//     }
-//      //  Notify WAITER
-//     if (Waiter_Id) {
-//       io.to(`waiter_${Waiter_Id}`).emit("waiter_order_closed", {
-//         Order_Id,
-//         message: "Order completed & bill paid",
-//       });
-//     }
-
-//     return res.status(200).json({
-//       success: true,
-//       message: "Invoice generated. Order completed.",
-//       Invoice_Id,
-//     });
-//   } catch (err) {
-//     if (connection) await connection.rollback();
-//     console.error("❌ Confirm Bill Error:", err);
-//     next(err);
-//   } finally {
-//     if (connection) connection.release();
-//   }
-// };
 // NEW NO DUPLICATE IDS PROBLEM
 
 const getNextTakeawayInvoiceId = async (req, res, next) => {
@@ -11832,7 +11640,7 @@ const KOTOfOrdersTakenByWaiter = async (req, res, next) => {
 
 
 export {addNewCustomer,getAllCustomers,addOrder, getTablesHavingOrders,
-   getTableOrderDetails, updateOrder, 
+   getTableOrderDetails, updateOrder,rejectCustomerOrder, 
     confirmOrderBillPaidAndInvoiceGenerated,
     getNextTakeawayInvoiceId,
     confirmTakeawayOrderBillPaidAndInvoiceGenerated,

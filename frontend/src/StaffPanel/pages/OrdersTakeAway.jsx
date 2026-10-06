@@ -38,7 +38,6 @@ import { kitchenStaffApi } from "../../redux/api/KitchenStaff/kitchenStaffApi";
 import { useGetAllCategoriesQuery } from "../../redux/api/itemApi"
 import { io } from "socket.io-client";
 import { useGetAllCouponsQuery } from "../../redux/api/couponApi";
-import Coupon from "../../pages/Coupon";
 
 
 
@@ -46,8 +45,8 @@ export default function OrdersTakeAway() {
   //const { userId } = useSelector((state) => state.user);
   // const dispatch = useDispatch();
   const socket = io("http://192.168.0.101:4000", {
-    transports: ["websocket"],
-  });
+  transports: ["websocket"],
+});
 
   const TAX_RATES = {
     "None": 0,

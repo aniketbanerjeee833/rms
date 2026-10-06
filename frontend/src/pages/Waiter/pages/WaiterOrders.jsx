@@ -18,7 +18,7 @@
 // import { useGetAllTablesQuery } from '../../../redux/api/tableApi';
 // import { useGetOrdersByWaiterQuery } from '../../../redux/Waiter/waiterApi';
 
-// const socket = io("http://192.168.0.101:4000", { transports: ["websocket"] });
+// const socket = io("", { transports: ["websocket"] });
 
 // export default function WaiterOrders() {
 
@@ -495,7 +495,9 @@ import { toast } from "react-toastify";
 import { useGetAllTablesQuery } from "../../../redux/api/tableApi";
 import { useGetOrdersByWaiterQuery } from "../../../redux/Waiter/waiterApi";
 
-const socket = io("http://192.168.0.101:4000", { transports: ["websocket"] });
+const socket = io("http://192.168.0.101:4000", {
+  transports: ["websocket"],
+});
 
 export default function WaiterOrders() {
   const { user } = useSelector((state) => state.user);
@@ -523,28 +525,68 @@ export default function WaiterOrders() {
   }, [waiterOrders]);
 
   // ── Socket: connect, join rooms (again after every reconnect) ──────────────
-  useEffect(() => {
-    if (!user?.User_Id || user?.role !== "waiter") return;
+//   useEffect(() => {
+//     if (!user?.User_Id || user?.role !== "waiter") return;
 
-    const joinRooms = () => {
-      socket.emit("join_waiter_room", user.User_Id);
-      socket.emit("join_staff"); // receives customer_order events
-    };
+//     // const joinRooms = () => {
+//     //   socket.emit("join_waiter_room", user.User_Id);
+//     //   socket.emit("join_staff"); // receives customer_order events
+//     // };
+//     const joinRooms = () => {
+//   socket.emit("join_waiter_room", user.User_Id);
 
-    socket.on("connect", joinRooms);
-    if (socket.connected) {
-      joinRooms();
-    } else {
-      socket.connect();
-    }
+//   socket.emit("join_all_waiters");
 
-    return () => {
-      socket.off("connect", joinRooms);
-      socket.emit("leave_waiter_room", user.User_Id);
-      socket.disconnect();
-    };
-  }, [user?.User_Id, user?.role]);
+//   socket.emit("join_staff_room");; // receives customer_order events
+// };
 
+//     socket.on("connect", joinRooms);
+//     if (socket.connected) {
+//       joinRooms();
+//     } else {
+//       socket.connect();
+//     }
+
+//     return () => {
+//       socket.off("connect", joinRooms);
+//       socket.emit("leave_waiter_room", user.User_Id);
+//       socket.disconnect();
+//     };
+//   }, [user?.User_Id, user?.role]);
+
+useEffect(() => {
+  if (!user?.User_Id || user?.role !== "waiter") return;
+
+  const joinRooms = () => {
+    console.log("🟢 SOCKET CONNECTED:", socket.id);
+
+    socket.emit("join_waiter_room", user.User_Id);
+    socket.emit("join_all_waiters");
+    socket.emit("join_staff_room");
+
+    console.log("🟢 WAITER ROOMS JOIN REQUESTED");
+  };
+
+  const onDisconnect = (reason) => {
+    console.log("🔴 SOCKET DISCONNECTED:", reason);
+  };
+
+  socket.on("connect", joinRooms);
+  socket.on("disconnect", onDisconnect);
+
+  if (socket.connected) {
+    joinRooms();
+  } else {
+    socket.connect();
+  }
+
+  return () => {
+    socket.off("connect", joinRooms);
+    socket.off("disconnect", onDisconnect);
+
+    // DON'T disconnect the shared socket here
+  };
+}, [user?.User_Id, user?.role]);
   // ── Socket: takeaway KOT updates (unchanged) ───────────────────────────────
   useEffect(() => {
     const handleKotUpdate = (data) => {
@@ -596,6 +638,50 @@ export default function WaiterOrders() {
     socket.on("waiter_order_closed", onOrderClosed);
     return () => socket.off("waiter_order_closed", onOrderClosed);
   }, [refetchTables]);
+  // ── Socket: any table becomes available again ─────────────────────────────
+useEffect(() => {
+  const onTableReady = ({ message }) => {
+    refetchTables();
+
+    toast.success(
+      message || "Table is now available for a new order."
+    );
+  };
+
+  socket.on("table_ready_for_order", onTableReady);
+
+  return () => {
+    socket.off("table_ready_for_order", onTableReady);
+  };
+}, [refetchTables]);
+
+// ── Socket: any table becomes occupied ────────────────────────────────────
+
+// useEffect(() => {
+//   const onTablesOccupied = () => {
+//     refetchTables();
+//   };
+
+//   socket.on("tables_occupied", onTablesOccupied);
+
+//   return () => {
+//     socket.off("tables_occupied", onTablesOccupied);
+//   };
+// }, [refetchTables]);
+useEffect(() => {
+  const onTablesOccupied = (data) => {
+    console.log("🔥 TABLE OCCUPIED EVENT:", data);
+
+    refetchTables();
+    toast.info(`${data.Table_Names?.join(", ")} now has an order`);
+  };
+
+  socket.on("tables_occupied", onTablesOccupied);
+
+  return () => {
+    socket.off("tables_occupied", onTablesOccupied);
+  };
+}, [refetchTables]);
 
   // ── Socket: customer placed an order -> that table becomes locked ──────────
   useEffect(() => {

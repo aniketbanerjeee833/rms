@@ -11,7 +11,7 @@
 // import { io } from 'socket.io-client';
 // import { toast } from 'react-toastify';
 
-// const socket = io("http://192.168.0.101:4000", {
+// const socket = io("", {
 //   transports: ["websocket"],
 // });
   
@@ -456,7 +456,7 @@ import { useGetOrdersByWaiterQuery } from '../../../redux/Waiter/waiterApi';
 import { io } from 'socket.io-client';
 import { toast } from 'react-toastify';
 
-const socket = io("http://192.168.0.101:4000", {
+const socket = io("", {
   transports: ["websocket"],
 });
   
@@ -904,7 +904,7 @@ const filteredTables = grouped.filter((order) => {
 // import { toast } from 'react-toastify';
 
 
-// const socket = io("http://192.168.0.101:4000", {
+// const socket = io("", {
 //   transports: ["websocket"],
 // });
 

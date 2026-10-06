@@ -15,15 +15,227 @@ async function insertWithCode(connection, sql, params, table, codeCol, prefix) {
 
 /* ============ 1. QR scan -> find or create the OPEN session ============ */
 
+// const scanTable = async (req, res, next) => {
+//   let connection;
+
+//   try {
+//       const { deviceId } = req.body;
+
+//     if (!deviceId || typeof deviceId !== "string") {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Invalid device.",
+//       });
+//     }
+//     connection = await db.getConnection();
+//     await connection.beginTransaction();
+// const [[blockedDevice]] = await connection.execute(
+//   `SELECT Blocked_Until FROM customer_device_blocks
+//    WHERE Device_Id = ? AND Blocked_Until > NOW() LIMIT 1`,
+//   [deviceId]
+// );
+// if (blockedDevice) {
+//   await connection.rollback();
+//   return res.status(403).json({
+//     success: false,
+//     reason: "DEVICE_BLOCKED",
+//     message: "This device is temporarily blocked from ordering. Please ask restaurant staff for assistance.",
+//   });
+// }
+//     // Lock the table row so two simultaneous scans
+//     // cannot create two sessions.
+//     const [[table]] = await connection.execute(
+//       `SELECT Table_Id, Table_Name
+//        FROM add_table
+//        WHERE Qr_Slug = ?
+//        FOR UPDATE`,
+//       [req.params.qr_slug]
+//     );
+
+//     if (!table) {
+//       await connection.rollback();
+
+//       return res.status(404).json({
+//         success: false,
+//         message: "Invalid QR code",
+//       });
+//     }
+
+//     // Get the latest session for this table,
+//     // regardless of its status.
+//     let [[session]] = await connection.execute(
+//       `SELECT
+//          id,
+//          Token,
+//          Order_Id,
+//          Status,
+//          TIMESTAMPDIFF(MINUTE, Last_Activity_At, NOW()) AS idle_min,
+//          TIMESTAMPDIFF(SECOND, Closed_At, NOW()) AS closed_seconds
+//        FROM table_sessions
+//        WHERE Table_Id = ?
+//        ORDER BY id DESC
+//        LIMIT 1
+//        FOR UPDATE`,
+//       [table.Table_Id]
+//     );
+
+//     // =====================================================
+//     // 1. OLD OPEN SESSION WITH NO ORDER
+//     // =====================================================
+
+//     // Customer scanned QR but never placed an order.
+//     // If inactive for more than 2 hours, expire it.
+//     if (
+//       session &&
+//       session.Status === "OPEN" &&
+//       !session.Order_Id &&
+//       session.idle_min > 120
+//     ) {
+//       await connection.execute(
+//         `UPDATE table_sessions
+//          SET Status = 'EXPIRED',
+//              Closed_At = NOW()
+//          WHERE id = ?`,
+//         [session.id]
+//       );
+
+//       session = null;
+//     }
+
+//     // =====================================================
+//     // 2. RECENTLY COMPLETED SESSION
+//     // =====================================================
+
+//     // Prevent immediate creation of a new session
+//     // after payment.
+//     if (
+//       session &&
+//       session.Status === "PAID" &&
+//       session.closed_seconds !== null &&
+//       session.closed_seconds < 60
+//     ) {
+//       await connection.rollback();
+
+//       return res.status(409).json({
+//         success: false,
+//          message: "Please wait a moment. The table is being reset for the next order.",
+//       });
+//     }
+//     if (
+//   session &&
+//   session.Status === "REJECTED" &&
+//   session.closed_seconds !== null &&
+//   session.closed_seconds < 60
+// ) {
+//   await connection.rollback();
+//   return res.status(409).json({
+//     success: false,
+//     message: "This table needs staff assistance. Please ask a staff member to help you.",
+//   });
+// }
+
+//     // =====================================================
+//     // 3. USE EXISTING OPEN SESSION
+//     // =====================================================
+
+//     let token;
+
+//     if (session && session.Status === "OPEN") {
+//       token = session.Token;
+
+//       await connection.execute(
+//         `UPDATE table_sessions
+//          SET Last_Activity_At = NOW()
+//          WHERE id = ?`,
+//         [session.id]
+//       );
+//     }
+
+//     // =====================================================
+//     // 4. NO USABLE SESSION → CREATE NEW SESSION
+//     // =====================================================
+
+//     else {
+//       token = crypto.randomBytes(16).toString("hex");
+
+//       await connection.execute(
+//         `INSERT INTO table_sessions
+//          (Table_Id, Token)
+//          VALUES (?, ?)`,
+//         [table.Table_Id, token]
+//       );
+//     }
+
+//     await connection.commit();
+
+//     res.json({
+//       success: true,
+//       token,
+//       Table_Name: table.Table_Name,
+//     });
+
+//   } catch (err) {
+//     if (connection) {
+//       await connection.rollback();
+//     }
+
+//     next(err);
+//   } finally {
+//     if (connection) {
+//       connection.release();
+//     }
+//   }
+// };
 const scanTable = async (req, res, next) => {
   let connection;
 
   try {
+    const { deviceId } = req.body;
+    console.log("📱 SCAN DEVICE ID:", deviceId);
+console.log("📱 SCAN BODY:", req.body);
+
+
+    if (!deviceId || typeof deviceId !== "string") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid device.",
+      });
+    }
+
     connection = await db.getConnection();
     await connection.beginTransaction();
 
-    // Lock the table row so two simultaneous scans
-    // cannot create two sessions.
+    // =====================================================
+    // 0. CHECK DEVICE BLOCK
+    // =====================================================
+
+    const [[blockedDevice]] = await connection.execute(
+      `SELECT Blocked_Until
+       FROM customer_device_blocks
+       WHERE Device_Id = ?
+       LIMIT 1
+       FOR UPDATE`,
+      [deviceId]
+    );
+
+    if (
+      blockedDevice &&
+      new Date(blockedDevice.Blocked_Until) > new Date()
+    ) {
+      await connection.rollback();
+
+      return res.status(403).json({
+        success: false,
+        reason: "DEVICE_BLOCKED",
+        message:
+          "This device is temporarily blocked from ordering. Please ask restaurant staff for assistance.",
+      });
+    }
+
+    // =====================================================
+    // LOCK TABLE
+    // =====================================================
+
     const [[table]] = await connection.execute(
       `SELECT Table_Id, Table_Name
        FROM add_table
@@ -41,8 +253,10 @@ const scanTable = async (req, res, next) => {
       });
     }
 
-    // Get the latest session for this table,
-    // regardless of its status.
+    // =====================================================
+    // GET LATEST SESSION
+    // =====================================================
+
     let [[session]] = await connection.execute(
       `SELECT
          id,
@@ -63,8 +277,6 @@ const scanTable = async (req, res, next) => {
     // 1. OLD OPEN SESSION WITH NO ORDER
     // =====================================================
 
-    // Customer scanned QR but never placed an order.
-    // If inactive for more than 2 hours, expire it.
     if (
       session &&
       session.Status === "OPEN" &&
@@ -86,8 +298,6 @@ const scanTable = async (req, res, next) => {
     // 2. RECENTLY COMPLETED SESSION
     // =====================================================
 
-    // Prevent immediate creation of a new session
-    // after payment.
     if (
       session &&
       session.Status === "PAID" &&
@@ -98,12 +308,32 @@ const scanTable = async (req, res, next) => {
 
       return res.status(409).json({
         success: false,
-         message: "Please wait a moment. The table is being reset for the next order.",
+        message:
+          "Please wait a moment. The table is being reset for the next order.",
       });
     }
 
     // =====================================================
-    // 3. USE EXISTING OPEN SESSION
+    // 3. RECENTLY REJECTED SESSION
+    // =====================================================
+
+    if (
+      session &&
+      session.Status === "REJECTED" &&
+      session.closed_seconds !== null &&
+      session.closed_seconds < 60
+    ) {
+      await connection.rollback();
+
+      return res.status(409).json({
+        success: false,
+        message:
+          "This table needs staff assistance. Please ask a staff member to help you.",
+      });
+    }
+
+    // =====================================================
+    // 4. USE EXISTING OPEN SESSION
     // =====================================================
 
     let token;
@@ -120,7 +350,7 @@ const scanTable = async (req, res, next) => {
     }
 
     // =====================================================
-    // 4. NO USABLE SESSION → CREATE NEW SESSION
+    // 5. CREATE NEW SESSION
     // =====================================================
 
     else {
@@ -128,15 +358,15 @@ const scanTable = async (req, res, next) => {
 
       await connection.execute(
         `INSERT INTO table_sessions
-         (Table_Id, Token)
-         VALUES (?, ?)`,
-        [table.Table_Id, token]
+         (Table_Id, Token, Device_Id)
+         VALUES (?, ?, ?)`,
+        [table.Table_Id, token, deviceId]
       );
     }
 
     await connection.commit();
 
-    res.json({
+    return res.json({
       success: true,
       token,
       Table_Name: table.Table_Name,
@@ -148,13 +378,16 @@ const scanTable = async (req, res, next) => {
     }
 
     next(err);
+
   } finally {
     if (connection) {
       connection.release();
     }
   }
 };
+
 /* ============ 2. Current session: table, items, total ============ */
+
 const getSession = async (req, res, next) => {
   try {
     const [[s]] = await db.execute(
@@ -165,12 +398,22 @@ const getSession = async (req, res, next) => {
       [req.params.token]
     );
     if (!s) return res.status(404).json({ success: false, message: "Invalid link" });
+    // if (s.Status !== "OPEN") {
+    //   return res.status(410).json({
+    //     success: false,
+    //     message: "Order completed. Scan the QR on your table to order again.",
+    //   });
+    // }
     if (s.Status !== "OPEN") {
-      return res.status(410).json({
-        success: false,
-        message: "Order completed. Scan the QR on your table to order again.",
-      });
-    }
+  const rejected = s.Status === "REJECTED";
+  return res.status(410).json({
+    success: false,
+    reason: rejected ? "REJECTED" : "COMPLETED",
+    message: rejected
+      ? "Your order was cancelled by the restaurant. Please speak to a staff member."
+      : "Order completed. Scan the QR on your table to order again.",
+  });
+}
 
     let items = [];
     let total = 0;
@@ -248,8 +491,11 @@ const placeCustomerOrder = async (req, res, next) => {
     }
 
     /* ---- find or create the order ---- */
+    // let Order_Id = session.Order_Id;
+    // const isAddition = !!Order_Id;
     let Order_Id = session.Order_Id;
-    const isAddition = !!Order_Id;
+const isAddition = !!Order_Id;
+let tableBecameOccupied = false;
 
     if (!Order_Id) {
       // staff may already have an unpaid order on this table: join it
@@ -285,6 +531,7 @@ const placeCustomerOrder = async (req, res, next) => {
         `UPDATE table_sessions SET Order_Id = ? WHERE id = ?`,
         [Order_Id, session.id]
       );
+      tableBecameOccupied = true;
     }
 
     /* ---- one KOT per order: reuse it, or create it on the first round ---- */
@@ -389,6 +636,13 @@ const placeCustomerOrder = async (req, res, next) => {
     );
 
     await connection.commit();
+ if (tableBecameOccupied) {
+  io.to("all_waiters").emit("tables_occupied", {
+    Order_Id,
+    Table_Ids: [session.Table_Id],
+    Table_Names: [tbl.Table_Name],
+  });
+}
 
     /* ---- instant notifications (after commit) ---- */
     const byCategory = {};

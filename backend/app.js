@@ -128,6 +128,8 @@ const allowedOrigins = [
   process.env.CLIENT_URL,               // e.g. http://localhost:5173
   "http://localhost:5174",              // second allowed origin
 "http://192.168.0.101:5173",
+"https://192.168.0.101:5173"
+
 ];
 
 app.use(cors({
@@ -235,15 +237,29 @@ socket.on("join_kitchen_categories", (categories = []) => {
   //   console.log(`🍳 Kitchen staff ${User_Id} left personal room`);
   // });
  /* ---------------- 🧑‍🍳 WAITER ROOM ---------------- */
-  socket.on("join_waiter_room", (Waiter_Id) => {
-    socket.join(`waiter_${Waiter_Id}`);
-    console.log(`🧑‍🍳 Waiter ${Waiter_Id} joined waiter room`);
-  });
 
-  socket.on("leave_waiter_room", (Waiter_Id) => {
-    socket.leave(`waiter_${Waiter_Id}`);
-    console.log(`🧑‍🍳 Waiter ${Waiter_Id} left waiter room`);
-  });
+
+// Individual waiter room
+socket.on("join_waiter_room", (Waiter_Id) => {
+  socket.join(`waiter_${Waiter_Id}`);
+  console.log(`🧑‍🍳 Waiter ${Waiter_Id} joined waiter_${Waiter_Id}`);
+});
+
+socket.on("leave_waiter_room", (Waiter_Id) => {
+  socket.leave(`waiter_${Waiter_Id}`);
+  console.log(`🧑‍🍳 Waiter ${Waiter_Id} left waiter_${Waiter_Id}`);
+});
+
+// All waiters room
+socket.on("join_all_waiters", () => {
+  socket.join("all_waiters");
+  console.log(`🧑‍🍳 Waiter ${socket.id} joined all_waiters`);
+});
+
+socket.on("leave_all_waiters", () => {
+  socket.leave("all_waiters");
+  console.log(`🧑‍🍳 Waiter ${socket.id} left all_waiters`);
+});
 //   socket.on("join_customer_session", (token) => {
 //   socket.join(`customer_session_${token}`);
 

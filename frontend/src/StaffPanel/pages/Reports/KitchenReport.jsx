@@ -45,7 +45,7 @@ import React, { useState } from 'react';
 // //     setLoading(true);
 // //     try {
 // //       const response = await fetch(
-// //         `/api/kitchen-wise-report?year=${selectedYear}&month=${monthNames[selectedMonth - 1].toLowerCase()}`
+// //         `http://192.168.0.101:4000/api/kitchen-wise-report?year=${selectedYear}&month=${monthNames[selectedMonth - 1].toLowerCase()}`
 // //       );
 // //       const data = await response.json();
       

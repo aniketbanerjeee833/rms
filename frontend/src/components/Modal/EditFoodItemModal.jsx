@@ -1114,7 +1114,7 @@ export default function EditFoodItemModal({ onClose, foodItem, editingFoodItem }
         if (!editingFoodItem) return;
 
         if (!foodItem) return;
-        //setPreview(`https://ancoinnovation.com/b/backend/uploads/food-item/${foodItem?.Item_Image}`);
+        //setPreview(`https://ancoinnovation.com/b/backendhttp://192.168.0.101:4000/uploads/food-item/${foodItem?.Item_Image}`);
         setPreview(`http://192.168.0.101:4000/uploads/food-item/${foodItem?.Item_Image}`);
         reset({
             Item_Name: foodItem.Item_Name,

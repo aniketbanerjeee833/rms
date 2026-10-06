@@ -196,7 +196,7 @@ export default function Orders() {
   }, []);
   useEffect(() => {
     const handleSoftDeletedItem = (data) => {
-      console.log("📢 Food status changed:", data);
+      console.log(" Food status changed:", data);
 
       // Force RTK Query to refetch
       dispatch(foodItemApi.util.invalidateTags([{ type: "Food-Item", id: "LIST" }]));
