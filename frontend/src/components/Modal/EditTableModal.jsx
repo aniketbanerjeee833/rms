@@ -224,7 +224,7 @@ import { toast } from "react-toastify";
 
 export default function EditTableModal({ table, onClose }) {
   const navigate = useNavigate();
-  const { register, handleSubmit, reset, watch } = useForm();
+  const { register, handleSubmit, reset } = useForm();
 
   useEffect(() => {
     reset({
@@ -234,7 +234,7 @@ export default function EditTableModal({ table, onClose }) {
   }, [table, reset]); // CHANGED: dependency list
 
   const [editTable, { isLoading: isEditingTable }] = useUpdateTableMutation();
-  const formValues = watch();
+  //const formValues = watch();
   const [errors, setErrors] = useState({});
 
   // NEW: QR state + regenerate

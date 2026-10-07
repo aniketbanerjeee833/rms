@@ -317,7 +317,7 @@ export default function AllTablesList() {
                 <div >
                     {/* <div className="row">
                         <div className="col-md-12"> */}
-                            <div className="box-inn-sp">
+                            <div className="box-inn-sp" style={{height:"85vh"}}>
 
                                 {/* =========================
                                 HEADER

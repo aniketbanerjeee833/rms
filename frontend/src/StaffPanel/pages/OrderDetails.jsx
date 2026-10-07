@@ -282,17 +282,7 @@ useEffect(() => {
   const filteredAvailable = availableTables.filter((t) => matchesSearch(t.Table_Name));
   const filteredOccupied  = occupiedTables.filter((t)  => matchesSearch(t.Table_Name));
 
-  // ── Takeaway filter (unchanged) ───────────────────────────────────────────
-  // const filteredTakeawayOrders = takeawayTables.filter((order) => {
-  //   if (!searchTerm) return true;
-  //   const search = searchTerm.trim().toLowerCase();
-  //   return (
-    
-  //     order.Customer_Name?.toLowerCase().includes(search) ||
-  //     order.Customer_Phone?.includes(search) ||
-  //     order.items?.some((item) => item.Item_Name?.toLowerCase().includes(search))
-  //   );
-  // });
+ 
 
   // ── KOT print (unchanged) ─────────────────────────────────────────────────
  const printKOTInvoice = (kitchens) => {
@@ -573,7 +563,7 @@ if (res?.elligibleItems && Object.keys(res.elligibleItems).length > 0) {
   // ══════════════════════════════════════════════════════════════════════════
   return (
     <>
-      <div style={{ padding: "20px", width: "100%", height: "100%" }} className="box-inn-sp">
+      <div style={{ padding: "20px", width: "100%", height: "90vh" }} className="box-inn-sp">
 
         {/* ── Header ── */}
         <div className="inn-title w-full px-1 py-1">
