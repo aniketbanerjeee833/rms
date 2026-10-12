@@ -285,6 +285,75 @@ async function checkDineInItemsElligibleForKOTPrint(items) {
 
 
 
+const getUpcomingPreBookings = async (req, res, next) => {
+  try {
+    // Get the current time in the restaurant's timezone (India).
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(new Date());
+
+    const values = Object.fromEntries(
+      parts.map(({ type, value }) => [type, value])
+    );
+
+    const nowIST =
+      `${values.year}-${values.month}-${values.day} ` +
+      `${values.hour}:${values.minute}:${values.second}`;
+
+    const [bookings] = await db.execute(
+      `
+      SELECT
+        pbo.Pre_Booked_Order_Id,
+        DATE_FORMAT(pbo.Booking_Date, '%Y-%m-%d') AS Booking_Date,
+        TIME_FORMAT(pbo.Booking_Time, '%H:%i:%s') AS Booking_Time,
+        pbo.Status,
+        pbo.Order_Type,
+        pbot.Table_Id,
+        t.Table_Name,
+        c.Customer_Name,
+        c.Customer_Phone
+      FROM pre_booked_orders pbo
+      INNER JOIN pre_booked_order_tables pbot
+        ON pbot.Pre_Booked_Order_Id = pbo.Pre_Booked_Order_Id
+      INNER JOIN add_table t
+        ON t.Table_Id = pbot.Table_Id
+      LEFT JOIN customers c
+        ON c.Customer_Id = pbo.Customer_Id
+      WHERE LOWER(pbo.Order_Type) = 'dine-in'
+        AND LOWER(COALESCE(pbo.Status, '')) NOT IN (
+          'cancelled',
+          
+          'completed'
+          
+        )
+        AND TIMESTAMP(pbo.Booking_Date, pbo.Booking_Time) >= ?
+        AND TIMESTAMP(pbo.Booking_Date, pbo.Booking_Time)
+            < DATE_ADD(?, INTERVAL 72 HOUR)
+      ORDER BY
+        pbo.Booking_Date ASC,
+        pbo.Booking_Time ASC
+      `,
+      [nowIST, nowIST]
+    );
+
+    return res.status(200).json({
+      success: true,
+      count: bookings.length,
+      bookings,
+    });
+  } catch (err) {
+    console.error("Get Upcoming Pre-Bookings Error:", err);
+    next(err);
+  }
+};
+
 
 
 const addOrder = async (req, res, next) => {
@@ -326,6 +395,48 @@ const stockDate = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolka
     /* ---------------- DB START ---------------- */
     connection = await db.getConnection();
     await connection.beginTransaction();
+    
+    // ================= PRE-BOOKING PROTECTION =================
+    const indiaNow = new Date().toLocaleString("sv-SE", {
+      timeZone: "Asia/Kolkata",
+      hour12: false,
+    });
+const tablePlaceholders = Table_Names.map(() => "?").join(", ");
+    const [reservedTables] = await connection.execute(
+      `
+      SELECT DISTINCT t.Table_Name, pbo.Booking_Date, pbo.Booking_Time
+      FROM pre_booked_orders pbo
+      JOIN pre_booked_order_tables pbot
+        ON pbot.Pre_Booked_Order_Id = pbo.Pre_Booked_Order_Id
+      JOIN add_table t
+        ON t.Table_Id = pbot.Table_Id
+     WHERE t.Table_Name IN (${tablePlaceholders})
+        AND LOWER(pbo.Order_Type) = 'dine-in'
+        AND LOWER(COALESCE(pbo.Status, '')) NOT IN (
+          'cancelled',
+          
+          'completed'
+       
+        )
+        AND TIMESTAMP(pbo.Booking_Date, pbo.Booking_Time) <= ?
+      LIMIT 1
+      `,
+     [...Table_Names, indiaNow]
+    );
+
+    if (reservedTables.length > 0) {
+      await connection.rollback();
+
+      return res.status(409).json({
+        success: false,
+        message: `Table ${reservedTables[0].Table_Name} is reserved. You cannot create a new dine-in order for this table at or after its booking time.`,
+        reservedTable: reservedTables[0].Table_Name,
+        Booking_Date: reservedTables[0].Booking_Date,
+        Booking_Time: reservedTables[0].Booking_Time,
+      });
+    }
+    // ================= END PRE-BOOKING PROTECTION =================
+
 
     /* ---------------- CUSTOMER (OPTIONAL) ---------------- */
     let Customer_Id = null;
@@ -10065,6 +10176,14 @@ if (
 }
 
     await connection.commit();
+    io.emit("prebooking_updated", {
+  action: "created",
+  Pre_Booked_Order_Id,
+  Table_Names: Order_Type === "dine-in" ? Table_Names : [],
+  Booking_Date,
+  Booking_Time,
+  Order_Type,
+});
 
     return res.status(201).json({
       success: true,
@@ -10826,7 +10945,14 @@ else if (Order_Type === "dine-in") {
 
 
     await connection.commit();
-
+io.emit("prebooking_updated", {
+  action: "updated",
+  Pre_Booked_Order_Id,
+  Table_Names: Order_Type === "dine-in" ? Table_Names : [],
+  Booking_Date,
+  Booking_Time,
+  Order_Type,
+});
     return res.status(200).json({
       success: true,
       message: "Pre-book order updated successfully",
@@ -11848,7 +11974,7 @@ const KOTOfOrdersTakenByWaiter = async (req, res, next) => {
 
 
 
-export {addNewCustomer,getAllCustomers,addOrder, getTablesHavingOrders,
+export {addNewCustomer,getAllCustomers,addOrder,getUpcomingPreBookings, getTablesHavingOrders,
    getTableOrderDetails, updateOrder,rejectCustomerOrder, 
     confirmOrderBillPaidAndInvoiceGenerated,
     getNextTakeawayInvoiceId,

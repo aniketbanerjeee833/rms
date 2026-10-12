@@ -23,7 +23,8 @@ import { addNewCustomer, addOrder,  cancelTakeawayOrder, checkItemElligibleForKO
     KOTOfOrdersTakenByWaiter,
     getNextTakeawayInvoiceId,
     rejectCustomerOrder,
-    cancelPreBookOrder} 
+    cancelPreBookOrder,
+    getUpcomingPreBookings} 
     from "../../controllers/staff/orderItemController.js";
 import userAuth from "../../middleware/userAuth.js";
 import { generateSms, generateSmsForTakeaway, getPublicInvoiceHtml, generateSmsForPreBooked } from "../../controllers/smsController.js";
@@ -34,6 +35,7 @@ import adminAuth from "../../middleware/adminAuth.js";
 
 router.put("/add-new-customer",userAuth,addNewCustomer)
 router.get("/all-customers",userAuth,getAllCustomers)
+router.get("/get-upcoming-pre-bookings",userAuth,getUpcomingPreBookings);
 router.post("/add-order",userAuth,addOrder)
 router.get("/get-tables-having-orders",userAuth,getTablesHavingOrders)
 

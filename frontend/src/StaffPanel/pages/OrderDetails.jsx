@@ -11,7 +11,8 @@ import {
   orderApi,
   useKOTOfOrdersTakenByWaiterMutation,
   useGetTablesHavingOrdersQuery,
-  useRejectCustomerOrderMutation
+  useRejectCustomerOrderMutation,
+  useGetUpcomingPreBookingsQuery
 } from '../../redux/api/Staff/orderApi';
 import { io } from 'socket.io-client';
 import { useDispatch } from 'react-redux';
@@ -42,6 +43,14 @@ export default function OrderDetails() {
   data: tableHavingOrders,
   refetch: refetchTablesHavingOrders,
 } = useGetTablesHavingOrdersQuery();
+const {
+  data: upcomingPreBookingsData,
+  refetch: refetchUpcomingPreBookings,
+} = useGetUpcomingPreBookingsQuery(undefined, {
+  pollingInterval: 60 * 60 * 1000, // Every 1 hour
+  refetchOnFocus: true,
+  refetchOnReconnect: true,
+});
   const { data: tables } = useGetAllTablesQuery({});
   //console.log("Tables:", tables);
   const [rejectCustomerOrder] = useRejectCustomerOrderMutation();
@@ -63,6 +72,17 @@ const handleReject = async (order) => {
   const [waiterOrdersToBePrinted] = useKOTOfOrdersTakenByWaiterMutation();
 
   // ── Sockets ────────────────────────────────────────────────────────────────
+  useEffect(() => {
+  const handlePreBookingUpdated = () => {
+    refetchUpcomingPreBookings();
+  };
+
+  socket.on("prebooking_updated", handlePreBookingUpdated);
+
+  return () => {
+    socket.off("prebooking_updated", handlePreBookingUpdated);
+  };
+}, [refetchUpcomingPreBookings]);
   useEffect(() => {
     const handleOrderUpdate = (data) => {
       console.log(" Dashboard received updated order:", data);
@@ -202,7 +222,58 @@ useEffect(() => {
     const interval = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(interval);
   }, []);
+const upcomingPreBookings =
+  upcomingPreBookingsData?.bookings ?? [];
 
+const getUpcomingReservation = (tableName) => {
+  const now = currentTime.getTime();
+
+  const activeBookings = upcomingPreBookings
+    .filter((booking) => {
+      const status = String(booking.Status ?? "").toLowerCase();
+
+      return (
+        String(booking.Table_Name) === String(tableName) &&
+        String(booking.Order_Type ?? "").toLowerCase() === "dine-in" &&
+        !["cancelled",  "completed"].includes(status)
+      );
+    })
+    .map((booking) => {
+      const date = String(booking.Booking_Date).slice(0, 10);
+      const time = String(booking.Booking_Time).slice(0, 8);
+
+      const [year, month, day] = date.split("-").map(Number);
+      const [hour, minute, second = 0] = time.split(":").map(Number);
+
+      const bookingTimestamp = new Date(
+        year,
+        month - 1,
+        day,
+        hour,
+        minute,
+        second
+      ).getTime();
+
+      return {
+        ...booking,
+        bookingTimestamp,
+        minutesUntil: (bookingTimestamp - now) / 60000,
+      };
+    })
+    .filter(
+      (booking) =>
+        Number.isFinite(booking.bookingTimestamp) &&
+        booking.minutesUntil > 0
+    )
+    .sort((a, b) => a.bookingTimestamp - b.bookingTimestamp);
+
+  const nextBooking = activeBookings[0];
+
+  // Show the warning during the final 60 minutes before booking.
+  return nextBooking && nextBooking.minutesUntil <= 60
+    ? nextBooking
+    : null;
+};
   const getElapsedTime = (startTime) => {
     const start = new Date(startTime);
     const diff = Math.floor((currentTime - start) / 1000);
@@ -517,14 +588,59 @@ if (res?.elligibleItems && Object.keys(res.elligibleItems).length > 0) {
   };
 
   // ── Available table card ───────────────────────────────────────────────────
-  const AvailableTableCard = ({ table }) => (
+  // const AvailableTableCard = ({ table }) => (
+  //   <div
+  //     className="bg-white rounded-lg p-4 shadow-md relative border-2 cursor-pointer
+  //                hover:shadow-lg hover:-translate-y-1 transition-all duration-200"
+  //     style={{ borderColor: "#d1d5db" }}   // gray border
+  //     onClick={() =>
+  //       //navigate(`/staff/orders/add?table=${encodeURIComponent(table?.Table_Name)}`)
+  //              navigate(`/staff/orders/add/${encodeURIComponent(table?.Table_Name)}`)
+  //     }
+  //   >
+  //     {/* Available badge */}
+  //     <div className="flex justify-end mb-2">
+  //       <div className="px-3 py-1 text-sm font-bold text-white bg-green-600">
+  //         Available
+  //       </div>
+  //     </div>
+
+  //     {/* Table name */}
+  //     <div className="flex items-center justify-center h-16">
+  //       <h5 className="text-base sm:text-lg font-bold text-gray-700 text-center">
+  //         {table?.Table_Name}
+  //       </h5>
+  //     </div>
+
+  //     {/* Capacity if present */}
+  //     {table?.Table_Capacity && (
+  //       <div className="border-t pt-2 flex justify-between items-center mt-2">
+  //         <span className="text-xs text-red-500">Capacity</span>
+  //         <span className="text-sm font-semibold text-gray-600">{table?.Table_Capacity}</span>
+  //       </div>
+  //     )}
+
+  //     {/* CTA */}
+  //     <div className="flex justify-center mt-3">
+  //       <span className="text-xs  font-medium">Click to take order →</span>
+  //     </div>
+  //   </div>
+  // );
+  
+const AvailableTableCard = ({ table }) => {
+  const reservation = getUpcomingReservation(table.Table_Name);
+
+  return (
     <div
       className="bg-white rounded-lg p-4 shadow-md relative border-2 cursor-pointer
                  hover:shadow-lg hover:-translate-y-1 transition-all duration-200"
-      style={{ borderColor: "#d1d5db" }}   // gray border
+      style={{
+        borderColor: reservation ? "#f97316" : "#d1d5db",
+      }}
       onClick={() =>
-        //navigate(`/staff/orders/add?table=${encodeURIComponent(table?.Table_Name)}`)
-               navigate(`/staff/orders/add/${encodeURIComponent(table?.Table_Name)}`)
+        navigate(
+          `/staff/orders/add/${encodeURIComponent(table?.Table_Name)}`
+        )
       }
     >
       {/* Available badge */}
@@ -541,20 +657,51 @@ if (res?.elligibleItems && Object.keys(res.elligibleItems).length > 0) {
         </h5>
       </div>
 
-      {/* Capacity if present */}
+      {/* One-hour reservation warning */}
+      {reservation && (
+        <div className="mt-3 rounded-md border border-orange-300 bg-orange-50 p-3">
+          <p className="text-sm font-bold text-orange-800">
+            ⚠️ Upcoming Reservation
+          </p>
+
+          <p className="mt-1 text-xs text-orange-700">
+            Reserved for{" "}
+            {new Date(
+              reservation.bookingTimestamp
+            ).toLocaleTimeString("en-IN", {
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: true,
+              timeZone: "Asia/Kolkata",
+            })}
+          </p>
+
+          <p className="mt-1 text-xs font-medium text-orange-800">
+            Reservation is within the next hour.
+          </p>
+        </div>
+      )}
+
+      {/* Capacity */}
       {table?.Table_Capacity && (
         <div className="border-t pt-2 flex justify-between items-center mt-2">
           <span className="text-xs text-red-500">Capacity</span>
-          <span className="text-sm font-semibold text-gray-600">{table?.Table_Capacity}</span>
+          <span className="text-sm font-semibold text-gray-600">
+            {table?.Table_Capacity}
+          </span>
         </div>
       )}
 
       {/* CTA */}
       <div className="flex justify-center mt-3">
-        <span className="text-xs  font-medium">Click to take order →</span>
+        <span className="text-xs font-medium">
+          Click to take order →
+        </span>
       </div>
     </div>
   );
+};
+
 
   const nothingFound =
     filteredAvailable.length === 0 &&
@@ -563,7 +710,7 @@ if (res?.elligibleItems && Object.keys(res.elligibleItems).length > 0) {
   // ══════════════════════════════════════════════════════════════════════════
   return (
     <>
-      <div style={{ padding: "20px", width: "100%", height: "90vh" }} className="box-inn-sp">
+      <div style={{ padding: "20px", width: "100%" }} className="box-inn-sp">
 
         {/* ── Header ── */}
         <div className="inn-title w-full px-1 py-1">
@@ -579,14 +726,7 @@ if (res?.elligibleItems && Object.keys(res.elligibleItems).length > 0) {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-1/2"
               />
-              {/* <button
-                type="button"
-                onClick={() => navigate("/staff/orders/add")}
-                className="h-12 px-4 text-white font-bold rounded flex items-center justify-center whitespace-nowrap"
-                style={{ backgroundColor: "#ff0000" }}
-              >
-                Add Order
-              </button> */}
+            
             </div>
           </div>
         </div>

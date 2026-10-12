@@ -25,6 +25,10 @@ export const orderApi = createApi({
       query: () => `order/all-customers`,
       providesTags: ["Customer"],
     }),
+    getUpcomingPreBookings: builder.query({
+  query: () => "order/get-upcoming-pre-bookings",
+  providesTags: ["PreBookOrder"],
+}),
  addOrder: builder.mutation({
   query: (payload) => ({
     url: `order/add-order`,
@@ -364,6 +368,7 @@ confirmPreOrderBillPaidAndInvoiceGenerated: builder.mutation({
 
 
 export const { useAddNewCustomerMutation,useGetAllCustomersQuery,
+  useGetUpcomingPreBookingsQuery,
   useAddOrderMutation,useGetTablesHavingOrdersQuery,
   useGetTableOrderDetailsQuery ,
   useGetTakeawayOrderDetailsQuery,
