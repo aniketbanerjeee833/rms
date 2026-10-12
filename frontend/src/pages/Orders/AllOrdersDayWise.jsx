@@ -1564,7 +1564,7 @@ Print Bill
             <div className="grid justify-items-end sm:justify-items-start" style={{ marginBottom: '10px' }}>
               <span
                 style={{
-                  backgroundColor: getStatusColor(data.order.Status),
+                 backgroundColor: getStatusColor(data?.order?.Status),
                   color: '#fff',
                   padding: '6px 14px',
                   borderRadius: '20px',

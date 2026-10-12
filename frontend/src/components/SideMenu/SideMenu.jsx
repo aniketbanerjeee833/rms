@@ -299,7 +299,7 @@ if (
                  Dashboard
                  </span>
             </NavLink>}
-               {userMe?.user?.role === "admin" && renderMenu("Parties",     <Users size={20}/>, [
+               {/* {userMe?.user?.role === "admin" && renderMenu("Parties",     <Users size={20}/>, [
            { to: "/party/add", text: "Add Parties" },
             { to: "/party/all-parties", text: "Party Details" },
              
@@ -309,16 +309,16 @@ if (
             
             { to: "/inventory/add", text: "Add Inventory" },
             { to: "/inventory/all-inventories", text: " All Inventory" },
-          ])}
+          ])} 
 
       
            {userMe?.user?.role === "admin" && renderMenu("Material", <Handbag   size={20} />, [
            
-            // { to: "/material/add", text: "Add Material" },
+           
             { to: "/material/all-materials", text: "Material List" },
             { to: "/material/materials-release", text: "Material Release" },
           
-          ])}
+          ])} */}
 
           
        

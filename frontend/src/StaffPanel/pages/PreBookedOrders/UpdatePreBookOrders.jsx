@@ -1331,7 +1331,7 @@ useEffect(() => {
   Booking_Date: data.Booking_Date,
   Booking_Time: bookingTime,
 
-  Order_Type: orderType,
+  Order_Type: orderType === "DINE_IN" ? "dine-in" : "takeaway",
   Table_Names: orderType === "DINE_IN" ? data.Table_Names : [],
 
   Sub_Total: data.Sub_Total || "0.00",
