@@ -119,18 +119,7 @@ getAllInvoicesAndOrdersEachDay: builder.query({
   providesTags: ["Order"],
 }),
 
-// getAllInvoicesOfOrdersAndTakeawaysInDateRange: builder.query({
-//   query: ({ fromDate, toDate, page = 1, search = "" }) => {
-//     const params = new URLSearchParams();
-//     params.append("fromDate", fromDate);
-//     params.append("toDate", toDate);
-//     params.append("page", page);
-   
-//     if (search) params.append("search", search.trim());
 
-//     return `order/get-all-invoices-orders-takeaways-in-date-range?${params.toString()}`;
-//   },
-// }),
 getAllInvoicesOfOrdersAndTakeawaysInDateRange: builder.query({
   query: ({ fromDate, toDate, page = 1,filter = "all", search = "" }) => {
     const params = new URLSearchParams();
@@ -294,6 +283,19 @@ updatePreBookOrder: builder.mutation({
   ],
 }),
 
+cancelPreBookOrder: builder.mutation({
+  query: (Pre_Booked_Order_Id) => ({
+    url: `order/cancel-pre-book-order/${Pre_Booked_Order_Id}`,
+    method: "PATCH",
+  }),
+  invalidatesTags: (result, error, Pre_Booked_Order_Id) => [
+    { type: "PreBookOrder", id: Pre_Booked_Order_Id },
+    { type: "PreBookOrder", id: "LIST" },
+    { type: "PreBookOrder", id: "DAYWISE" },
+  ],
+}),
+
+
 confirmPreOrderBillPaidAndInvoiceGenerated: builder.mutation({
     query: ({ Pre_Book_Order_Id, payload })=> ({
     url: `/order/confirm-pre-book-order-bill-paid-and-invoice-generated/${Pre_Book_Order_Id}`,
@@ -391,6 +393,7 @@ useAddPreBookOrderMutation,
 useGetAllPreBookingOrdersQuery,useGetPreBookOrderDetailsQuery,
 useLazyGetPreBookOrderItemsForKOTQuery,
 useUpdatePreBookOrderMutation,
+useCancelPreBookOrderMutation,
 useConfirmPreOrderBillPaidAndInvoiceGeneratedMutation,
 useUpdateAndPrintPreBookKOTMutation,
 useKOTOfOrdersTakenByWaiterMutation,

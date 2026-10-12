@@ -44,15 +44,7 @@ const socket = io("http://192.168.0.101:4000", {
 
 
 export default function UpdatePreBookOrders() {
-  // const formatTime = (time) => {
-  //   if (!time) return "--";
-  //   const d = new Date(time);
-  //   d.setSeconds(0);
-  //   return d.toLocaleTimeString([], {
-  //     hour: "2-digit",
-  //     minute: "2-digit",
-  //   });
-  // };
+
 
   const { Pre_Booked_Order_Id } = useParams();
   const dispatch = useDispatch();
@@ -100,8 +92,19 @@ export default function UpdatePreBookOrders() {
   const [isExistingCustomer, setIsExistingCustomer] = useState(false);
 
 
-  const { data: menuItems, isLoading: isMenuItemsLoading, isFetching } = useGetAllFoodItemsQuery({});
+  //const { data: menuItems, isLoading: isMenuItemsLoading, isFetching } = useGetAllFoodItemsQuery({orderType: "DINE_IN"});
   //console.log(tables, isLoading, "tables", menuItems, isMenuItemsLoading);
+  // const orderType =
+  //   preBookedOrderDetails?.order?.Order_Type?.toUpperCase() === "TAKEAWAY"
+  //     ? "TAKEAWAY"
+  //     : "DINE_IN";
+  const [orderType, setOrderType] = useState("DINE_IN");
+
+  const {
+    data: menuItems,
+    isLoading: isMenuItemsLoading,
+    isFetching,
+  } = useGetAllFoodItemsQuery({ orderType });
   const items = menuItems?.foodItems
   const [updatePreBookOrder, { isLoading: isUpdateOrderLoading }] = useUpdatePreBookOrderMutation();
   const lastUpdatedItemRef = useRef(null);
@@ -331,6 +334,11 @@ export default function UpdatePreBookOrders() {
   const selectedTables = watch("Table_Names") || [];
   useEffect(() => {
     if (!preBookedOrderDetails) return;
+    setOrderType(
+  preBookedOrderDetails?.order?.Order_Type?.toUpperCase() === "TAKEAWAY"
+    ? "TAKEAWAY"
+    : "DINE_IN"
+);
 
     const timeStr = preBookedOrderDetails?.order?.Booking_Time; // "12:30 PM"
 
@@ -509,6 +517,53 @@ export default function UpdatePreBookOrders() {
 
     setValue("Amount", subTotal.toFixed(2));
   };
+
+  
+useEffect(() => {
+  if (!items?.length) return;
+
+  const currentOrderItems = watch("items") || [];
+
+  // Menu prices are fetched for the currently selected order type.
+  const menuById = new Map(
+    items.map((menuItem) => [
+      String(menuItem.Item_Id),
+      menuItem,
+    ])
+  );
+
+  currentOrderItems.forEach((orderItem, index) => {
+    const menuItem = menuById.get(
+      String(orderItem.id ?? orderItem.Item_Id)
+    );
+
+    // Preserve the row if this item is not in the fetched menu.
+    if (!menuItem) return;
+
+    const newPrice = Number(menuItem.Item_Price);
+    const quantity = Number(orderItem.Item_Quantity) || 0;
+
+    if (!Number.isFinite(newPrice) || newPrice < 0) return;
+
+    // Update the unit price for the selected order type.
+    setValue(`items.${index}.Item_Price`, newPrice, {
+      shouldDirty: true,
+    });
+
+    // Recalculate this item's total.
+    setValue(
+      `items.${index}.Amount`,
+      (newPrice * quantity).toFixed(2),
+      { shouldDirty: true }
+    );
+  });
+
+  // Recalculate subtotal and amount after updating item prices.
+  setTimeout(() => {
+    updateTotals();
+  }, 0);
+}, [items, orderType]);
+
 
   // const minQuantityOfItems=preBookedOrderDetails?.kitchenItems?.reduce((acc, item) => {
   //     acc[item.Item_Id] = item.Quantity;
@@ -1252,22 +1307,40 @@ export default function UpdatePreBookOrders() {
     }));
 
     /* ---------------- FINAL PAYLOAD ---------------- */
+    // const payload = {
+    //   Customer_Name: data.Customer_Name || null,
+    //   Customer_Phone: data.Customer_Phone || null,
+    //   Address: data.Address || "",
+
+    //   Booking_Date: data.Booking_Date,
+    //   Booking_Time: bookingTime,
+    //   Table_Names: data.Table_Names,
+    //   Sub_Total: data.Sub_Total || "0.00",
+    //   Amount: data.Amount || "0.00",
+    //   Advance_Payment: data.Advance_Payment || "0.00",
+    //   Payment_Left: data.Payment_Left || "0.00",
+
+    //   items: itemsSafe, // ✅ empty array allowed
+
+    // };
     const payload = {
-      Customer_Name: data.Customer_Name || null,
-      Customer_Phone: data.Customer_Phone || null,
-      Address: data.Address || "",
+  Customer_Name: data.Customer_Name || null,
+  Customer_Phone: data.Customer_Phone || null,
+  Address: data.Address || "",
 
-      Booking_Date: data.Booking_Date,
-      Booking_Time: bookingTime,
-      Table_Names: data.Table_Names,
-      Sub_Total: data.Sub_Total || "0.00",
-      Amount: data.Amount || "0.00",
-      Advance_Payment: data.Advance_Payment || "0.00",
-      Payment_Left: data.Payment_Left || "0.00",
+  Booking_Date: data.Booking_Date,
+  Booking_Time: bookingTime,
 
-      items: itemsSafe, // ✅ empty array allowed
+  Order_Type: orderType,
+  Table_Names: orderType === "DINE_IN" ? data.Table_Names : [],
 
-    };
+  Sub_Total: data.Sub_Total || "0.00",
+  Amount: data.Amount || "0.00",
+  Advance_Payment: data.Advance_Payment || "0.00",
+  Payment_Left: data.Payment_Left || "0.00",
+
+  items: itemsSafe,
+};
 
     const bookingTimeForReceipt =
       `${data.Booking_Hour}:${data.Booking_Minute || "00"} ${data.Booking_Period}`;
@@ -1594,6 +1667,42 @@ export default function UpdatePreBookOrders() {
       );
     }
   };
+
+const handleOrderTypeChange = (newOrderType) => {
+  if (orderType === newOrderType) return;
+
+  setOrderType(newOrderType);
+
+  // Clear table selection
+  // setValue("Table_Names", [], {
+  //   shouldDirty: true,
+  //   shouldValidate: true,
+  // });
+    if (newOrderType === "TAKEAWAY") {
+    setValue("Table_Names", [], {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  }
+
+  // Clear cart and item rows
+  // setCart({});
+  // reset({
+  //   ...watch(),
+  //   Table_Names: [],
+  //   items: [],
+  //   Sub_Total: "0.00",
+  //   Amount: "0.00",
+  //   Payment_Left: (
+  //     0 - Number(watch("Advance_Payment") || 0)
+  //   ).toFixed(2),
+  // });
+
+  // // Reset item-row mapping and search
+  // itemRowMap.current = {};
+  setSearchTerm("");
+  setActiveCategory("All");
+};
 
   return (
     <>
@@ -1960,41 +2069,10 @@ export default function UpdatePreBookOrders() {
               <form onSubmit={handleSubmit(onSubmit)}>
 
 
-                <div className="w-full mt-2 mb-2">
-                  {/* ⭐ SELECTED TABLES — Centered on large screens, stacked on mobile */}
+                {/* <div className="w-full mt-2 mb-2">
+                
 
 
-
-                  {/* <div className="flex flex-col lg:flex-row gap-2">
-                        {selectedTables?.length > 0 ? (
-                          <>
-                            
-                            <div className="flex flex-col gap-2   justify-center items-center lg:hidden">
-                              {selectedTables.map((name, idx) => (
-                                <div
-                                  key={idx}
-                                  className="px-4 py-3 bg-blue-200 text-blue-900 rounded-lg text-base font-semibold text-center shadow-md"
-                                >
-                                  {name}
-                                </div>
-                              ))}
-                            </div>
-
-                            <div className="hidden lg:flex lg:flex-wrap lg:gap-3 lg:justify-center">
-                              {selectedTables.map((name, idx) => (
-                                <div
-                                  key={idx}
-                                  className="px-4 py-3 bg-blue-200 text-blue-900 rounded-lg text-base font-semibold shadow-md"
-                                >
-                                  {name}
-                                </div>
-                              ))}
-                            </div>
-                          </>
-                        ) : (
-                          <p className="text-gray-500 text-center w-full py-4">No tables selected</p>
-                        )}
-                      </div> */}
                   <div className="grid grid-cols-1 items-center gap-4 sm:grid-cols-3">
                     <div ref={tableRef} className="relative">
                       <div
@@ -2086,8 +2164,7 @@ export default function UpdatePreBookOrders() {
                       )}
                     </div>
 
-                    {/* <div className="hidden sm:block"></div> */}
-                    {/* <div className="hidden sm:block"></div> */}
+                 
                     <div className=" w-full ">
                       <input
                         type="text"
@@ -2099,7 +2176,6 @@ export default function UpdatePreBookOrders() {
                     </div>
                   </div>
 
-                  {/* ⭐ KITCHEN ITEMS GRID */}
                   {/* <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full">
                       {kotNotifications?.length === 0 ? (
                         <p className="text-gray-500 text-sm text-center col-span-full py-8">
@@ -2136,7 +2212,334 @@ export default function UpdatePreBookOrders() {
                           </div>
                         ))
                       )}
-                    </div> */}
+                    </div> 
+                </div> */}
+                <div className="w-full mt-2 mb-2">
+                  {/* <div className="grid grid-cols-1 items-center gap-4 sm:grid-cols-3">
+
+                  
+                    {orderType === "DINE_IN" && (
+                      <>
+                        <div ref={tableRef} className="relative">
+                          <div
+                            className="flex border rounded-md bg-white cursor-pointer h-[3rem]"
+                            onClick={() => setOpen((prev) => !prev)}
+                          >
+                            <input
+                              type="text"
+                              placeholder="Search tables..."
+                              value={tableSearch}
+                              onChange={(e) => {
+                                setTableSearch(e.target.value);
+                                setOpen(true);
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpen(true);
+                              }}
+                              className="w-full outline-none px-2"
+                            />
+                            <span className="absolute right-0 px-3 top-1/3">▼</span>
+                          </div>
+
+                          {open && (
+                            <div className="absolute z-50 mt-1 w-full bg-white border rounded shadow max-h-48 overflow-y-auto">
+                              {tables?.tables
+                                ?.filter((t) =>
+                                  t.Table_Name.toLowerCase().includes(
+                                    tableSearch.toLowerCase()
+                                  )
+                                )
+                                .map((table) => {
+                                  const isSelected = selectedTables.includes(
+                                    table.Table_Name
+                                  );
+
+                                  return (
+                                    <div
+                                      key={table.Table_Id}
+                                      onClick={() => {
+                                        const updated = isSelected
+                                          ? selectedTables.filter(
+                                            (t) => t !== table.Table_Name
+                                          )
+                                          : [...selectedTables, table.Table_Name];
+
+                                        setValue("Table_Names", updated, {
+                                          shouldDirty: true,
+                                          shouldValidate: true,
+                                        });
+                                      }}
+                                      className={`px-3 py-2 flex justify-between ${isSelected ? "bg-blue-100" : ""
+                                        }`}
+                                    >
+                                      <span className="text-gray-500">
+                                        {table.Table_Name}
+                                      </span>
+
+                                      {isSelected && (
+                                        <span className="text-blue-600">✔</span>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                            </div>
+                          )}
+                        </div>
+
+                        
+                        <div className="flex flex-wrap gap-2">
+                          {selectedTables.length > 0 ? (
+                            selectedTables.map((name) => (
+                              <div
+                                key={name}
+                                className="px-3 py-1 bg-blue-200 text-blue-900 rounded-md text-sm flex items-center gap-2"
+                              >
+                                {name}
+                                <button
+                                  type="button"
+                                  className="text-red-600 font-bold"
+                                  onClick={() => {
+                                    const updated = selectedTables.filter(
+                                      (t) => t !== name
+                                    );
+                                    setValue("Table_Names", updated, {
+                                      shouldDirty: true,
+                                      shouldValidate: true,
+                                    });
+                                  }}
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-gray-500 flex w-full items-center justify-center">
+                              No tables selected
+                            </p>
+                          )}
+                        </div>
+                      </>
+                    )}
+
+                   
+                    <div className="w-full">
+                      <input
+                        type="text"
+                        placeholder="Search ..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full"
+                      />
+                    </div>
+
+                  </div> */}
+                 
+<div
+  className={`grid grid-cols-1 items-center gap-4 ${
+    orderType === "DINE_IN"
+      ? "sm:grid-cols-4"
+      : "sm:grid-cols-2"
+  }`}
+>
+  {/* ORDER TYPE — INSIDE THE GRID */}
+  <div className="p-3 mb-4">
+    <label className="block font-semibold mb-2">
+      Order Type
+    </label>
+
+    <div className="flex gap-3">
+      {/* <button
+        type="button"
+        onClick={() => {
+          setOrderType("DINE_IN");
+          setValue("Table_Names", []);
+          setCart({});
+          setValue("items", []);
+          setValue("Sub_Total", "0.00");
+          setValue("Amount", "0.00");
+        }}
+        className={`px-4 py-2 rounded-md border ${
+          orderType === "DINE_IN"
+            ? "bg-red-600 text-white border-red-600"
+            : "bg-white text-gray-700"
+        }`}
+      >
+        Dine-in
+      </button>
+
+      <button
+        type="button"
+        onClick={() => {
+          setOrderType("TAKEAWAY");
+          setValue("Table_Names", []);
+          setCart({});
+          setValue("items", []);
+          setValue("Sub_Total", "0.00");
+          setValue("Amount", "0.00");
+        }}
+        className={`px-5 py-2 rounded-md border ${
+          orderType === "TAKEAWAY"
+            ? "bg-red-600 text-white border-red-600"
+            : "bg-white text-gray-700"
+        }`}
+      >
+        Takeaway
+      </button> */}
+      
+<button
+  type="button"
+  onClick={() => handleOrderTypeChange("DINE_IN")}
+  className={`px-4 py-2 rounded-md border ${
+    orderType === "DINE_IN"
+      ? "bg-red-600 text-white border-red-600"
+      : "bg-white text-gray-700"
+  }`}
+>
+  Dine-in
+</button>
+
+<button
+  type="button"
+  onClick={() => handleOrderTypeChange("TAKEAWAY")}
+  className={`px-4 py-2 rounded-md border ${
+    orderType === "TAKEAWAY"
+      ? "bg-red-600 text-white border-red-600"
+      : "bg-white text-gray-700"
+  }`}
+>
+  Takeaway
+</button>
+
+    </div>
+  </div>
+
+  {/* TABLE DROPDOWN — DINE_IN ONLY */}
+  {orderType === "DINE_IN" && (
+    <>
+      <div ref={tableRef} className="relative">
+        <div
+          className="flex border rounded-md bg-white cursor-pointer h-[3rem]"
+          onClick={() => setOpen((prev) => !prev)}
+        >
+          <input
+            type="text"
+            placeholder="Search tables..."
+            value={tableSearch}
+            onChange={(e) => {
+              setTableSearch(e.target.value);
+              setOpen(true);
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpen(true);
+            }}
+            className="w-full outline-none px-2"
+          />
+
+          <span className="absolute right-0 px-3 top-1/3">
+            ▼
+          </span>
+        </div>
+
+        {open && (
+          <div className="absolute z-50 mt-1 w-full bg-white border rounded shadow max-h-48 overflow-y-auto">
+            {tables?.tables
+              ?.filter((table) =>
+                table.Table_Name.toLowerCase().includes(
+                  tableSearch.toLowerCase()
+                )
+              )
+              .map((table) => {
+                const isSelected = selectedTables.includes(
+                  table.Table_Name
+                );
+
+                return (
+                  <div
+                    key={table.Table_Id}
+                    onClick={() => {
+                      const updated = isSelected
+                        ? selectedTables.filter(
+                            (name) => name !== table.Table_Name
+                          )
+                        : [...selectedTables, table.Table_Name];
+
+                      setValue("Table_Names", updated, {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      });
+                    }}
+                    className={`px-3 py-2 flex justify-between cursor-pointer ${
+                      isSelected ? "bg-blue-100" : ""
+                    }`}
+                  >
+                    <span className="text-gray-500">
+                      {table.Table_Name}
+                    </span>
+
+                    {isSelected && (
+                      <span className="text-blue-600">✔</span>
+                    )}
+                  </div>
+                );
+              })}
+          </div>
+        )}
+      </div>
+
+      {/* SELECTED TABLES */}
+      <div className="flex flex-wrap gap-2">
+        {selectedTables.length > 0 ? (
+          selectedTables.map((name) => (
+            <div
+              key={name}
+              className="px-3 py-1 bg-blue-200 text-blue-900 rounded-md text-sm flex items-center gap-2"
+            >
+              {name}
+
+              <button
+                type="button"
+                className="text-red-600 font-bold"
+                onClick={() => {
+                  const updated = selectedTables.filter(
+                    (table) => table !== name
+                  );
+
+                  setValue("Table_Names", updated, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  });
+                }}
+              >
+                ×
+              </button>
+            </div>
+          ))
+        ) : (
+          <p className="text-gray-500 flex w-full items-center justify-center">
+            No tables selected
+          </p>
+        )}
+      </div>
+    </>
+  )}
+
+  {/* SEARCH — BOTH ORDER TYPES */}
+  <div className="w-full">
+    <input
+      type="text"
+      placeholder="Search ..."
+      value={searchTerm}
+      onChange={(e) => setSearchTerm(e.target.value)}
+      className="w-full"
+    />
+  </div>
+</div>
+
+                  
+
+
                 </div>
 
                 <div
@@ -2216,8 +2619,8 @@ export default function UpdatePreBookOrders() {
                         key={index}
                         onClick={() => setActiveCategory(cat)}
                         className={`px-6 py-2 rounded-full transition ${activeCategory === cat
-                            ? "bg-[#ff0000] text-white"
-                            : "bg-white border"
+                          ? "bg-[#ff0000] text-white"
+                          : "bg-white border"
                           }`}
                       >
                         {cat}
