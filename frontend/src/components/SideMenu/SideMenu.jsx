@@ -574,12 +574,32 @@ if (
   )}
 
 
-            {userMe?.user?.role==="staff" && renderMenu("Pre Booking", <ClipboardMinus  size={20} />, [
+            {/* {userMe?.user?.role==="staff" && renderMenu("Pre Booking", <ClipboardMinus  size={20} />, [
            
-            { to: "/staff/pre-book-order/add-pre-booked-orders", text: "Add Pre Booking" },
+            // { to: "/staff/pre-book-order/add-pre-booked-orders", text: "Add Pre Booking" },
            {to: "/staff/pre-book-order/all-pre-booked-orders", text: "Pre Booked Orders" }
           
-          ])}
+          ])} */}
+          
+{userMe?.user?.role === "staff" && (
+  <NavLink
+    to="/staff/pre-book-order/all-pre-booked-orders"
+    className={({ isActive }) => (isActive ? "menu-active" : "")}
+    style={{
+      display: "block",
+      padding: "10px 16px",
+      color: "#fff",
+      textDecoration: "none",
+    }}
+    onClick={() => setOpenMenu(null)}
+  >
+    <span className="flex items-center gap-2">
+      <ClipboardMinus size={20} />
+      Pre Booked Orders
+    </span>
+  </NavLink>
+)}
+
 
             {userMe?.user?.role==="waiter" && <NavLink
               to="/waiter/orders/all-orders"

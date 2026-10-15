@@ -4,7 +4,7 @@
 
 
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Clock, Armchair } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -19,203 +19,284 @@ import { useDispatch } from 'react-redux';
 import { toast } from 'react-toastify';
 import { useGetAllTablesQuery } from '../../redux/api/tableApi';
 
-const socket = io("http://192.168.0.101:4000", {
-  transports: ["websocket"],
-});
+// const socket = io("http://192.168.0.111:4000", {
+//   transports: ["websocket"],
+// });
 
 export default function OrderDetails() {
 
-  // const formatTime = (time) => {
-  //   if (!time) return "--";
-  //   const d = new Date(time);
-  //   d.setSeconds(0);
-  //   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  // };
 
-  const navigate = useNavigate();
+
+   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const [searchTerm, setSearchTerm] = useState('');
+
+  const [searchTerm, setSearchTerm] = useState("");
   const [currentTime, setCurrentTime] = useState(new Date());
   const [kotNotifications, setKotNotifications] = useState({});
 
-  // const { data: tableHavingOrders } = useGetTablesHavingOrdersQuery();
-  const {
+  const socketRef = useRef(null);
+  const orderKotIdsRef = useRef([]);
+  const joinedKotIdsRef = useRef(new Set());
+
+  // const {
+  //   data: tableHavingOrders,
+  //   refetch: refetchTablesHavingOrders,
+  // } = useGetTablesHavingOrdersQuery();
+const {
   data: tableHavingOrders,
   refetch: refetchTablesHavingOrders,
-} = useGetTablesHavingOrdersQuery();
-const {
-  data: upcomingPreBookingsData,
-  refetch: refetchUpcomingPreBookings,
-} = useGetUpcomingPreBookingsQuery(undefined, {
-  pollingInterval: 60 * 60 * 1000, // Every 1 hour
-  refetchOnFocus: true,
-  refetchOnReconnect: true,
+  isFetching: isOrdersFetching,
+} = useGetTablesHavingOrdersQuery(undefined, {
+  refetchOnMountOrArgChange: true,
 });
-  const { data: tables } = useGetAllTablesQuery({});
-  //console.log("Tables:", tables);
+  const {
+    data: upcomingPreBookingsData,
+    refetch: refetchUpcomingPreBookings,
+  } = useGetUpcomingPreBookingsQuery(undefined, {
+    pollingInterval: 60 * 60 * 1000,
+    refetchOnFocus: true,
+    refetchOnReconnect: true,
+  });
+
+  const {
+    data: tables,
+    refetch: refetchTables,
+  } = useGetAllTablesQuery({});
+
   const [rejectCustomerOrder] = useRejectCustomerOrderMutation();
+  const [waiterOrdersToBePrinted] =
+    useKOTOfOrdersTakenByWaiterMutation();
 
-const handleReject = async (order) => {
-  const ok = window.confirm(
-    `Reject the customer's order on ${order.Tables.join(", ")}?\n\n` +
-    `Everything on it will be cancelled and the table freed. Use this only if nobody is seated there.`
-  );
-  if (!ok) return;
-  try {
-    await rejectCustomerOrder({ Order_Id: order.Order_Id, reason: "No customer at table" }).unwrap();
-    toast.success("Customer order rejected");
-    refetchTablesHavingOrders();
-  } catch (e) {
-    toast.error(e?.data?.message || "Could not reject the order");
-  }
-};
-  const [waiterOrdersToBePrinted] = useKOTOfOrdersTakenByWaiterMutation();
+  // Keep the latest order room IDs available to the socket
+  // without recreating the socket whenever query data changes.
+  orderKotIdsRef.current = [
+    ...new Set(
+      (tableHavingOrders?.tableHavingOrders ?? [])
+        .map((order) => order.KOT_Id)
+        .filter(Boolean)
+    ),
+  ];
 
-  // ── Sockets ────────────────────────────────────────────────────────────────
-  useEffect(() => {
-  const handlePreBookingUpdated = () => {
-    refetchUpcomingPreBookings();
-  };
+  const handleReject = async (order) => {
+    const ok = window.confirm(
+      `Reject the customer's order on ${order.Tables.join(", ")}?\n\n` +
+        `Everything on it will be cancelled and the table freed. Use this only if nobody is seated there.`
+    );
 
-  socket.on("prebooking_updated", handlePreBookingUpdated);
+    if (!ok) return;
 
-  return () => {
-    socket.off("prebooking_updated", handlePreBookingUpdated);
-  };
-}, [refetchUpcomingPreBookings]);
-  useEffect(() => {
-    const handleOrderUpdate = (data) => {
-      console.log(" Dashboard received updated order:", data);
-    };
-    socket.on("frontdesk_order_update", handleOrderUpdate);
-    return () => socket.off("frontdesk_order_update", handleOrderUpdate);
-  }, []);
-useEffect(() => {
-  const onRejected = () => refetchTablesHavingOrders();
-  socket.on("customer_order_rejected", onRejected);
-  return () => socket.off("customer_order_rejected", onRejected);
-}, [refetchTablesHavingOrders]);
+    try {
+      await rejectCustomerOrder({
+        Order_Id: order.Order_Id,
+        reason: "No customer at table",
+      }).unwrap();
 
-useEffect(() => {
-  const joinStaffRoom = () => {
-    console.log("Socket connected:", socket.id);
-
-    socket.emit("join_staff_room");
-
-    console.log("Staff room join emitted");
-  };
-
-  socket.on("connect", joinStaffRoom);
-
-  // If already connected when this component mounts
-  if (socket.connected) {
-    joinStaffRoom();
-  }
-
-  return () => {
-    socket.off("connect", joinStaffRoom);
-
-    if (socket.connected) {
-      socket.emit("leave_staff_room");
+      toast.success("Customer order rejected");
+      refetchTablesHavingOrders();
+    } catch (e) {
+      toast.error(e?.data?.message || "Could not reject the order");
     }
   };
-}, []);
 
-
-useEffect(() => {
-  const handleCustomerOrder = (data) => {
-    console.log("Customer QR order received:", data);
-
-    // Immediately fetch latest tables/orders
-    refetchTablesHavingOrders();
-
-    toast.success(
-      `New customer order received for ${data.Table_Name}`
-    );
-  };
-
-  socket.on("customer_order", handleCustomerOrder);
-
-  return () => {
-    socket.off("customer_order", handleCustomerOrder);
-  };
-}, [refetchTablesHavingOrders]);
-useEffect(() => {
-  const handleWaiterOrder = (data) => {
-    console.log("📢 Waiter order received:", data);
-
-    dispatch(orderApi.util.invalidateTags(["Order"]));
-
-    toast.success(
-      `New waiter order received for ${data.Table_Names?.join(", ")}`
-    );
-  };
-
-  socket.on("waiter_order", handleWaiterOrder);
-
-  return () => {
-    socket.off("waiter_order", handleWaiterOrder);
-  };
-}, [dispatch]);
-
-useEffect(() => {
-  const handleWaiterOrderUpdate = (data) => {
-    console.log("📢 Waiter order updated:", data);
-
-    dispatch(orderApi.util.invalidateTags(["Order"]));
-
-    toast.info(
-      `Order ${data.Order_Id} was updated by waiter`
-    );
-  };
-
-  socket.on("waiter_order_update", handleWaiterOrderUpdate);
-
-  return () => {
-    socket.off("waiter_order_update", handleWaiterOrderUpdate);
-  };
-}, [dispatch]);
+  // ---------------------------------------------------------
+  // SOCKET CONNECTION AND ALL SOCKET EVENT LISTENERS
+  // ---------------------------------------------------------
   useEffect(() => {
+    const socket = io("http://192.168.0.111:4000", {
+      transports: ["websocket"],
+    });
+
+    socketRef.current = socket;
+
+    const joinRooms = () => {
+      console.log("Socket connected:", socket.id);
+
+      socket.emit("join_staff_room");
+
+      // Join every currently active order room.
+      orderKotIdsRef.current.forEach((kotId) => {
+        socket.emit("join_order_room", kotId);
+        joinedKotIdsRef.current.add(kotId);
+      });
+
+      console.log("Staff and order rooms joined");
+    };
+
+    const handlePreBookingUpdated = (data) => {
+      console.log("Pre-book update received by cashier:", data);
+
+      dispatch(
+        orderApi.util.invalidateTags(["PreBookOrder", "Order"])
+      );
+
+      refetchUpcomingPreBookings();
+      refetchTablesHavingOrders();
+      refetchTables();
+    };
+
+    const handleFrontdeskOrderUpdate = (data) => {
+      console.log("Dashboard received updated order:", data);
+    };
+
+    const handleCustomerOrderRejected = () => {
+      refetchTablesHavingOrders();
+    };
+
+    const handleCustomerOrder = (data) => {
+      console.log("Customer QR order received:", data);
+
+      refetchTablesHavingOrders();
+
+      toast.success(
+        `New customer order received for ${data.Table_Name}`
+      );
+    };
+
+    // const handleWaiterOrder = (data) => {
+    //   console.log("Waiter order received:", data);
+
+    //   dispatch(orderApi.util.invalidateTags(["Order"]));
+
+    //   toast.success(
+    //     `New waiter order received for ${data.Table_Names?.join(", ")}`
+    //   );
+    // };
+const handleWaiterOrder = (data) => {
+  console.log("Waiter order received:", data);
+
+  refetchTablesHavingOrders();
+  refetchTables();
+
+  toast.success(
+    `New waiter order received for ${data.Table_Names?.join(", ")}`
+  );
+};
+    const handleWaiterOrderUpdate = (data) => {
+      console.log("Waiter order updated:", data);
+
+      dispatch(orderApi.util.invalidateTags(["Order"]));
+
+      toast.info(`Order ${data.Order_Id} was updated by waiter`);
+    };
+
     const handleKotUpdate = (data) => {
       if (data.orderType !== "takeaway") return;
+
       const orderId = data.Order_Id;
+
       setKotNotifications((prev) => {
         const previous = prev[orderId] || [];
+
         const idx = previous.findIndex(
-          (item) => String(item.KOT_Item_Id) === String(data.KOT_Item_Id)
+          (item) =>
+            String(item.KOT_Item_Id) === String(data.KOT_Item_Id)
         );
+
         let updatedList;
+
         if (idx !== -1) {
           updatedList = [...previous];
-          updatedList[idx] = { ...updatedList[idx], status: data.status, time: data.updated_at };
-        } else {
-          updatedList = [...previous, {
-            KOT_Item_Id: data.KOT_Item_Id,
-            itemName: data.itemName,
+
+          updatedList[idx] = {
+            ...updatedList[idx],
             status: data.status,
-            time: data.updated_at
-          }];
+            time: data.updated_at,
+          };
+        } else {
+          updatedList = [
+            ...previous,
+            {
+              KOT_Item_Id: data.KOT_Item_Id,
+              itemName: data.itemName,
+              status: data.status,
+              time: data.updated_at,
+            },
+          ];
         }
-        return { ...prev, [orderId]: updatedList };
+
+        return {
+          ...prev,
+          [orderId]: updatedList,
+        };
       });
+
       dispatch(orderApi.util.invalidateTags(["Order"]));
+
       toast.info(`${data.itemName} → ${data.status}`);
     };
-    socket.on("frontend_kot_update", handleKotUpdate);
-    return () => socket.off("frontend_kot_update", handleKotUpdate);
-  }, []);
 
+    // Register listeners.
+    socket.on("connect", joinRooms);
+    socket.on("prebooking_updated", handlePreBookingUpdated);
+    socket.on("frontdesk_order_update", handleFrontdeskOrderUpdate);
+    socket.on("customer_order_rejected", handleCustomerOrderRejected);
+    socket.on("customer_order", handleCustomerOrder);
+    socket.on("waiter_order", handleWaiterOrder);
+    socket.on("waiter_order_update", handleWaiterOrderUpdate);
+    socket.on("frontend_kot_update", handleKotUpdate);
+
+    // Handle the case where the connection is already established.
+    if (socket.connected) {
+      joinRooms();
+    }
+
+    return () => {
+      socket.off("connect", joinRooms);
+      socket.off("prebooking_updated", handlePreBookingUpdated);
+      socket.off("frontdesk_order_update", handleFrontdeskOrderUpdate);
+      socket.off("customer_order_rejected", handleCustomerOrderRejected);
+      socket.off("customer_order", handleCustomerOrder);
+      socket.off("waiter_order", handleWaiterOrder);
+      socket.off("waiter_order_update", handleWaiterOrderUpdate);
+      socket.off("frontend_kot_update", handleKotUpdate);
+
+      if (socket.connected) {
+        socket.emit("leave_staff_room");
+
+        joinedKotIdsRef.current.forEach((kotId) => {
+          socket.emit("leave_order_room", kotId);
+        });
+      }
+
+      joinedKotIdsRef.current.clear();
+      socket.disconnect();
+
+      if (socketRef.current === socket) {
+        socketRef.current = null;
+      }
+    };
+  }, [
+    dispatch,
+    refetchUpcomingPreBookings,
+    refetchTablesHavingOrders,
+    refetchTables,
+  ]);
+
+  // Join newly loaded order rooms and leave rooms no longer needed.
   useEffect(() => {
-    if (!tableHavingOrders) return;
-    const allOrders = [
-      ...(tableHavingOrders.tableHavingOrders ?? [])
-    ];
-    allOrders.forEach((o) => {
-      if (o.KOT_Id) {
-        socket.emit("join_order_room", o.KOT_Id);
+    const socket = socketRef.current;
+
+    if (!socket?.connected) return;
+
+    const nextIds = new Set(orderKotIdsRef.current);
+
+    joinedKotIdsRef.current.forEach((kotId) => {
+      if (!nextIds.has(kotId)) {
+        socket.emit("leave_order_room", kotId);
+        joinedKotIdsRef.current.delete(kotId);
+      }
+    });
+
+    nextIds.forEach((kotId) => {
+      if (!joinedKotIdsRef.current.has(kotId)) {
+        socket.emit("join_order_room", kotId);
+        joinedKotIdsRef.current.add(kotId);
       }
     });
   }, [tableHavingOrders]);
+
+  
+ 
 
   // ── Timer ──────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -225,17 +306,20 @@ useEffect(() => {
 const upcomingPreBookings =
   upcomingPreBookingsData?.bookings ?? [];
 
-const getUpcomingReservation = (tableName) => {
+
+ const getUpcomingReservation = (tableName) => {
   const now = currentTime.getTime();
 
   const activeBookings = upcomingPreBookings
     .filter((booking) => {
-      const status = String(booking.Status ?? "").toLowerCase();
+      const status = String(booking.Status ?? "")
+        .trim()
+        .toLowerCase();
 
       return (
         String(booking.Table_Name) === String(tableName) &&
         String(booking.Order_Type ?? "").toLowerCase() === "dine-in" &&
-        !["cancelled",  "completed"].includes(status)
+        !["cancelled", "completed", "hold"].includes(status)
       );
     })
     .map((booking) => {
@@ -263,18 +347,14 @@ const getUpcomingReservation = (tableName) => {
     .filter(
       (booking) =>
         Number.isFinite(booking.bookingTimestamp) &&
-        booking.minutesUntil > 0
+        booking.minutesUntil <= 60
     )
     .sort((a, b) => a.bookingTimestamp - b.bookingTimestamp);
 
-  const nextBooking = activeBookings[0];
-
-  // Show the warning during the final 60 minutes before booking.
-  return nextBooking && nextBooking.minutesUntil <= 60
-    ? nextBooking
-    : null;
+  return activeBookings[0] ?? null;
 };
-  const getElapsedTime = (startTime) => {
+
+const getElapsedTime = (startTime) => {
     const start = new Date(startTime);
     const diff = Math.floor((currentTime - start) / 1000);
     const hours = Math.floor(diff / 3600);
@@ -328,12 +408,30 @@ const getUpcomingReservation = (tableName) => {
   const allTables = tables?.tables ?? [];
 
   // ── Split into Available vs Occupied ─────────────────────────────────────
-  const availableTables = allTables.filter(
-    (t) => !tableOrderMap[t.Table_Name]
+  // const availableTables = allTables.filter(
+  //   (t) => !tableOrderMap[t.Table_Name]
+  // );
+  // const occupiedTables = allTables.filter(
+  //   (t) => !!tableOrderMap[t.Table_Name]
+  // );
+  const isTableOccupied = (table) => {
+  const status = String(table.Status || "")
+    .trim()
+    .toLowerCase();
+
+  return (
+    Boolean(tableOrderMap[table.Table_Name]) ||
+    status === "occupied"
   );
-  const occupiedTables = allTables.filter(
-    (t) => !!tableOrderMap[t.Table_Name]
-  );
+};
+
+const availableTables = allTables.filter(
+  (table) => !isTableOccupied(table)
+);
+
+const occupiedTables = allTables.filter(
+  (table) => isTableOccupied(table)
+);
 
   // ── Search filter helpers ─────────────────────────────────────────────────
   const matchesSearch = (tableName) => {
@@ -489,143 +587,309 @@ if (res?.elligibleItems && Object.keys(res.elligibleItems).length > 0) {
 }
 
   // ── Shared occupied order card (reused for both sections) ─────────────────
-  const OccupiedTableCard = ({ table }) => {
-    const order = tableOrderMap[table.Table_Name];
-    const isHoldOrPaid = order.Status === "hold" || order.Status === "paid";
-    const borderColor = isHoldOrPaid ? "#ff9800" : "#22c55e"; // orange or green
-    const badgeBg    = isHoldOrPaid ? "bg-orange-500" : "bg-green-500";
+//   const OccupiedTableCard = ({ table }) => {
+//     const order = tableOrderMap[table.Table_Name];
+//     const isHoldOrPaid = order.Status === "hold" || order.Status === "paid";
+//     const borderColor = isHoldOrPaid ? "#ff9800" : "#22c55e"; // orange or green
+//     const badgeBg    = isHoldOrPaid ? "bg-orange-500" : "bg-green-500";
 
-    return (
-      <div
-        className="bg-white rounded-lg p-4 shadow-md relative border-2 cursor-pointer"
-        style={{ borderColor }}
-        onClick={() =>
-          navigate(`/staff/orders/table-order-details/${order.Order_Id}`)
-        }
-      >
-        {/* Status badge */}
-        <div className="flex justify-end items-center w-full gap-2 mb-2">
-          <div className={`px-3 py-1 text-sm font-bold text-white ${badgeBg}`}>
-            {order.Status}
-          </div>
-        </div>
+//     return (
+//       <div
+//         className="bg-white rounded-lg p-4 shadow-md relative border-2 cursor-pointer"
+//         style={{ borderColor }}
+//         onClick={() =>
+//           navigate(`/staff/orders/table-order-details/${order.Order_Id}`)
+//         }
+//       >
+//         {/* Status badge */}
+//         <div className="flex justify-end items-center w-full gap-2 mb-2">
+//           <div className={`px-3 py-1 text-sm font-bold text-white ${badgeBg}`}>
+//             {order.Status}
+//           </div>
+//         </div>
 
-        {/* Table name + waiter */}
-        <div className="mt-2 flex justify-between items-start">
-          <h5 className="text-xs sm:text-sm font-bold mb-1 text-gray-700">
-            {order.Tables.join(", ")}
-          </h5>
-          {order.orderBy === "waiter" && (
-            <h5 className="text-xs sm:text-sm font-bold mb-1" style={{ color: "#ff0000" }}>
-              {order?.name} ({order?.role})
-            </h5>
-          )}
-        </div>
+//         {/* Table name + waiter */}
+//         <div className="mt-2 flex justify-between items-start">
+//           <h5 className="text-xs sm:text-sm font-bold mb-1 text-gray-700">
+//             {order.Tables.join(", ")}
+//           </h5>
+//           {order.orderBy === "waiter" && (
+//             <h5 className="text-xs sm:text-sm font-bold mb-1" style={{ color: "#ff0000" }}>
+//               {order?.name} ({order?.role})
+//             </h5>
+//           )}
+//         </div>
 
-        {/* Timer */}
-        <div className="flex items-center bg-gray-100 p-3 rounded-md mb-4">
-          <Clock size={18} className="text-teal-600 mr-2" />
-          <span className="font-mono font-bold text-lg text-gray-800">
-            {getElapsedTime(order?.Table_Start_Time)}
-          </span>
-        </div>
+//         {/* Timer */}
+//         <div className="flex items-center bg-gray-100 p-3 rounded-md mb-4">
+//           <Clock size={18} className="text-teal-600 mr-2" />
+//           <span className="font-mono font-bold text-lg text-gray-800">
+//             {getElapsedTime(order?.Table_Start_Time)}
+//           </span>
+//         </div>
 
-        {/* Amount */}
-        <div className="border-t pt-3 flex justify-between items-center">
-          <span className="text-sm text-gray-600">Amount:</span>
-          <span className="text-xl font-bold text-teal-600">₹{order?.Amount}</span>
-        </div>
+//         {/* Amount */}
+//         <div className="border-t pt-3 flex justify-between items-center">
+//           <span className="text-sm text-gray-600">Amount:</span>
+//           <span className="text-xl font-bold text-teal-600">₹{order?.Amount}</span>
+//         </div>
 
-        {/* Buttons */}
-        <div
-          className="flex justify-center items-center flex-col gap-2 mt-2"
-          onClick={(e) => e.stopPropagation()} // prevent card click when clicking buttons
-        >
-          <button
-            style={{ backgroundColor: "#ff0000" }}
-            className="text-white mt-2 font-bold py-2 px-4 rounded whitespace-nowrap"
-            onClick={() =>
-              navigate(`/staff/orders/table-order-details/${order?.Order_Id}`)
-            }
-          >
-            View Details
-          </button>
+//         {/* Buttons */}
+//         <div
+//           className="flex justify-center items-center flex-col gap-2 mt-2"
+//           onClick={(e) => e.stopPropagation()} // prevent card click when clicking buttons
+//         >
+//           <button
+//             style={{ backgroundColor: "#ff0000" }}
+//             className="text-white mt-2 font-bold py-2 px-4 rounded whitespace-nowrap"
+//             onClick={() =>
+//               navigate(`/staff/orders/table-order-details/${order?.Order_Id}`)
+//             }
+//           >
+//             View Details
+//           </button>
 
-          {/* {order?.orderBy === "waiter" && (
-            <button
-              type="button"
-              style={{ backgroundColor: "#ffa600" }}
-              onClick={() => handleKOTOfOrderTakenByWaiter(order?.Order_Id)}
-              className="text-white mt-2 font-bold py-2 px-4 rounded whitespace-nowrap"
-            >
-              Print KOT
-            </button>
-          )} */}
-          {(order?.orderBy === "waiter" || order?.orderBy === "customer") && (
-  <button
-    type="button"
-    style={{ backgroundColor: "#ffa600" }}
-    onClick={() => handleKOTOfOrderTakenByWaiter(order?.Order_Id)}
-    className="text-white mt-2 font-bold py-2 px-4 rounded whitespace-nowrap"
-  >
-    Print KOT
-  </button>
-)}
+//           {/* {order?.orderBy === "waiter" && (
+//             <button
+//               type="button"
+//               style={{ backgroundColor: "#ffa600" }}
+//               onClick={() => handleKOTOfOrderTakenByWaiter(order?.Order_Id)}
+//               className="text-white mt-2 font-bold py-2 px-4 rounded whitespace-nowrap"
+//             >
+//               Print KOT
+//             </button>
+//           )} */}
+//           {(order?.orderBy === "waiter" || order?.orderBy === "customer") && (
+//   <button
+//     type="button"
+//     style={{ backgroundColor: "#ffa600" }}
+//     onClick={() => handleKOTOfOrderTakenByWaiter(order?.Order_Id)}
+//     className="text-white mt-2 font-bold py-2 px-4 rounded whitespace-nowrap"
+//   >
+//     Print KOT
+//   </button>
+// )}
 
-{order?.orderBy === "customer" && (
-  <button
-    type="button"
-    onClick={() => handleReject(order)}
-    className="text-white mt-2 font-bold py-2 px-4 rounded whitespace-nowrap"
-    style={{ backgroundColor: "black" }}
-  >
-    Reject order
-  </button>
-)}
+// {order?.orderBy === "customer" && (
+//   <button
+//     type="button"
+//     onClick={() => handleReject(order)}
+//     className="text-white mt-2 font-bold py-2 px-4 rounded whitespace-nowrap"
+//     style={{ backgroundColor: "black" }}
+//   >
+//     Reject order
+//   </button>
+// )}
+//         </div>
+//       </div>
+//     );
+//   };
+// ── Shared occupied table card ──────────────────────────────────
+const OccupiedTableCard = ({ table }) => {
+  const order = tableOrderMap[table.Table_Name];
+
+  const displayStatus =
+    order?.Status || table?.Status || "occupied";
+
+  const normalizedStatus = String(displayStatus).toLowerCase();
+
+  const isHoldOrPaid = ["hold", "paid"].includes(normalizedStatus);
+
+  const borderColor = isHoldOrPaid ? "#ff9800" : "#22c55e";
+  const badgeBg = isHoldOrPaid ? "bg-orange-500" : "bg-green-500";
+
+  const startTime =
+    order?.Table_Start_Time || table?.Start_Time;
+
+  // const openDetails = () => {
+  //   if (order?.Order_Id) {
+  //     // Regular order
+  //     navigate(
+  //       `/staff/orders/table-order-details/${order.Order_Id}`
+  //     );
+  //   } else {
+  //     // Occupied through a pre-book order
+  //     navigate("/staff/pre-book-order/all-pre-booked-orders");
+  //   }
+  // };
+
+
+// Find the pre-book order assigned to this table.
+const matchingPreBookings = upcomingPreBookings.filter((booking) => {
+  const status = String(booking.Status || "").toLowerCase();
+
+  return (
+    String(booking.Table_Name) === String(table.Table_Name) &&
+    !["cancelled", "completed"].includes(status)
+  );
+});
+
+// a pre-book order that has actually started (the one that occupies the table)
+const heldPreBook = matchingPreBookings.find(
+  (booking) => String(booking.Status).toLowerCase() === "hold"
+);
+
+const preBookOrder = heldPreBook || matchingPreBookings[0];
+
+// table says "occupied" but its order isn't loaded yet and no pre-book order is running
+const isSyncing = !order && !heldPreBook && isOrdersFetching;
+// const matchingPreBookings = upcomingPreBookings.filter((booking) => {
+//   const status = String(booking.Status || "").toLowerCase();
+
+//   return (
+//     String(booking.Table_Name) === String(table.Table_Name) &&
+//     !["cancelled", "completed"].includes(status)
+//   );
+// });
+
+// // Prefer a started pre-book order over a pending booking.
+// const preBookOrder =
+//   matchingPreBookings.find(
+//     (booking) => String(booking.Status).toLowerCase() === "hold"
+//   ) || matchingPreBookings[0];
+
+const openDetails = () => {
+  // Regular order
+  if (order?.Order_Id) {
+    navigate(
+      `/staff/orders/table-order-details/${order.Order_Id}`
+    );
+    return;
+  }
+
+  // Pre-book order: open the exact booking directly.
+  if (preBookOrder?.Pre_Booked_Order_Id) {
+    navigate(
+      `/staff/pre-book-order/update-pre-booked-order/${preBookOrder.Pre_Booked_Order_Id}`
+    );
+    return;
+  }
+
+  // Fallback if the matching booking was not returned by the API.
+  toast.warning("Could not find the pre-book order for this table.");
+};
+if (isSyncing) {
+  return (
+    <div
+      className="bg-white rounded-lg p-4 shadow-md border-2 animate-pulse"
+      style={{ borderColor: "#22c55e" }}
+    >
+      <div className="flex justify-end mb-2">
+        <div className="px-3 py-1 text-sm font-bold text-white bg-green-500">
+          {displayStatus}
         </div>
       </div>
-    );
-  };
 
+      <h5 className="text-xs sm:text-sm font-bold mb-1 text-gray-700">
+        {table.Table_Name}
+      </h5>
+
+      <div className="h-12 bg-gray-100 rounded-md my-4" />
+
+      <p className="text-xs text-gray-500 text-center m-0">Loading order...</p>
+    </div>
+  );
+}
+  return (
+    <div
+      className="bg-white rounded-lg p-4 shadow-md relative border-2 cursor-pointer"
+      style={{ borderColor }}
+      onClick={openDetails}
+    >
+      {/* Status badge */}
+      <div className="flex justify-end items-center w-full gap-2 mb-2">
+        <div
+          className={`px-3 py-1 text-sm font-bold text-white ${badgeBg}`}
+        >
+          {displayStatus}
+        </div>
+      </div>
+
+      {/* Table name and waiter details */}
+      <div className="mt-2 flex justify-between items-start">
+        <h5 className="text-xs sm:text-sm font-bold mb-1 text-gray-700">
+          {order?.Tables?.join(", ") || table.Table_Name}
+        </h5>
+
+        {order?.orderBy === "waiter" && (
+          <h5
+            className="text-xs sm:text-sm font-bold mb-1"
+            style={{ color: "#ff0000" }}
+          >
+            {order?.name} ({order?.role})
+          </h5>
+        )}
+      </div>
+
+      {/* Timer */}
+      <div className="flex items-center bg-gray-100 p-3 rounded-md mb-4">
+        <Clock size={18} className="text-teal-600 mr-2" />
+
+        <span className="font-mono font-bold text-lg text-gray-800">
+          {startTime ? getElapsedTime(startTime) : "--:--:--"}
+        </span>
+      </div>
+
+      {/* Amount */}
+  {/* Amount — show only when a regular order has an amount */}
+{order?.Amount != null && (
+  <div className="border-t pt-3 flex justify-between items-center">
+    <span className="text-sm text-gray-600">Amount:</span>
+    <span className="text-xl font-bold text-teal-600">
+      ₹{order.Amount}
+    </span>
+  </div>
+)}
+
+      {/* Buttons */}
+      <div
+        className="flex justify-center items-center flex-col gap-2 mt-2"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* View regular order or pre-book orders */}
+        <button
+          type="button"
+          style={{ backgroundColor: "#ff0000" }}
+          className="text-white mt-2 font-bold py-2 px-4 rounded whitespace-nowrap"
+          onClick={openDetails}
+        >
+          {order?.Order_Id
+            ? "View Details"
+            : "View Pre-book Orders"}
+        </button>
+  
+
+        {/* Print KOT only for regular orders */}
+        {(order?.orderBy === "waiter" ||
+          order?.orderBy === "customer") && (
+          <button
+            type="button"
+            style={{ backgroundColor: "#ffa600" }}
+            onClick={() =>
+              handleKOTOfOrderTakenByWaiter(order.Order_Id)
+            }
+            className="text-white mt-2 font-bold py-2 px-4 rounded whitespace-nowrap"
+          >
+            Print KOT
+          </button>
+        )}
+
+        {/* Reject only customer QR orders */}
+        {order?.orderBy === "customer" && (
+          <button
+            type="button"
+            onClick={() => handleReject(order)}
+            className="text-white mt-2 font-bold py-2 px-4 rounded whitespace-nowrap"
+            style={{ backgroundColor: "black" }}
+          >
+            Reject order
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
   // ── Available table card ───────────────────────────────────────────────────
-  // const AvailableTableCard = ({ table }) => (
-  //   <div
-  //     className="bg-white rounded-lg p-4 shadow-md relative border-2 cursor-pointer
-  //                hover:shadow-lg hover:-translate-y-1 transition-all duration-200"
-  //     style={{ borderColor: "#d1d5db" }}   // gray border
-  //     onClick={() =>
-  //       //navigate(`/staff/orders/add?table=${encodeURIComponent(table?.Table_Name)}`)
-  //              navigate(`/staff/orders/add/${encodeURIComponent(table?.Table_Name)}`)
-  //     }
-  //   >
-  //     {/* Available badge */}
-  //     <div className="flex justify-end mb-2">
-  //       <div className="px-3 py-1 text-sm font-bold text-white bg-green-600">
-  //         Available
-  //       </div>
-  //     </div>
-
-  //     {/* Table name */}
-  //     <div className="flex items-center justify-center h-16">
-  //       <h5 className="text-base sm:text-lg font-bold text-gray-700 text-center">
-  //         {table?.Table_Name}
-  //       </h5>
-  //     </div>
-
-  //     {/* Capacity if present */}
-  //     {table?.Table_Capacity && (
-  //       <div className="border-t pt-2 flex justify-between items-center mt-2">
-  //         <span className="text-xs text-red-500">Capacity</span>
-  //         <span className="text-sm font-semibold text-gray-600">{table?.Table_Capacity}</span>
-  //       </div>
-  //     )}
-
-  //     {/* CTA */}
-  //     <div className="flex justify-center mt-3">
-  //       <span className="text-xs  font-medium">Click to take order →</span>
-  //     </div>
-  //   </div>
-  // );
   
 const AvailableTableCard = ({ table }) => {
   const reservation = getUpcomingReservation(table.Table_Name);
@@ -676,9 +940,14 @@ const AvailableTableCard = ({ table }) => {
             })}
           </p>
 
-          <p className="mt-1 text-xs font-medium text-orange-800">
+          {/* <p className="mt-1 text-xs font-medium text-orange-800">
             Reservation is within the next hour.
-          </p>
+          </p> */}
+          <p className="mt-1 text-xs font-medium text-orange-800">
+  {reservation.minutesUntil > 0
+    ? "Reservation is within the next hour."
+    : "Reservation time has passed. Awaiting customer arrival."}
+</p>
         </div>
       )}
 

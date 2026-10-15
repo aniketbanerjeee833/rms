@@ -48,13 +48,13 @@ export default defineConfig(({ mode }) => ({
 //   https: true,
 
 //   proxy: {
-//     "http://192.168.0.101:4000/api": {
-//       target: "http://192.168.0.101:4000",
+//     "http://192.168.0.111:4000/api": {
+//       target: "http://192.168.0.111:4000",
 //       changeOrigin: true,
 //     },
 
 //     "/socket.io": {
-//       target: "http://192.168.0.101:4000",
+//       target: "http://192.168.0.111:4000",
 //       ws: true,
 //       changeOrigin: true,
 //     },

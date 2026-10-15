@@ -24,7 +24,8 @@ import { addNewCustomer, addOrder,  cancelTakeawayOrder, checkItemElligibleForKO
     getNextTakeawayInvoiceId,
     rejectCustomerOrder,
     cancelPreBookOrder,
-    getUpcomingPreBookings} 
+    getUpcomingPreBookings,
+    startPreBookOrder} 
     from "../../controllers/staff/orderItemController.js";
 import userAuth from "../../middleware/userAuth.js";
 import { generateSms, generateSmsForTakeaway, getPublicInvoiceHtml, generateSmsForPreBooked } from "../../controllers/smsController.js";
@@ -100,6 +101,7 @@ router.get("/get-pre-book-order-details/:Pre_Booked_Order_Id",userAuth,getPreBoo
 router.get("/get-pre-book-order-items-for-kot/:Pre_Booked_Order_Id",userAuth,getPreBookOrderItemsForKOT);
 
 router.patch("/update-pre-book-order/:Pre_Booked_Order_Id",userAuth,updatePreBookOrder);
+router.post("/start-pre-book-order/:Pre_Booked_Order_Id",userAuth,startPreBookOrder);
 router.patch("/cancel-pre-book-order/:Pre_Booked_Order_Id",userAuth,cancelPreBookOrder);
 
 router.post("/confirm-pre-book-order-bill-paid-and-invoice-generated/:Pre_Book_Order_Id",userAuth,

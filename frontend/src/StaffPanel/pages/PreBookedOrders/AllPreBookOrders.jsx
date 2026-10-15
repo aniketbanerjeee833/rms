@@ -1,12 +1,12 @@
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Clock, Armchair, CalendarDays, Filter, X, ChefHat } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 
 // import { useDispatch } from 'react-redux';
 
-import { useCancelPreBookOrderMutation, useGetAllPreBookingOrdersQuery, useLazyGetPreBookOrderItemsForKOTQuery }
+import { useCancelPreBookOrderMutation, useGetAllPreBookingOrdersQuery, useLazyGetPreBookOrderItemsForKOTQuery, useStartPreBookOrderMutation }
   from '../../../redux/api/Staff/orderApi';
 
 
@@ -31,6 +31,26 @@ export default function AllPreBookOrders() {
   //     minute: "2-digit",
   //   });
   // };
+    const [currentTime, setCurrentTime] = useState(new Date());
+  useEffect(() => {
+    const interval = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+  const getElapsedTime = (startTime) => {
+    if (!startTime) return "00:00:00";
+
+    const start = new Date(startTime);
+    const diff = Math.max(
+      0,
+      Math.floor((currentTime.getTime() - start.getTime()) / 1000)
+    );
+
+    const hours = Math.floor(diff / 3600);
+    const minutes = Math.floor((diff % 3600) / 60);
+    const seconds = diff % 60;
+
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  };
   const [printingOrderId, setPrintingOrderId] = useState(null);
 
   const navigate = useNavigate()
@@ -48,113 +68,93 @@ export default function AllPreBookOrders() {
   //const[takeawayCancelOrder,{isLoading:isTakeawayCancelOrderLoading}]=useCancelTakeawayOrderMutation();
   // const[takeawayCompleteOrder,{isLoading:isTakeawayCompleteOrderLoading}]=useCompleteTakeawayOrderMutation();
   // const[getPreBookItemsForKOT,{isLoading:isGetPreBookItemsForKOTLoading}]=useGetPreBookOrderItemsForKOTQuery();
-  const [
-    triggerGetPreBookItemsForKOT,
-    {
-      //data: preBookItemsForKOTData,
-      //isLoading: isGetPreBookItemsForKOTLoading,
 
+  const [startPreBookOrder, { isLoading: isStartingOrder }] =
+    useStartPreBookOrderMutation();
+
+
+ 
+
+
+  const isBookingTimeReached = (booking) => {
+    if (!booking?.Booking_Date || !booking?.Booking_Time) {
+      return false;
     }
-  ] = useLazyGetPreBookOrderItemsForKOTQuery();
 
-  // const {data:tableHavingOrders} = useGetTablesHavingOrdersQuery()
-  //  useEffect(() => {
-  //   console.log("API RESPONSE:", preBookedOrders);
-  // }, [preBookedOrders]);
-  // useEffect(() => {
-  //   // const handleOrderUpdate = (data) => {
-  //   //   console.log("📢 Dashboard received updated order:", data);
+    const rawDate = String(booking.Booking_Date).trim();
+    const rawTime = String(booking.Booking_Time).trim();
 
-  //   //   // 🔥 Refresh the order list automatically
-  //   //   refetch();
-  //   // };
-  //   const handleOrderUpdate = (data) => {
-  //   console.log("📢 Dashboard received updated order:", data);
+    let year, month, day;
 
-  //   // ⭐ If takeaway order completed → remove card immediately
+    // Supports YYYY-MM-DD and DD-MM-YYYY
+    let match = rawDate.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+
+    if (match) {
+      [, year, month, day] = match;
+    } else {
+      match = rawDate.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+
+      if (!match) return false;
+
+      [, day, month, year] = match;
+    }
+
+    // Supports 12:48 PM, 12:48:00 PM, and 24-hour times
+    match = rawTime.match(
+      /^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?$/i
+    );
+
+    if (!match) return false;
+
+    let hours = Number(match[1]);
+    const minutes = Number(match[2]);
+    const seconds = Number(match[3] || 0);
+    const period = match[4]?.toUpperCase();
+
+    if (period) {
+      if (hours < 1 || hours > 12) return false;
+      if (period === "AM" && hours === 12) hours = 0;
+      if (period === "PM" && hours !== 12) hours += 12;
+    }
+
+    const bookingDateTime = new Date(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      hours,
+      minutes,
+      seconds
+    );
+
+    if (
+      bookingDateTime.getFullYear() !== Number(year) ||
+      bookingDateTime.getMonth() !== Number(month) - 1 ||
+      bookingDateTime.getDate() !== Number(day)
+    ) {
+      return false;
+    }
+
+    return currentTime >= bookingDateTime;
+  };
 
 
-  //     //  refetch();
+  const handleStartOrder = async (booking) => {
+    try {
+      await startPreBookOrder(
+        booking.Pre_Booked_Order_Id
+      ).unwrap();
 
-  //   // Otherwise → normal refetch for dine-in updates
-  //   // refetch();
-  // };
+      toast.success("Pre-book order started successfully.");
+    } catch (error) {
+      toast.error(
+        error?.data?.message || "Failed to start pre-book order."
+      );
+    }
+  };
 
-  //   // dispatch(orderApi.util.invalidateTags(['Order']));
-  //   socket.on("frontdesk_order_update", handleOrderUpdate);
+  const [
+    triggerGetPreBookItemsForKOT] = useLazyGetPreBookOrderItemsForKOTQuery();
 
-  //   return () => {
-  //     socket.off("frontdesk_order_update", handleOrderUpdate);
-  //   };
-  // }, []);
-  // useEffect(() => {
-  //   const handleKotUpdate = (data) => {
-  //        if (data.orderType !== "takeaway") return; // 🔒 ignore dine-in
-  //     console.log("📢 Frontend received KOT update:", data);
-
-  //     const orderId = data.Order_Id; // <-- This connects to the correct takeaway card
-
-  //     setKotNotifications((prev) => {
-  //       const previous = prev[orderId] || [];
-
-  //       // Check if item already exists
-  //       const idx = previous.findIndex(
-  //         (item) => String(item.KOT_Item_Id) === String(data.KOT_Item_Id)
-  //       );
-
-  //       let updatedList;
-
-  //       if (idx !== -1) {
-  //         // Update existing item
-  //         updatedList = [...previous];
-  //         updatedList[idx] = {
-  //           ...updatedList[idx],
-  //           status: data.status,
-  //           time: data.updated_at,
-  //         };
-  //       } else {
-  //         // Add new item
-  //         updatedList = [
-  //           ...previous,
-  //           {
-  //             KOT_Item_Id: data.KOT_Item_Id,
-  //             itemName: data.itemName,
-  //             status: data.status,
-  //             time:data.updated_at
-  //           },
-  //         ];
-  //       }
-
-  //       return {
-  //         ...prev,
-  //         [orderId]: updatedList,
-  //       };
-  //     });
-
-  //     // Optional toast
-  //      dispatch(orderApi.util.invalidateTags(["Order"]));
-  //     toast.info(`${data.itemName} → ${data.status}`);
-  //   };
-
-  //   socket.on("frontend_kot_update", handleKotUpdate);
-
-  //   return () => socket.off("frontend_kot_update", handleKotUpdate);
-  // }, []);
-  // useEffect(() => {
-  //   if (!tableHavingOrders) return;
-
-  //   const allOrders = [
-  //     ...(tableHavingOrders.tableHavingOrders ?? []),
-  //     ...(tableHavingOrders.takeawayOrders ?? [])
-  //   ];
-
-  //   allOrders.forEach((o) => {
-  //     if (o.KOT_Id) {
-  //       socket.emit("join_order_room", o.KOT_Id);
-  //       console.log("📡 Joined order room:", o.KOT_Id);
-  //     }
-  //   });
-  // }, [tableHavingOrders]);
 
 
   const preBookedOrders = preBookedOrdersData?.preBookedOrders || [];
@@ -582,14 +582,27 @@ export default function AllPreBookOrders() {
                     )}
 
                     {/* Order Type */}
-                    <div className="px-3 py-1 bg-blue-600 text-xs font-bold text-white rounded">
+                    <div className="px-3 py-1 bg-blue-600 text-xs font-bold text-white">
                       {(order?.Order_Type || "DINE_IN").toUpperCase().replace("-", "_")}
                     </div>
 
                     {/* Pending Status */}
-                    <div className="px-3 py-1 bg-orange-500 text-xs font-bold text-white rounded">
+                    {/* <div className="px-3 py-1 bg-orange-500 text-xs font-bold text-white rounded">
                       PENDING
+                    </div> */}
+
+                    <div
+                      className={`px-3 py-1 text-xs font-bold text-white  ${String(order?.Status || "").
+                        toLowerCase() === "hold"
+                          ? "bg-orange-500"
+                          : String(order?.Status || "").toLowerCase() === "completed"
+                            ? "bg-green-600"
+                            : "bg-orange-500"
+                        }`}
+                    >
+                      {(order?.Status || "pending")}
                     </div>
+
                   </div>
 
 
@@ -653,7 +666,19 @@ export default function AllPreBookOrders() {
   
 </button> */}
                     </div>
-                    {/* View Details */}
+                    {/* Timer */}
+     
+
+{String(order?.Status || "").toLowerCase() === "hold" && (
+  <div className="flex items-center bg-gray-100 p-3 rounded-md mb-4">
+    <Clock size={18} className="text-teal-600 mr-2" />
+    <span className="font-mono font-bold text-lg text-gray-800">
+      {getElapsedTime(
+        order?.tables?.find((table) => table.Start_Time)?.Start_Time
+      )}
+    </span>
+  </div>
+)}
 
                     {/* View Details */}
                     <div className="flex flex-wrap justify-center items-center gap-2 mt-2">
@@ -669,6 +694,31 @@ export default function AllPreBookOrders() {
                       >
                         View Details
                       </button>
+                      {/* Start Order button: show only when booking time arrives */}
+
+
+                    {String(order?.Status || "").toLowerCase() === "pending" &&
+  String(order?.Order_Type || "")
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, "-") === "dine-in" &&
+  isBookingTimeReached(order) && (
+    <button
+      type="button"
+      onClick={() => handleStartOrder(order)}
+      disabled={isStartingOrder}
+      className="px-3 py-2 rounded text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
+    >
+      {isStartingOrder ? "Starting..." : "Start Order"}
+    </button>
+  )}
+
+                      {/* Show Started after the order is started */}
+                      {/* {String(order?.Status || "").toLowerCase() === "hold" && (
+                        <span className="px-3 py-2 rounded bg-blue-100 text-blue-800">
+                          Started
+                        </span>
+                      )} */}
 
                       {/* Cancel Booking */}
                       {String(order?.Status || "").toLowerCase() === "pending" && (

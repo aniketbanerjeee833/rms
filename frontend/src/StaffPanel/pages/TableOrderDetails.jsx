@@ -27,9 +27,9 @@ import { useMemo } from "react";
 import { useGetAllCategoriesQuery } from "../../redux/api/itemApi";
 
 
-const socket = io("http://192.168.0.101:4000", {
-  transports: ["websocket"],
-});
+// const socket = io("http://192.168.0.111:4000", {
+//   transports: ["websocket"],
+// });
 
 
 
@@ -117,45 +117,228 @@ export default function TableOrderDetails() {
   const lastCategoryRef = useRef(activeCategory);
 
   const [kotNotifications, setKotNotifications] = useState([]);
-  useEffect(() => {
-  socket.emit("join_staff_room");
+  const socketRef = useRef(null);
+const currentKotIdRef = useRef(null);
+
+currentKotIdRef.current = tableOrderDetails?.KOT_Id;
+//   useEffect(() => {
+//   socket.emit("join_staff_room");
+
+//   return () => {
+//     socket.emit("leave_staff_room");
+//   };
+// }, []);
+//   useEffect(() => {
+//     const handleAvailabilityChange = (data) => {
+//       console.log("📢 Food status changed:", data);
+
+//       // Force RTK Query to refetch
+//       dispatch(foodItemApi.util.invalidateTags([{ type: "Food-Item", id: "LIST" }]));
+//     };
+
+//     socket.on("food_item_availability_changed", handleAvailabilityChange);
+
+//     return () => {
+//       socket.off("food_item_availability_changed", handleAvailabilityChange);
+//     };
+//   }, []);
+
+
+
+//   // Join the Socket.IO room for this order
+//   useEffect(() => {
+//     if (!tableOrderDetails?.KOT_Id) return;
+
+//     const room = `order_${tableOrderDetails.KOT_Id}`;
+
+//     console.log("Joining room:", room);
+//     socket.emit("join_order_room", tableOrderDetails.KOT_Id);
+
+//     return () => {
+//       console.log("Leaving room:", room);
+//       socket.emit("leave_order_room", tableOrderDetails.KOT_Id);
+//     };
+//   }, [tableOrderDetails?.KOT_Id]);
+
+
+// useEffect(() => {
+//   const handleCustomerOrder = (data) => {
+//     console.log("📢 Customer order received:", data);
+
+//     // Only handle this if it is the order currently open
+//     if (String(data.Order_Id) !== String(Order_Id)) {
+//       return;
+//     }
+
+//     toast.info(`New items added to ${data.Table_Name} by customer`);
+
+//     // Get latest order data
+//     refetchTableOrderDetails();
+//   };
+
+//   socket.on("customer_order", handleCustomerOrder);
+
+//   return () => {
+//     socket.off("customer_order", handleCustomerOrder);
+//   };
+// }, [Order_Id, refetchTableOrderDetails]);
+
+// useEffect(() => {
+//   const handleOrderUpdated = (data) => {
+//     if (String(data.Order_Id) !== String(Order_Id)) {
+//       return;
+//     }
+
+//     refetchTableOrderDetails();
+//   };
+
+//   socket.on("order_updated", handleOrderUpdated);
+
+//   return () => {
+//     socket.off("order_updated", handleOrderUpdated);
+//   };
+// }, [Order_Id, refetchTableOrderDetails]);
+//   useEffect(() => {
+//     const handleKotUpdate = (data) => {
+
+//       console.log("📢 Frontend received KOT update:", data);
+//       toast.info(`${data.itemName} → ${data.status}`);
+
+//       // setKotNotifications((prev) => {
+//       //   const index = prev.findIndex(n => n.KOT_Item_Id === data.KOT_Item_Id);
+//       setKotNotifications((prev) => {
+//         const index = prev.findIndex(
+//           (n) => String(n.KOT_Item_Id) === String(data.KOT_Item_Id)
+//         );
+
+//         // 🟢 1. If item already exists → update status/time
+//         if (index !== -1) {
+//           const updated = [...prev];
+//           updated[index] = {
+//             ...updated[index],
+//             status: data.status,
+//             time: data.updated_at, // ✅ FIXED
+
+//             // time: data.time,
+//           };
+//           return updated;
+//         }
+
+//         // 🟢 2. If the row is NEW (e.g., new biriyani added), append it
+//         return [
+//           ...prev,
+//           {
+//             KOT_Id: data.KOT_Id,
+//             KOT_Item_Id: data.KOT_Item_Id,
+//             itemName: data.itemName,
+//             status: data.status,
+//             time: data.updated_at,
+
+//             // time: data.time,
+//           }
+//         ];
+//       });
+//     };
+//     dispatch(orderApi.util.invalidateTags(["Order"]));
+
+//     socket.on("frontend_kot_update", handleKotUpdate);
+
+//     return () => {
+//       socket.off("frontend_kot_update", handleKotUpdate);
+//     };
+//   }, []);
+useEffect(() => {
+  const socket = io("http://192.168.0.111:4000", {
+    transports: ["websocket"],
+  });
+
+  socketRef.current = socket;
+
+  const joinRooms = () => {
+    socket.emit("join_staff_room");
+
+    if (currentKotIdRef.current) {
+      socket.emit("join_order_room", currentKotIdRef.current);
+    }
+  };
+
+  const handleAvailabilityChange = (data) => {
+    console.log("📢 Food status changed:", data);
+
+    dispatch(
+      foodItemApi.util.invalidateTags([
+        { type: "Food-Item", id: "LIST" },
+      ])
+    );
+  };
+
+  const handleCustomerOrder = (data) => {
+    if (String(data.Order_Id) !== String(Order_Id)) return;
+
+    toast.info(`New items added to ${data.Table_Name} by customer`);
+    refetchTableOrderDetails();
+  };
+
+  const handleOrderUpdated = (data) => {
+    if (String(data.Order_Id) !== String(Order_Id)) return;
+
+    refetchTableOrderDetails();
+  };
+
+  const handleKotUpdate = (data) => {
+    console.log("📢 Frontend received KOT update:", data);
+    toast.info(`${data.itemName} → ${data.status}`);
+
+    setKotNotifications((prev) => {
+      const index = prev.findIndex(
+        (item) =>
+          String(item.KOT_Item_Id) === String(data.KOT_Item_Id)
+      );
+
+      if (index !== -1) {
+        const updated = [...prev];
+
+        updated[index] = {
+          ...updated[index],
+          status: data.status,
+          time: data.updated_at,
+        };
+
+        return updated;
+      }
+
+      return [
+        ...prev,
+        {
+          KOT_Id: data.KOT_Id,
+          KOT_Item_Id: data.KOT_Item_Id,
+          itemName: data.itemName,
+          status: data.status,
+          time: data.updated_at,
+        },
+      ];
+    });
+
+    dispatch(orderApi.util.invalidateTags(["Order"]));
+  };
+
+  socket.on("connect", joinRooms);
+  socket.on("food_item_availability_changed", handleAvailabilityChange);
+  socket.on("customer_order", handleCustomerOrder);
+  socket.on("order_updated", handleOrderUpdated);
+  socket.on("frontend_kot_update", handleKotUpdate);
 
   return () => {
-    socket.emit("leave_staff_room");
+    socket.off("connect", joinRooms);
+    socket.off("food_item_availability_changed", handleAvailabilityChange);
+    socket.off("customer_order", handleCustomerOrder);
+    socket.off("order_updated", handleOrderUpdated);
+    socket.off("frontend_kot_update", handleKotUpdate);
+
+    socket.disconnect();
+    socketRef.current = null;
   };
-}, []);
-  useEffect(() => {
-    const handleAvailabilityChange = (data) => {
-      console.log("📢 Food status changed:", data);
-
-      // Force RTK Query to refetch
-      dispatch(foodItemApi.util.invalidateTags([{ type: "Food-Item", id: "LIST" }]));
-    };
-
-    socket.on("food_item_availability_changed", handleAvailabilityChange);
-
-    return () => {
-      socket.off("food_item_availability_changed", handleAvailabilityChange);
-    };
-  }, []);
-
-
-
-  // Join the Socket.IO room for this order
-  useEffect(() => {
-    if (!tableOrderDetails?.KOT_Id) return;
-
-    const room = `order_${tableOrderDetails.KOT_Id}`;
-
-    console.log("Joining room:", room);
-    socket.emit("join_order_room", tableOrderDetails.KOT_Id);
-
-    return () => {
-      console.log("Leaving room:", room);
-      socket.emit("leave_order_room", tableOrderDetails.KOT_Id);
-    };
-  }, [tableOrderDetails?.KOT_Id]);
-
+}, [dispatch, Order_Id, refetchTableOrderDetails]);
   useEffect(() => {
     if (!tableOrderDetails?.kitchenItems) return;
 
@@ -173,127 +356,19 @@ export default function TableOrderDetails() {
     setKotNotifications(fresh);
 
   }, [tableOrderDetails]);
-useEffect(() => {
-  const handleCustomerOrder = (data) => {
-    console.log("📢 Customer order received:", data);
-
-    // Only handle this if it is the order currently open
-    if (String(data.Order_Id) !== String(Order_Id)) {
-      return;
-    }
-
-    toast.info(`New items added to ${data.Table_Name} by customer`);
-
-    // Get latest order data
-    refetchTableOrderDetails();
-  };
-
-  socket.on("customer_order", handleCustomerOrder);
-
-  return () => {
-    socket.off("customer_order", handleCustomerOrder);
-  };
-}, [Order_Id, refetchTableOrderDetails]);
 
 useEffect(() => {
-  const handleWaiterOrderUpdate = (data) => {
-    console.log("📢 Waiter order updated:", data);
+  const socket = socketRef.current;
+  const kotId = tableOrderDetails?.KOT_Id;
 
-    if (String(data.Order_Id) !== String(Order_Id)) {
-      return;
-    }
+  if (!socket || !kotId) return;
 
-    toast.info("Waiter updated this order.");
-
-    refetchTableOrderDetails();
-  };
-
-  socket.on("waiter_order_update", handleWaiterOrderUpdate);
+  socket.emit("join_order_room", kotId);
 
   return () => {
-    socket.off("waiter_order_update", handleWaiterOrderUpdate);
+    socket.emit("leave_order_room", kotId);
   };
-}, [Order_Id, refetchTableOrderDetails]);
-  useEffect(() => {
-    const handleKotUpdate = (data) => {
-
-      console.log("📢 Frontend received KOT update:", data);
-      toast.info(`${data.itemName} → ${data.status}`);
-
-      // setKotNotifications((prev) => {
-      //   const index = prev.findIndex(n => n.KOT_Item_Id === data.KOT_Item_Id);
-      setKotNotifications((prev) => {
-        const index = prev.findIndex(
-          (n) => String(n.KOT_Item_Id) === String(data.KOT_Item_Id)
-        );
-
-        // 🟢 1. If item already exists → update status/time
-        if (index !== -1) {
-          const updated = [...prev];
-          updated[index] = {
-            ...updated[index],
-            status: data.status,
-            time: data.updated_at, // ✅ FIXED
-
-            // time: data.time,
-          };
-          return updated;
-        }
-
-        // 🟢 2. If the row is NEW (e.g., new biriyani added), append it
-        return [
-          ...prev,
-          {
-            KOT_Id: data.KOT_Id,
-            KOT_Item_Id: data.KOT_Item_Id,
-            itemName: data.itemName,
-            status: data.status,
-            time: data.updated_at,
-
-            // time: data.time,
-          }
-        ];
-      });
-    };
-    dispatch(orderApi.util.invalidateTags(["Order"]));
-
-    socket.on("frontend_kot_update", handleKotUpdate);
-
-    return () => {
-      socket.off("frontend_kot_update", handleKotUpdate);
-    };
-  }, []);
-
-  // console.log(kotNotifications,"kotNotifications");
-  // useEffect(() => {
-  //   const handleClickOutside = (event) => {
-  //     setRows((prev) =>
-  //       prev.map((row, idx) => {
-  //         const catRef = categoryRefs.current[idx];
-  //         const itemRef = itemRefs.current[idx];
-
-  //         const clickedInsideCategory =
-  //           catRef && catRef.contains(event.target);
-  //         const clickedInsideItem =
-  //           itemRef && itemRef.contains(event.target);
-
-  //         // if clicked outside both → close
-  //         if (!clickedInsideCategory && !clickedInsideItem) {
-  //           return { ...row, CategoryOpen: false, itemOpen: false };
-  //         }
-
-  //         return row;
-  //       })
-  //     );
-  //   };
-
-  //   document.addEventListener("mousedown", handleClickOutside);
-  //   return () => {
-  //     document.removeEventListener("mousedown", handleClickOutside);
-  //   };
-  // }, []);
-
-
+}, [tableOrderDetails?.KOT_Id]);
   const {
 
     control,
@@ -1509,7 +1584,8 @@ useEffect(() => {
                         onClick={() => setShowCategoryDrawer(false)}
                       />
                       {/* Drawer */}
-                      <div className="relative w-64 bg-white h-full flex flex-col shadow-2xl z-10">
+                      <div className="relative w-64 bg-white h-[calc(100%-6rem)] mt-24 flex flex-col shadow-2xl z-10">
+                      {/* <div className="relative w-64 bg-white h-full flex flex-col shadow-2xl z-10"> */}
                         <div className="px-4 py-3 bg-[#ff0000] flex justify-between items-center">
                           <h4 className="text-white font-bold text-sm uppercase tracking-wide">Categories</h4>
                           <button type="button"
@@ -1735,7 +1811,7 @@ useEffect(() => {
                                 )}
                                 <div className="relative h-32 bg-gradient-to-br from-[#4CA1AF22] to-[#4CA1AF44]">
                                   {item?.Item_Image && (
-                                    <img loading="lazy" src={`http://192.168.0.101:4000/uploads/food-item/${item.Item_Image}`} alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
+                                    <img loading="lazy" src={`http://192.168.0.111:4000/uploads/food-item/${item.Item_Image}`} alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
                                   )}
                                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
                                   <div className="absolute top-2 right-2">
@@ -1944,7 +2020,7 @@ useEffect(() => {
                               )}
                               <div className="relative h-28 bg-gradient-to-br from-[#4CA1AF22] to-[#4CA1AF44]">
                                 {item?.Item_Image && (
-                                  <img loading="lazy" src={`http://192.168.0.101:4000/uploads/food-item/${item.Item_Image}`} alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
+                                  <img loading="lazy" src={`http://192.168.0.111:4000/uploads/food-item/${item.Item_Image}`} alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
                                 )}
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
                                 <div className="absolute top-1 right-1">
@@ -1963,26 +2039,7 @@ useEffect(() => {
                                     <div className="text-[9px] text-gray-500">Total</div>
                                   </div>
                                 </div>
-                                {/* <div className="flex items-center justify-between bg-[#4CA1AF10] rounded-md p-1">
-                      <button
-                        type="button"
-                        disabled={unavailable || Number(cart[item.id] || 0) === 0}
-                        onClick={() => !unavailable && updateCart(item.id, -1, index, item.Item_Name, item.Item_Price)}
-                        className={`w-6 h-6 flex items-center justify-center rounded-md shadow transition ${unavailable ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-white text-[#ff0000]"}`}
-                      >
-                        <Minus className="w-3 h-3" />
-                      </button>
-                      <span className="text-sm font-semibold text-gray-800">{cart[item.id] || 0}</span>
-                      <button
-                        style={{ backgroundColor: "#ff0000" }}
-                        type="button"
-                        disabled={unavailable}
-                        onClick={() => !unavailable && updateCart(item.id, 1, index, item.Item_Name, item.Item_Price)}
-                        className={`w-6 h-6 flex items-center justify-center rounded-md shadow transition ${unavailable ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-[#ff0000] text-white"}`}
-                      >
-                        <Plus className="w-3 h-3" />
-                      </button>
-                    </div> */}
+                           
                                 <div className="flex mt-1.5 items-center gap-1">
                                   <span style={{ color: "#ff0000" }} className="text-xs font-semibold">Qty:</span>
                                   <span className="text-xs">{item.Current_Quantity}</span>

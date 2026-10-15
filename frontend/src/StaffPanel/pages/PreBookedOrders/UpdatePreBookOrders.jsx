@@ -7,7 +7,7 @@ import { foodItemApi, useGetAllFoodItemsQuery } from "../../../redux/api/foodIte
 
 
 import { useState } from "react";
-import { NavLink, useNavigate, useParams } from "react-router-dom";
+import {  useNavigate, useParams } from "react-router-dom";
 
 import { useFieldArray, useForm } from "react-hook-form";
 
@@ -20,7 +20,7 @@ import { toast } from "react-toastify";
 
 
 
-import { LayoutDashboard, Minus, Plus, ShoppingCart, Table } from "lucide-react";
+import {  Minus, Plus, ShoppingCart, Table } from "lucide-react";
 
 // import OrderDetailsModal from "../../components/Modal/OrderDetailsModal";
 
@@ -33,9 +33,9 @@ import PreBookBillModal from "../../../components/Modal/PreBookBillModal";
 import { useGetAllTablesQuery } from "../../../redux/api/tableApi";
 
 
-const socket = io("http://192.168.0.101:4000", {
-  transports: ["websocket"],
-});
+// const socket = io("http://192.168.0.111:4000", {
+//   transports: ["websocket"],
+// });
 
 
 
@@ -107,18 +107,18 @@ export default function UpdatePreBookOrders() {
   } = useGetAllFoodItemsQuery({ orderType });
   const items = menuItems?.foodItems
   const [updatePreBookOrder, { isLoading: isUpdateOrderLoading }] = useUpdatePreBookOrderMutation();
-  const lastUpdatedItemRef = useRef(null);
+ // const lastUpdatedItemRef = useRef(null);
   const [updateAndPrintPreBookKOT, { isLoading: isUpdateAndPrintPreBookKOTLoading }] = useUpdateAndPrintPreBookKOTMutation();
   const [cart, setCart] = useState({});
   //const [selectedTables, setSelectedTables] = useState([]);
   const { data: categories } = useGetAllCategoriesQuery()
   //console.log(categories,"categories");
-  const { data: tables, isLoading } = useGetAllTablesQuery({});
+  const { data: tables } = useGetAllTablesQuery({});
   const [tableSearch, setTableSearch] = useState("");
   const existingCategories = [...new Set(categories?.map(c => c.Item_Category))];
   const newCategories = ["All", ...existingCategories];
   const [categoryOpen, setCategoryOpen] = useState(false);
-  const [categorySearch, setCategorySearch] = useState("");
+  //const [categorySearch, setCategorySearch] = useState("");
 
   const categoryOpenRef = useRef(null);
   // Close on outside click
@@ -136,20 +136,54 @@ export default function UpdatePreBookOrders() {
   const lastCategoryRef = useRef(activeCategory);
 
   //const [kotNotifications, setKotNotifications] = useState([]);
-  useEffect(() => {
-    const handleAvailabilityChange = (data) => {
-      console.log("📢 Food status changed:", data);
+  // useEffect(() => {
+  //   const handleAvailabilityChange = (data) => {
+  //     console.log(" Food status changed:", data);
 
-      // Force RTK Query to refetch
-      dispatch(foodItemApi.util.invalidateTags([{ type: "Food-Item", id: "LIST" }]));
-    };
+  //     // Force RTK Query to refetch
+  //     dispatch(foodItemApi.util.invalidateTags([{ type: "Food-Item", id: "LIST" }]));
+  //   };
 
-    socket.on("food_item_availability_changed", handleAvailabilityChange);
+  //   socket.on("food_item_availability_changed", handleAvailabilityChange);
 
-    return () => {
-      socket.off("food_item_availability_changed", handleAvailabilityChange);
-    };
-  }, []);
+  //   return () => {
+  //     socket.off("food_item_availability_changed", handleAvailabilityChange);
+  //   };
+  // }, []);
+ 
+useEffect(() => {
+  // Create the socket when this component mounts.
+  const socket = io("http://192.168.0.111:4000", {
+    transports: ["websocket"],
+  });
+
+  const handleAvailabilityChange = (data) => {
+    console.log("Food status changed:", data);
+
+    // Refetch food items through RTK Query.
+    dispatch(
+      foodItemApi.util.invalidateTags([
+        { type: "Food-Item", id: "LIST" },
+      ])
+    );
+  };
+
+  socket.on(
+    "food_item_availability_changed",
+    handleAvailabilityChange
+  );
+
+  // Remove the listener and close the connection on unmount.
+  return () => {
+    socket.off(
+      "food_item_availability_changed",
+      handleAvailabilityChange
+    );
+
+    socket.disconnect();
+  };
+}, [dispatch]);
+
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (
@@ -183,116 +217,7 @@ export default function UpdatePreBookOrders() {
   }, []);
 
   // Join the Socket.IO room for this order
-  //   useEffect(() => {
-  //     if (!preBookedOrderDetails?.KOT_Id) return;
-
-  //     const room = `order_${preBookedOrderDetails.KOT_Id}`;
-
-  //     console.log("Joining room:", room);
-  //     socket.emit("join_order_room", preBookedOrderDetails.KOT_Id);
-
-  //     return () => {
-  //       console.log("Leaving room:", room);
-  //       socket.emit("leave_order_room", preBookedOrderDetails.KOT_Id);
-  //     };
-  //   }, [preBookedOrderDetails?.KOT_Id]);
-
-  //   useEffect(() => {
-  //     if (!preBookedOrderDetails?.kitchenItems) return;
-
-  //     // full reset when refreshing page
-  //     const fresh = preBookedOrderDetails.kitchenItems.map(it => ({
-  //       KOT_Id: preBookedOrderDetails.KOT_Id,
-  //       KOT_Item_Id: it.KOT_Item_Id,
-  //       itemName: it.Item_Name,
-  //       status: it.Item_Status,
-  //       time: it.updated_at,
-  //       quantity: it.Quantity,
-  //       // time: null,
-  //     }));
-
-  //     setKotNotifications(fresh);
-
-  //   }, [preBookedOrderDetails]);
-
-  //   useEffect(() => {
-  //     const handleKotUpdate = (data) => {
-
-  //       console.log("📢 Frontend received KOT update:", data);
-  //       toast.info(`${data.itemName} → ${data.status}`);
-
-  //       // setKotNotifications((prev) => {
-  //       //   const index = prev.findIndex(n => n.KOT_Item_Id === data.KOT_Item_Id);
-  //       setKotNotifications((prev) => {
-  //         const index = prev.findIndex(
-  //           (n) => String(n.KOT_Item_Id) === String(data.KOT_Item_Id)
-  //         );
-
-  //         // 🟢 1. If item already exists → update status/time
-  //         if (index !== -1) {
-  //           const updated = [...prev];
-  //           updated[index] = {
-  //             ...updated[index],
-  //             status: data.status,
-  //             time: data.updated_at, // ✅ FIXED
-
-  //             // time: data.time,
-  //           };
-  //           return updated;
-  //         }
-
-  //         // 🟢 2. If the row is NEW (e.g., new biriyani added), append it
-  //         return [
-  //           ...prev,
-  //           {
-  //             KOT_Id: data.KOT_Id,
-  //             KOT_Item_Id: data.KOT_Item_Id,
-  //             itemName: data.itemName,
-  //             status: data.status,
-  //             time: data.updated_at,
-
-  //             // time: data.time,
-  //           }
-  //         ];
-  //       });
-  //     };
-  //     dispatch(orderApi.util.invalidateTags(["Order"]));
-
-  //     socket.on("frontend_kot_update", handleKotUpdate);
-
-  //     return () => {
-  //       socket.off("frontend_kot_update", handleKotUpdate);
-  //     };
-  //   }, []);
-
-  // console.log(kotNotifications,"kotNotifications");
-  //   useEffect(() => {
-  //     const handleClickOutside = (event) => {
-  //       setRows((prev) =>
-  //         prev.map((row, idx) => {
-  //           const catRef = categoryRefs.current[idx];
-  //           const itemRef = itemRefs.current[idx];
-
-  //           const clickedInsideCategory =
-  //             catRef && catRef.contains(event.target);
-  //           const clickedInsideItem =
-  //             itemRef && itemRef.contains(event.target);
-
-  //           // if clicked outside both → close
-  //           if (!clickedInsideCategory && !clickedInsideItem) {
-  //             return { ...row, CategoryOpen: false, itemOpen: false };
-  //           }
-
-  //           return row;
-  //         })
-  //       );
-  //     };
-
-  //     document.addEventListener("mousedown", handleClickOutside);
-  //     return () => {
-  //       document.removeEventListener("mousedown", handleClickOutside);
-  //     };
-  //   }, []);
+ 
 
 
 
@@ -644,58 +569,84 @@ useEffect(() => {
       };
     });
   };
-  const filteredItems = useMemo(() => {
-    if (!items) return [];
+  // const filteredItems = useMemo(() => {
+  //   if (!items) return [];
 
-    const term = searchTerm.trim().toLowerCase();
-    const categoryChanged = lastCategoryRef.current !== activeCategory;
+  //   const term = searchTerm.trim().toLowerCase();
+  //   const categoryChanged = lastCategoryRef.current !== activeCategory;
 
-    // 1️⃣ FILTER: category + smart search
-    const filtered = items.filter((item) => {
-      const matchesCategory =
-        activeCategory === "All" ||
-        item.Item_Category === activeCategory;
+  //   // 1️⃣ FILTER: category + smart search
+  //   const filtered = items.filter((item) => {
+  //     const matchesCategory =
+  //       activeCategory === "All" ||
+  //       item.Item_Category === activeCategory;
 
-      const matchesSearch =
-        categoryChanged ||
-        !term ||
-        item.Item_Name?.toLowerCase().includes(term);
+  //     const matchesSearch =
+  //       categoryChanged ||
+  //       !term ||
+  //       item.Item_Name?.toLowerCase().includes(term);
 
-      return matchesCategory && matchesSearch;
-    });
+  //     return matchesCategory && matchesSearch;
+  //   });
 
-    // update category ref AFTER filtering
-    lastCategoryRef.current = activeCategory;
+  //   // update category ref AFTER filtering
+  //   lastCategoryRef.current = activeCategory;
 
-    // 2️⃣ SPLIT: cart vs non-cart (preserve order)
-    const addedItems = [];
-    const newItems = [];
+  //   // 2️⃣ SPLIT: cart vs non-cart (preserve order)
+  //   const addedItems = [];
+  //   const newItems = [];
 
-    filtered.forEach((item) => {
-      if (cart?.[item.Item_Id]) {
-        addedItems.push(item);
-      } else {
-        newItems.push(item);
-      }
-    });
+  //   filtered.forEach((item) => {
+  //     if (cart?.[item.Item_Id]) {
+  //       addedItems.push(item);
+  //     } else {
+  //       newItems.push(item);
+  //     }
+  //   });
 
-    // 3️⃣ MOST RECENT UPDATE → move to top of its group ONLY
-    const lastId = lastUpdatedItemRef.current;
+  //   // 3️⃣ MOST RECENT UPDATE → move to top of its group ONLY
+  //   const lastId = lastUpdatedItemRef.current;
 
-    if (lastId) {
-      const idx = addedItems.findIndex(
-        (item) => item.Item_Id === lastId
-      );
+  //   if (lastId) {
+  //     const idx = addedItems.findIndex(
+  //       (item) => item.Item_Id === lastId
+  //     );
 
-      if (idx > 0) {
-        const [recent] = addedItems.splice(idx, 1);
-        addedItems.unshift(recent);
-      }
-    }
+  //     if (idx > 0) {
+  //       const [recent] = addedItems.splice(idx, 1);
+  //       addedItems.unshift(recent);
+  //     }
+  //   }
 
-    // 4️⃣ MERGE: cart items first, then others
-    return [...addedItems, ...newItems];
-  }, [items, activeCategory, searchTerm, cart]);
+  //   // 4️⃣ MERGE: cart items first, then others
+  //   return [...addedItems, ...newItems];
+  // }, [items, activeCategory, searchTerm, cart]);
+
+const filteredItems = useMemo(() => {
+  if (!items) return [];
+
+  const term = searchTerm.trim().toLowerCase();
+  const categoryChanged = lastCategoryRef.current !== activeCategory;
+
+  const filtered = items.filter((item) => {
+    const matchesCategory =
+      activeCategory === "All" ||
+      item.Item_Category === activeCategory;
+
+    const matchesSearch =
+      categoryChanged ||
+      !term ||
+      item.Item_Name?.toLowerCase().includes(term);
+
+    return matchesCategory && matchesSearch;
+  });
+
+  lastCategoryRef.current = activeCategory;
+
+  // Keep the original menu order.
+  // Adding an item will not move it to the top.
+  return filtered;
+}, [items, activeCategory, searchTerm]);
   useEffect(() => {
     if (
       activeCategory !== "All" &&
@@ -1119,121 +1070,8 @@ useEffect(() => {
     //   w.document.close();
 
   };
-  //  const onSubmit = async (data) => {
-  //   console.log("Form Data:", data);
 
-  //   /* ---------------- ITEMS VALIDATION ---------------- */
-  //   if (!data.items || data.items.length === 0) {
-  //     toast.error("Please add at least one item before saving.");
-  //     return;
-  //   }
-
-  //   /* ---------------- BOOKING VALIDATION ---------------- */
-  //   if (!data.Booking_Date) {
-  //     toast.error("Please select a date before saving.");
-  //     return;
-  //   }
-
-  //   if (!data.Booking_Hour) {
-  //     toast.error("Please select hour before saving.");
-  //     return;
-  //   }
-
-  //   if (!data.Booking_Period) {
-  //     toast.error("Please select AM/PM before saving.");
-  //     return;
-  //   }
-
-  //   // Minute is optional → default to 00
-  //   if (
-  //     data.Booking_Minute &&
-  //     (Number(data.Booking_Minute) < 0 || Number(data.Booking_Minute) > 59)
-  //   ) {
-  //     toast.error("Minute must be between 00 and 59.");
-  //     return;
-  //   }
-
-
-
-  //   /* ---------------- CLEAN ITEMS ---------------- */
-  //   const cleanedItems = data.items.filter(
-  //     (it) => it.Item_Name && it.Item_Name.trim() !== ""
-  //   );
-
-  //   for (const item of cleanedItems) {
-  //     if (!item.Item_Quantity || Number(item.Item_Quantity) <= 0) {
-  //       toast.error(
-  //         `Quantity for "${item.Item_Name}" must be greater than zero`
-  //       );
-  //       return;
-  //     }
-  //   }
-
-  //   if (cleanedItems.length === 0) {
-  //     toast.error("Please add at least one valid item.");
-  //     return;
-  //   }
-
-  //   /* ---------------- TIME CONVERSION ---------------- */
-  //   const bookingTime = toMySQLTime(
-  //     data.Booking_Hour,
-  //     data.Booking_Minute || "00",
-  //     data.Booking_Period
-  //   );
-
-  //   /* ---------------- PREPARE ITEMS ---------------- */
-  //   const itemsSafe = cleanedItems.map((item) => ({
-  //     Item_Name: item.Item_Name,
-  //     Item_Price: item.Item_Price, // may be null → backend keeps old price
-  //     Item_Quantity: item.Item_Quantity,
-  //     Amount: item.Amount,
-  //   }));
-
-
-
-  //   /* ---------------- FINAL PAYLOAD ---------------- */
-  //   const payload = {
-  //     Customer_Name: data.Customer_Name || null,
-  //     Customer_Phone: data.Customer_Phone || null,
-
-  //    Address: data.Address, // ✅ FIXED
-  //     Booking_Date: data.Booking_Date,
-  //     Booking_Time: bookingTime,
-
-  //     Sub_Total: data.Sub_Total || "0.00",
-  //     Amount: data.Amount || "0.00",
-  //     Advance_Payment: data.Advance_Payment || "0.00",
-  //     Payment_Left: data.Payment_Left || "0.00",
-
-  //     items: itemsSafe,
-  //   };
-
-  //   const bookingTimeForReceipt=data.Booking_Hour + ":" + data.Booking_Minute + " " + data.Booking_Period
-  //   console.log("📦 Final JSON to send:", payload);
-
-  //   /* ---------------- API CALL ---------------- */
-  //   try {
-  //     const res = await updatePreBookOrder({
-  //       Pre_Booked_Order_Id,
-  //       ...payload, // ✅ FIXED (no nested payload)
-  //     }).unwrap();
-
-  //     if (!res?.success) {
-  //       toast.error(res.message || "Failed to update order.");
-  //       return;
-  //     }
-  //     printPreBookReceipt (payload, bookingTimeForReceipt);
-  //     toast.success("Order updated successfully!");
-  //      setTimeout(() => {
-  //       navigate("/staff/pre-book-order/all-pre-booked-orders");
-  //     }, 100);
-  //     // navigate("/staff/pre-book-order/all-pre-booked-orders");
-
-  //   } catch (error) {
-  //     console.error("❌ Order update Error:", error);
-  //     toast.error(error?.data?.message || "Failed to update order.");
-  //   }
-  // };
+  
   const onSubmit = async (data) => {
     console.log("Form Data:", data);
 
@@ -1307,22 +1145,7 @@ useEffect(() => {
     }));
 
     /* ---------------- FINAL PAYLOAD ---------------- */
-    // const payload = {
-    //   Customer_Name: data.Customer_Name || null,
-    //   Customer_Phone: data.Customer_Phone || null,
-    //   Address: data.Address || "",
-
-    //   Booking_Date: data.Booking_Date,
-    //   Booking_Time: bookingTime,
-    //   Table_Names: data.Table_Names,
-    //   Sub_Total: data.Sub_Total || "0.00",
-    //   Amount: data.Amount || "0.00",
-    //   Advance_Payment: data.Advance_Payment || "0.00",
-    //   Payment_Left: data.Payment_Left || "0.00",
-
-    //   items: itemsSafe, // ✅ empty array allowed
-
-    // };
+ 
     const payload = {
   Customer_Name: data.Customer_Name || null,
   Customer_Phone: data.Customer_Phone || null,
@@ -1349,22 +1172,98 @@ useEffect(() => {
 
     /* ---------------- API CALL ---------------- */
     try {
-      const res = await updatePreBookOrder({
-        Pre_Booked_Order_Id,
-        ...payload,
-      }).unwrap();
+//       const res = await updatePreBookOrder({
+//         Pre_Booked_Order_Id,
+//         ...payload,
+//       }).unwrap();
 
-      if (!res?.success) {
-        toast.error(res.message || "Failed to update order.");
-        return;
-      }
+//       if (!res?.success) {
+//         toast.error(res.message || "Failed to update order.");
+//         return;
+//       }
+      
+// if (!res?.success) {
+//   toast.error(res.message || "Failed to update order.");
+//   return;
+// }
 
-      printPreBookReceipt(payload, bookingTimeForReceipt);
-      toast.success("Order updated successfully!");
+// // If the order has already started, send and print KOT
+// if (
+//   String(preBookedOrderDetails?.order?.Status || "").toLowerCase() ===
+//   "hold"
+// ) {
+//   const kotRes = await updateAndPrintPreBookKOT({
+//     Pre_Booked_Order_Id,
+//     ...payload,
+//   }).unwrap();
 
-      setTimeout(() => {
-        navigate("/staff/pre-book-order/all-pre-booked-orders");
-      }, 100);
+//   const kitchenMap = kotRes?.preBookedOrderItems;
+
+//   if (kitchenMap && Object.keys(kitchenMap).length > 0) {
+//     printPreBookKOT(kitchenMap);
+//     toast.success("Order saved and KOT sent to kitchen");
+//   } else {
+//     toast.success("Order saved. No new KOT items to print.");
+//   }
+// } else {
+//   toast.success("Order updated successfully!");
+// }
+
+// printPreBookReceipt(payload, bookingTimeForReceipt);
+// setShowSummary(false);
+
+// setTimeout(() => {
+//   navigate("/staff/pre-book-order/all-pre-booked-orders");
+// }, 100);
+
+
+const res = await updatePreBookOrder({
+  Pre_Booked_Order_Id,
+  ...payload,
+}).unwrap();
+
+if (!res?.success) {
+  toast.error(res.message || "Failed to update order.");
+  return;
+}
+
+const isStarted =
+  String(preBookedOrderDetails?.order?.Status || "").toLowerCase() ===
+  "hold";
+
+if (isStarted) {
+  // Started order: send and print KOT only. Do NOT print customer receipt.
+  const kotRes = await updateAndPrintPreBookKOT({
+    Pre_Booked_Order_Id,
+    ...payload,
+  }).unwrap();
+
+  const kitchenMap = kotRes?.preBookedOrderItems;
+
+  if (kitchenMap && Object.keys(kitchenMap).length > 0) {
+    printPreBookKOT(kitchenMap);
+    toast.success("Order saved and KOT sent to kitchen.");
+  } else {
+    toast.success("Order saved. No new KOT items to print.");
+  }
+} else {
+  // Pending order: save and print the customer receipt as before.
+  printPreBookReceipt(payload, bookingTimeForReceipt);
+  toast.success("Order updated successfully!");
+}
+
+setShowSummary(false);
+
+setTimeout(() => {
+  navigate("/staff/pre-book-order/all-pre-booked-orders");
+}, 100);
+
+      // printPreBookReceipt(payload, bookingTimeForReceipt);
+      // toast.success("Order updated successfully!");
+
+      // setTimeout(() => {
+      //   navigate("/staff/pre-book-order/all-pre-booked-orders");
+      // }, 100);
 
     } catch (error) {
       console.error("❌ Order update Error:", error);
@@ -1552,62 +1451,11 @@ useEffect(() => {
     };
 
     setTimeout(() => document.body.removeChild(iframe), 1000);
-    //   const iframe = document.createElement("iframe");
-    // iframe.style.display = "none";
-    // iframe.src = "about:blank";          // 🔥 important
-    // document.body.appendChild(iframe);
-
-    // iframe.contentDocument.open();
-    // iframe.contentDocument.write(html);
-    // iframe.contentDocument.close();
-
-    // // 🔥 Give browser time to render
-    // setTimeout(() => {
-    //   iframe.contentWindow.focus();
-    //   iframe.contentWindow.print();
-    // }, 300);
-
-    // // 🔥 Remove iframe AFTER print dialog opens
-    // setTimeout(() => {
-    //   document.body.removeChild(iframe);
-    // }, 3000);
+    
 
 
   }
-  // const handleKOTPrint = async () => {
-  //   try {
-  //     const payload = {
-  //       Pre_Book_Order_Id: Pre_Booked_Order_Id,
-  //       items: summaryItems.map(it => ({
-  //         Item_Name: it.Item_Name,
-  //         Item_Quantity: it.Item_Quantity,
-  //       })),
-  //     };
 
-  //     const res = await updateAndPrintPreBookKOT(payload);
-  //     console.log("🟢 KOT Print Response:", res);
-
-  //     if (!res?.data?.success) {
-  //       toast.error(res?.data?.message || "Failed to send KOT to kitchen");
-  //       return;
-  //     }
-
-  //     const kitchenMap = res?.data?.preBookedOrderItems;
-
-  //     // ✅ PRINT ONLY IF THERE ARE ITEMS
-  //     if (kitchenMap && Object.keys(kitchenMap).length > 0) {
-  //       console.log("🖨️ Printing KOT for kitchens:", kitchenMap);
-  //       printPreBookKOT(kitchenMap);
-  //     } else {
-  //       toast.info("No new items to send to kitchen");
-  //       return;
-  //     }
-
-  //   } catch (err) {
-  //     console.error("❌ KOT API Error:", err);
-  //     toast.error("Failed to send KOT to kitchen");
-  //   }
-  // };
   const Sub_Total = watch("Sub_Total");
   const Customer_Name = watch("Customer_Name");
   const Customer_Phone = watch("Customer_Phone");
@@ -1703,7 +1551,209 @@ const handleOrderTypeChange = (newOrderType) => {
   setSearchTerm("");
   setActiveCategory("All");
 };
+const [showCategoryDrawer, setShowCategoryDrawer] = useState(false);
+const [showOrderDrawer, setShowOrderDrawer] = useState(false);
+const isHold =
+  String(preBookedOrderDetails?.order?.Status || "").toLowerCase() === "hold";
 
+const renderSkeletons = (count, compact = false) =>
+  [...Array(count)].map((_, i) => (
+    <div key={i} className="bg-white rounded-xl overflow-hidden shadow-md animate-pulse">
+      <div className={`${compact ? "h-28" : "h-32"} bg-gray-200`} />
+      <div className="p-2 space-y-2">
+        <div className="h-4 bg-gray-200 rounded w-3/4" />
+        <div className="h-3 bg-gray-200 rounded w-1/2" />
+        <div className="h-8 bg-gray-200 rounded" />
+      </div>
+    </div>
+  ));
+
+const renderItemCard = (item, index, compact = false) => {
+  const unavailable = item.is_available === 0;
+  const inCart = Number(cart[item.Item_Id] || 0) > 0;
+
+  return (
+    <div
+      key={item.Item_Id ?? index}
+      onClick={() => {
+        if (unavailable) return;
+        updateCart(item.Item_Id, 1, index, item.Item_Name, item.Item_Price);
+      }}
+      className={`relative bg-white rounded-xl overflow-hidden shadow-md transition-all duration-300 ${
+        unavailable
+          ? "opacity-40 grayscale cursor-not-allowed"
+          : "cursor-pointer hover:shadow-lg"
+      } ${inCart ? "border-2 border-green-500" : ""}`}
+    >
+      {unavailable && (
+        <div className="absolute top-2 left-2 bg-red-600 text-white text-[10px] px-2 py-1 rounded shadow z-10">
+          Unavailable
+        </div>
+      )}
+
+      <div
+        className={`relative ${compact ? "h-28" : "h-32"} bg-gradient-to-br from-[#4CA1AF22] to-[#4CA1AF44]`}
+      >
+        {item?.Item_Image && (
+          <img
+            loading="lazy"
+            src={`http://192.168.0.111:4000/uploads/food-item/${item.Item_Image}`}
+            alt={item?.Item_Name}
+            className="w-full h-full object-cover opacity-90"
+          />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+        <div className="absolute top-2 right-2">
+          <span className="bg-white/90 px-2 py-0.5 rounded-full text-[10px] font-semibold text-[#ff0000] shadow">
+            {item.Item_Category}
+          </span>
+        </div>
+      </div>
+
+      <div className="p-2">
+        <h5
+          style={{ color: "red" }}
+          className={`leading-tight ${compact ? "text-[15px] font-semibold mb-1" : "text-[20px] mb-2"}`}
+        >
+          {item?.Item_Name}
+        </h5>
+
+        <div className="flex justify-between items-center">
+          <div>
+            <div className={`${compact ? "text-sm" : "text-base"} font-semibold text-gray-800`}>
+              ₹{Number(item?.Item_Price || 0).toFixed(2)}
+            </div>
+            <div className="text-[10px] text-gray-500">
+              Tax: {TAX_RATES[item?.Tax_Type] ?? 0}%
+            </div>
+          </div>
+
+          <div className="text-right">
+            <div className={`${compact ? "text-xs" : "text-sm"} font-bold text-[#ff0000]`}>
+              ₹{Number(item?.Amount || 0).toFixed(2)}
+            </div>
+            <div className="text-[10px] text-gray-500">Total</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const renderSummaryRows = () =>
+  summaryItems.length > 0 ? (
+    summaryItems.map((item, index) => {
+      const qty = Number(cart[item.id] || 0);
+
+      return (
+        <div
+          key={item.id ?? index}
+          className="bg-gray-50 rounded-lg px-3 py-2 border border-gray-100"
+        >
+          <div className="flex justify-between items-start">
+            <span className="font-semibold text-sm text-gray-800 leading-tight flex-1 pr-2">
+              {item?.Item_Name}
+            </span>
+            <span className="text-xs bg-red-100 text-[#ff0000] px-2 py-0.5 rounded-full font-medium whitespace-nowrap">
+              x {item?.Item_Quantity}
+            </span>
+          </div>
+
+          <div className="flex justify-between text-xs text-gray-500 mt-1 mb-2">
+            <span>Amount</span>
+            <span className="font-semibold text-gray-700">₹{item?.Amount}</span>
+          </div>
+
+          <div className="flex items-center justify-between bg-[#4CA1AF10] rounded-md p-1.5">
+            <button
+              type="button"
+              disabled={qty === 0}
+              onClick={() => updateCart(item.id, -1, index, item.Item_Name, item.Item_Price)}
+              className={`w-7 h-7 flex items-center justify-center rounded-md shadow transition ${
+                qty === 0
+                  ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                  : "bg-white hover:bg-gray-100 text-[#ff0000]"
+              }`}
+            >
+              <Minus className="w-3 h-3" />
+            </button>
+
+            <span className="text-base font-semibold text-gray-800 px-2">{qty}</span>
+
+            <button
+              type="button"
+              onClick={() => updateCart(item.id, 1, index, item.Item_Name, item.Item_Price)}
+              className="w-7 h-7 flex items-center justify-center rounded-md shadow transition bg-[#ff0000] text-white"
+            >
+              <Plus className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+      );
+    })
+  ) : (
+    <div className="flex flex-col items-center justify-center h-32 text-gray-400">
+      <ShoppingCart size={32} className="mb-2 opacity-30" />
+      <p className="text-sm">No items added yet</p>
+    </div>
+  );
+
+// Save & Hold / Save & Pay Bill / Print KOT (shared by desktop sidebar and mobile drawer)
+const renderActionButtons = (closeDrawer) => (
+  <div className="flex flex-col gap-2">
+   <button
+  type="button"
+  disabled={isUpdateOrderLoading}
+  onClick={() => {
+    closeDrawer?.();
+    setShowSummary(true);
+  }}
+  className="w-full py-2.5 px-4 flex items-center justify-center gap-3 rounded-lg text-white font-bold shadow transition hover:opacity-90 text-sm"
+  style={{ backgroundColor: "black" }}
+>
+  {/* Cart icon with item count */}
+  <span className="relative inline-flex">
+    <ShoppingCart size={18} className="text-white" />
+
+    {totalItems > 0 && (
+      <span className="absolute -top-2 -right-3 bg-white text-[#ff0000] text-[10px] font-bold min-w-5 h-5 px-1 flex items-center justify-center rounded-full shadow">
+        {totalItems}
+      </span>
+    )}
+  </span>
+
+  {isUpdateOrderLoading ? "Saving..." : "Save & Hold"}
+</button>
+
+    <button
+      type="button"
+      disabled={summaryItems.length === 0 || isUpdateOrderLoading}
+      onClick={() => {
+        closeDrawer?.();
+        setPreBookBillModalOpen(true);
+      }}
+      className="w-full py-2.5 px-4 rounded-lg text-white font-bold shadow text-sm disabled:opacity-50"
+      style={{ backgroundColor: "#ff0000" }}
+    >
+      Save & Pay Bill
+    </button>
+
+    {!isHold && (
+      <button
+        type="button"
+        disabled={summaryItems.length === 0 || isUpdateAndPrintPreBookKOTLoading}
+        onClick={() => {
+          closeDrawer?.();
+          handleKOTPrint();
+        }}
+        className="w-full py-2.5 px-4 rounded-lg text-white font-bold shadow text-sm disabled:opacity-50"
+        style={{ backgroundColor: "#ffa600" }}
+      >
+        Print KOT
+      </button>
+    )}
+  </div>
+);
   return (
     <>
 
@@ -1768,9 +1818,18 @@ const handleOrderTypeChange = (newOrderType) => {
   p-2  heading-wrapper
 ">
 
-                <div style={{ marginTop: "0px" }}
+                {/* <div style={{ marginTop: "0px" }}
                   className="  gap-2 flex flex-col w-full
-  p-2  gap-6 sm:w-full sm:grid grid-cols-5 sm:flex-row">
+  p-2  gap-6 sm:w-full sm:grid grid-cols-5 sm:flex-row"> */}
+  <div
+  style={{ marginTop: "0px" }}
+  className="
+    grid grid-cols-1
+    sm:grid-cols-2
+    lg:grid-cols-5
+    w-full p-2 gap-6
+  "
+>
 
                   <div style={{ marginTop: "0px" }} className="input-field relative">
                     <span className="active">
@@ -2054,372 +2113,58 @@ const handleOrderTypeChange = (newOrderType) => {
 
                 </div>
 
+   <div style={{ padding: "0", backgroundColor: "#f1f1f19d" }} className="tab-inn">
+                        <form onSubmit={handleSubmit(onSubmit)}>
 
-
-
-              </div>
-
-
-
-
-
-            </div>
-            <div style={{ padding: "0", backgroundColor: "#f1f1f19d" }}
-              className="tab-inn">
-              <form onSubmit={handleSubmit(onSubmit)}>
-
-
-                {/* <div className="w-full mt-2 mb-2">
-                
-
-
-                  <div className="grid grid-cols-1 items-center gap-4 sm:grid-cols-3">
-                    <div ref={tableRef} className="relative">
-                      <div
-                        className="flex border rounded-md bg-white cursor-pointer h-[3rem]"
-                        onClick={() => setOpen(prev => !prev)}
-                      >
-                        <input
-                          type="text"
-                          placeholder="Search tables..."
-                          value={tableSearch}
-                          onChange={(e) => {
-                            setTableSearch(e.target.value);
-                            setOpen(true);
-                          }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setOpen(true);
-                          }}
-                          className="w-full outline-none px-2"
-                        />
-                        <span className="absolute right-0 px-3 top-1/3">▼</span>
-                      </div>
-
-                      {open && (
-                        <div className="absolute z-50 mt-1 w-full bg-white border rounded shadow max-h-48 overflow-y-auto">
-                          {tables?.tables
-                            ?.filter(t =>
-                              t.Table_Name.toLowerCase().includes(tableSearch.toLowerCase())
-                            )
-                            .map(table => {
-                              const isSelected = selectedTables.includes(table.Table_Name);
-                              //const isAvailable = table.Status === "available";
-
-                              return (
-                                <div
-                                  key={table.Table_Id}
-                                  onClick={() => {
-                                    // if (!isAvailable) return;
-
-                                    const updated = isSelected
-                                      ? selectedTables.filter(t => t !== table.Table_Name)
-                                      : [...selectedTables, table.Table_Name];
-
-                                    setValue("Table_Names", updated, {
-                                      shouldDirty: true,
-                                      shouldValidate: true,
-                                    });
-                                  }}
-                                  className={`px-3 py-2 flex justify-between
-                
-                ${isSelected ? "bg-blue-100" : ""}`}
-                                >
-                                  <span className="text-gray-500" >
-                                    {table.Table_Name}
-                                  </span>
-
-                                  {isSelected && <span className="text-blue-600">✔</span>}
-                                </div>
-                              );
-                            })}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex flex-wrap gap-2 ">
-                      {selectedTables.length > 0 ? (
-                        selectedTables.map(name => (
-                          <div
-                            key={name}
-                            className="px-3 py-1 bg-blue-200 text-blue-900 rounded-md text-sm flex items-center gap-2"
-
-                          >
-                            {name}
-                            <button
-                              className="text-red-600 font-bold"
-                              onClick={() => {
-                                const updated = selectedTables.filter((t) => t !== name);
-                                // setSelectedTables(updated);
-                                setValue("Table_Names", updated);
-                              }}
-                            >
-                              ×
-                            </button>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-gray-500 flex w-full
-                        items-center justify-center">No tables selected</p>
-                      )}
-                    </div>
-
-                 
-                    <div className=" w-full ">
-                      <input
-                        type="text"
-                        placeholder="Search ..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full "
-                      />
-                    </div>
-                  </div>
-
-                  {/* <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full">
-                      {kotNotifications?.length === 0 ? (
-                        <p className="text-gray-500 text-sm text-center col-span-full py-8">
-                          No active kitchen updates
-                        </p>
-                      ) : (
-                        kotNotifications.map((n, i) => (
-                          <div
-                            key={i}
-                            className="bg-white shadow-md hover:shadow-lg 
-              rounded-lg p-2 flex flex-col gap-3 text-sm transition-all
-               duration-300 border border-gray-100"
-                          >
-                            <div className="flex justify-between items-start gap-2">
-                              <span className="font-semibold text-gray-800 text-base leading-tight flex-1">
-                                {n?.itemName} X{n?.quantity}
-                              </span>
-
-                              {/* <span
-                                className={`text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap ${n.status === "ready"
-                                    ? "bg-green-100 text-green-700 border border-green-300"
-                                    : n.status === "preparing"
-                                      ? "bg-yellow-100 text-yellow-700 border border-yellow-300"
-                                      : "bg-gray-100 text-gray-500 border border-gray-300"
-                                  }`}
-                              >
-                                {n?.status}
-                              </span>
-                              <span className="text-xs px-3 py-1 text-gray-500">
-                                {formatTime(n?.time)}
-                              </span> 
-
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div> 
-                </div> */}
-                <div className="w-full mt-2 mb-2">
-                  {/* <div className="grid grid-cols-1 items-center gap-4 sm:grid-cols-3">
-
-                  
-                    {orderType === "DINE_IN" && (
-                      <>
-                        <div ref={tableRef} className="relative">
-                          <div
-                            className="flex border rounded-md bg-white cursor-pointer h-[3rem]"
-                            onClick={() => setOpen((prev) => !prev)}
-                          >
-                            <input
-                              type="text"
-                              placeholder="Search tables..."
-                              value={tableSearch}
-                              onChange={(e) => {
-                                setTableSearch(e.target.value);
-                                setOpen(true);
-                              }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpen(true);
-                              }}
-                              className="w-full outline-none px-2"
-                            />
-                            <span className="absolute right-0 px-3 top-1/3">▼</span>
-                          </div>
-
-                          {open && (
-                            <div className="absolute z-50 mt-1 w-full bg-white border rounded shadow max-h-48 overflow-y-auto">
-                              {tables?.tables
-                                ?.filter((t) =>
-                                  t.Table_Name.toLowerCase().includes(
-                                    tableSearch.toLowerCase()
-                                  )
-                                )
-                                .map((table) => {
-                                  const isSelected = selectedTables.includes(
-                                    table.Table_Name
-                                  );
-
-                                  return (
-                                    <div
-                                      key={table.Table_Id}
-                                      onClick={() => {
-                                        const updated = isSelected
-                                          ? selectedTables.filter(
-                                            (t) => t !== table.Table_Name
-                                          )
-                                          : [...selectedTables, table.Table_Name];
-
-                                        setValue("Table_Names", updated, {
-                                          shouldDirty: true,
-                                          shouldValidate: true,
-                                        });
-                                      }}
-                                      className={`px-3 py-2 flex justify-between ${isSelected ? "bg-blue-100" : ""
-                                        }`}
-                                    >
-                                      <span className="text-gray-500">
-                                        {table.Table_Name}
-                                      </span>
-
-                                      {isSelected && (
-                                        <span className="text-blue-600">✔</span>
-                                      )}
-                                    </div>
-                                  );
-                                })}
-                            </div>
-                          )}
-                        </div>
-
-                        
-                        <div className="flex flex-wrap gap-2">
-                          {selectedTables.length > 0 ? (
-                            selectedTables.map((name) => (
-                              <div
-                                key={name}
-                                className="px-3 py-1 bg-blue-200 text-blue-900 rounded-md text-sm flex items-center gap-2"
-                              >
-                                {name}
-                                <button
-                                  type="button"
-                                  className="text-red-600 font-bold"
-                                  onClick={() => {
-                                    const updated = selectedTables.filter(
-                                      (t) => t !== name
-                                    );
-                                    setValue("Table_Names", updated, {
-                                      shouldDirty: true,
-                                      shouldValidate: true,
-                                    });
-                                  }}
-                                >
-                                  ×
-                                </button>
-                              </div>
-                            ))
-                          ) : (
-                            <p className="text-gray-500 flex w-full items-center justify-center">
-                              No tables selected
-                            </p>
-                          )}
-                        </div>
-                      </>
-                    )}
-
-                   
-                    <div className="w-full">
-                      <input
-                        type="text"
-                        placeholder="Search ..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full"
-                      />
-                    </div>
-
-                  </div> */}
-                 
-<div
-  className={`grid grid-cols-1 items-center gap-4 ${
+  {/* ─── TOP BAR: order type, tables, search ─── */}
+  {/* <div
+    className={`grid grid-cols-1  items-center gap-4 ${
+      orderType === "DINE_IN" ? "sm:grid-cols-4" : "sm:grid-cols-2"
+    }`}
+  > */}
+  <div
+  className={`grid grid-cols-1 items-start gap-4 p-3 ${
     orderType === "DINE_IN"
-      ? "sm:grid-cols-4"
-      : "sm:grid-cols-2"
+      ? "md:grid-cols-2 xl:grid-cols-4"
+      : "md:grid-cols-2"
   }`}
 >
-  {/* ORDER TYPE — INSIDE THE GRID */}
-  <div className="p-3 mb-4">
-    <label className="block font-semibold mb-2">
-      Order Type
-    </label>
+ 
 
-    <div className="flex gap-3">
-      {/* <button
-        type="button"
-        onClick={() => {
-          setOrderType("DINE_IN");
-          setValue("Table_Names", []);
-          setCart({});
-          setValue("items", []);
-          setValue("Sub_Total", "0.00");
-          setValue("Amount", "0.00");
-        }}
-        className={`px-4 py-2 rounded-md border ${
-          orderType === "DINE_IN"
-            ? "bg-red-600 text-white border-red-600"
-            : "bg-white text-gray-700"
-        }`}
-      >
-        Dine-in
-      </button>
+    {/* <div className="p-3 mb-4"> */}
+    <div className=" min-w-0 mb-4">
+      <label className="block font-semibold mb-2">Order Type</label>
 
-      <button
-        type="button"
-        onClick={() => {
-          setOrderType("TAKEAWAY");
-          setValue("Table_Names", []);
-          setCart({});
-          setValue("items", []);
-          setValue("Sub_Total", "0.00");
-          setValue("Amount", "0.00");
-        }}
-        className={`px-5 py-2 rounded-md border ${
-          orderType === "TAKEAWAY"
-            ? "bg-red-600 text-white border-red-600"
-            : "bg-white text-gray-700"
-        }`}
-      >
-        Takeaway
-      </button> */}
-      
-<button
-  type="button"
-  onClick={() => handleOrderTypeChange("DINE_IN")}
-  className={`px-4 py-2 rounded-md border ${
-    orderType === "DINE_IN"
-      ? "bg-red-600 text-white border-red-600"
-      : "bg-white text-gray-700"
-  }`}
->
-  Dine-in
-</button>
-
-<button
-  type="button"
-  onClick={() => handleOrderTypeChange("TAKEAWAY")}
-  className={`px-4 py-2 rounded-md border ${
-    orderType === "TAKEAWAY"
-      ? "bg-red-600 text-white border-red-600"
-      : "bg-white text-gray-700"
-  }`}
->
-  Takeaway
-</button>
-
+      <div className="flex gap-3">
+        <button
+          type="button"
+          onClick={() => handleOrderTypeChange("TAKEAWAY")}
+          className={`px-5 py-2 rounded-md border ${
+            orderType === "TAKEAWAY"
+              ? "bg-red-600 text-white border-red-600"
+              : "bg-white text-gray-700"
+          }`}
+        >
+          Takeaway
+        </button>
+        <button
+          type="button"
+          onClick={() => handleOrderTypeChange("DINE_IN")}
+          className={`px-4 py-2 rounded-md border ${
+            orderType === "DINE_IN"
+              ? "bg-red-600 text-white border-red-600"
+              : "bg-white text-gray-700"
+          }`}
+        >
+          Dine-in
+        </button>
+      </div>
     </div>
-  </div>
 
-  {/* TABLE DROPDOWN — DINE_IN ONLY */}
-  {orderType === "DINE_IN" && (
-    <>
-      <div ref={tableRef} className="relative">
+    {orderType === "DINE_IN" && (
+      <div ref={tableRef} className="relative min-w-0 mt-4">
         <div
-          className="flex border rounded-md bg-white cursor-pointer h-[3rem]"
+          className="flex flex-row border rounded-md bg-white cursor-pointer h-[3rem]"
           onClick={() => setOpen((prev) => !prev)}
         >
           <input
@@ -2434,35 +2179,27 @@ const handleOrderTypeChange = (newOrderType) => {
               e.stopPropagation();
               setOpen(true);
             }}
-            className="w-full outline-none px-2"
+            className="w-full outline-none py-1 px-2 text-gray-900"
+             style={{  border: "none", height: "2rem",marginBottom:"0px" }}
           />
-
-          <span className="absolute right-0 px-3 top-1/3">
-            ▼
-          </span>
+          <span className="absolute right-0 px-3 top-1/3 text-gray-700">▼</span>
         </div>
 
         {open && (
-          <div className="absolute z-50 mt-1 w-full bg-white border rounded shadow max-h-48 overflow-y-auto">
+          <div className="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
             {tables?.tables
               ?.filter((table) =>
-                table.Table_Name.toLowerCase().includes(
-                  tableSearch.toLowerCase()
-                )
+                table.Table_Name.toLowerCase().includes(tableSearch.toLowerCase())
               )
               .map((table) => {
-                const isSelected = selectedTables.includes(
-                  table.Table_Name
-                );
+                const isSelected = selectedTables.includes(table.Table_Name);
 
                 return (
                   <div
                     key={table.Table_Id}
                     onClick={() => {
                       const updated = isSelected
-                        ? selectedTables.filter(
-                            (name) => name !== table.Table_Name
-                          )
+                        ? selectedTables.filter((name) => name !== table.Table_Name)
                         : [...selectedTables, table.Table_Name];
 
                       setValue("Table_Names", updated, {
@@ -2470,637 +2207,572 @@ const handleOrderTypeChange = (newOrderType) => {
                         shouldValidate: true,
                       });
                     }}
-                    className={`px-3 py-2 flex justify-between cursor-pointer ${
-                      isSelected ? "bg-blue-100" : ""
-                    }`}
+                    className="px-3 py-2 flex justify-between items-center cursor-pointer hover:bg-gray-100"
                   >
-                    <span className="text-gray-500">
-                      {table.Table_Name}
-                    </span>
-
-                    {isSelected && (
-                      <span className="text-blue-600">✔</span>
-                    )}
+                    <span>{table.Table_Name}</span>
+                    {isSelected && <span className="text-blue-600 font-bold">✔</span>}
                   </div>
                 );
               })}
+
+            {tables?.tables?.filter((table) =>
+              table.Table_Name.toLowerCase().includes(tableSearch.toLowerCase())
+            ).length === 0 && (
+              <p className="px-3 py-2 text-gray-500">No table found</p>
+            )}
           </div>
         )}
       </div>
+    )}
 
-      {/* SELECTED TABLES */}
-      <div className="flex flex-wrap gap-2">
-        {selectedTables.length > 0 ? (
-          selectedTables.map((name) => (
-            <div
-              key={name}
-              className="px-3 py-1 bg-blue-200 text-blue-900 rounded-md text-sm flex items-center gap-2"
+    {orderType === "DINE_IN" && (
+      // <div className="flex flex-wrap gap-2">
+      <div className="min-w-0 flex flex-wrap content-start items-start gap-2 mt-4">
+        {selectedTables.map((name) => (
+          <span
+            key={name}
+            className="px-3 py-1 bg-blue-200 text-blue-900 rounded-md text-sm flex items-center gap-2"
+          >
+            {name}
+            <button
+              type="button"
+              className="text-red-600 font-bold"
+              onClick={() => {
+                const updated = selectedTables.filter((t) => t !== name);
+                setValue("Table_Names", updated, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                });
+              }}
             >
-              {name}
+              ×
+            </button>
+          </span>
+        ))}
 
-              <button
-                type="button"
-                className="text-red-600 font-bold"
-                onClick={() => {
-                  const updated = selectedTables.filter(
-                    (table) => table !== name
-                  );
-
-                  setValue("Table_Names", updated, {
-                    shouldDirty: true,
-                    shouldValidate: true,
-                  });
-                }}
-              >
-                ×
-              </button>
-            </div>
-          ))
-        ) : (
+        {selectedTables.length === 0 && (
           <p className="text-gray-500 flex w-full items-center justify-center">
             No tables selected
           </p>
         )}
       </div>
-    </>
+    )}
+
+    <div className="w-full">
+      <input
+        type="text"
+        placeholder="Search ..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        className="w-full"
+      />
+    </div>
+  </div>
+  {/* <div
+  className={`grid grid-cols-1 gap-3 sm:gap-4 items-start ${
+    orderType === "DINE_IN"
+      ? "md:grid-cols-2 lg:grid-cols-4"
+      : "md:grid-cols-2"
+  }`}
+>
+  
+  <div className="min-w-0">
+    <label className="block font-semibold mb-2">
+      Order Type
+    </label>
+
+    <div className="flex flex-wrap gap-2">
+      <button
+        type="button"
+        onClick={() => handleOrderTypeChange("TAKEAWAY")}
+        className={`px-5 py-2 rounded-md border ${
+          orderType === "TAKEAWAY"
+            ? "bg-red-600 text-white border-red-600"
+            : "bg-white text-gray-700"
+        }`}
+      >
+        Takeaway
+      </button>
+
+      <button
+        type="button"
+        onClick={() => handleOrderTypeChange("DINE_IN")}
+        className={`px-4 py-2 rounded-md border ${
+          orderType === "DINE_IN"
+            ? "bg-red-600 text-white border-red-600"
+            : "bg-white text-gray-700"
+        }`}
+      >
+        Dine-in
+      </button>
+    </div>
+  </div>
+
+  {orderType === "DINE_IN" && (
+    <div ref={tableRef} className="relative min-w-0 w-full">
+      <div
+        className="relative flex items-center border rounded-md bg-white cursor-pointer h-12 w-full"
+        onClick={() => setOpen((prev) => !prev)}
+      >
+        <input
+        style={{marginBottom:"0px"}}
+          type="text"
+          placeholder="Search tables..."
+          value={tableSearch}
+          onChange={(e) => {
+            setTableSearch(e.target.value);
+            setOpen(true);
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpen(true);
+          }}
+          className="w-full min-w-0 outline-none py-2 pl-3 pr-9 text-gray-900 border-none bg-transparent"
+        />
+
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-700 pointer-events-none">
+          ▼
+        </span>
+      </div>
+
+      {open && (
+        <div className="absolute left-0 top-full z-50 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
+          {tables?.tables
+            ?.filter((table) =>
+              table.Table_Name.toLowerCase().includes(
+                tableSearch.toLowerCase()
+              )
+            )
+            .map((table) => {
+              const isSelected = selectedTables.includes(
+                table.Table_Name
+              );
+
+              return (
+                <div
+                  key={table.Table_Id}
+                  onClick={() => {
+                    const updated = isSelected
+                      ? selectedTables.filter(
+                          (name) => name !== table.Table_Name
+                        )
+                      : [...selectedTables, table.Table_Name];
+
+                    setValue("Table_Names", updated, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
+                  }}
+                  className="px-3 py-2 flex justify-between items-center cursor-pointer hover:bg-gray-100"
+                >
+                  <span>{table.Table_Name}</span>
+
+                  {isSelected && (
+                    <span className="text-blue-600 font-bold">
+                      ✔
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+
+          {tables?.tables?.filter((table) =>
+            table.Table_Name.toLowerCase().includes(
+              tableSearch.toLowerCase()
+            )
+          ).length === 0 && (
+            <p className="px-3 py-2 text-gray-500">
+              No table found
+            </p>
+          )}
+        </div>
+      )}
+    </div>
   )}
 
-  {/* SEARCH — BOTH ORDER TYPES */}
-  <div className="w-full">
+  
+  {orderType === "DINE_IN" && (
+    <div className="flex min-w-0 flex-wrap content-start items-start gap-2">
+      {selectedTables.map((name) => (
+        <span
+          key={name}
+          className="max-w-full px-3 py-1 bg-blue-200 text-blue-900 rounded-md text-sm flex items-center gap-2"
+        >
+          <span className="break-all">{name}</span>
+
+          <button
+            type="button"
+            className="text-red-600 font-bold shrink-0"
+            onClick={() => {
+              const updated = selectedTables.filter(
+                (table) => table !== name
+              );
+
+              setValue("Table_Names", updated, {
+                shouldDirty: true,
+                shouldValidate: true,
+              });
+            }}
+          >
+            ×
+          </button>
+        </span>
+      ))}
+
+      {selectedTables.length === 0 && (
+        <p className="text-sm text-gray-500 py-1">
+          No tables selected
+        </p>
+      )}
+    </div>
+  )}
+
+ 
+  <div className="w-full min-w-0">
     <input
       type="text"
       placeholder="Search ..."
       value={searchTerm}
       onChange={(e) => setSearchTerm(e.target.value)}
-      className="w-full"
+      className="w-full min-w-0"
     />
   </div>
+</div> */}
+
+  {/* ═════════ MOBILE FLOATING BUTTONS ═════════ */}
+  <div className="flex lg:hidden fixed bottom-4 left-0 right-0 z-40 justify-between px-4 pointer-events-none">
+    <button
+      type="button"
+      onClick={() => setShowCategoryDrawer(true)}
+      className="pointer-events-auto flex items-center gap-1 bg-white border border-gray-200 text-[#ff0000] font-bold px-4 py-2 rounded-full shadow-lg text-sm"
+    >
+      ☰ Categories
+    </button>
+
+    <button
+      type="button"
+      onClick={() => setShowOrderDrawer(true)}
+      className="pointer-events-auto relative flex items-center gap-1 text-white font-bold px-4 py-2 rounded-full shadow-lg text-sm"
+      style={{ backgroundColor: "#ff0000" }}
+    >
+      🧾 Order
+      {totalItems > 0 && (
+        <span className="absolute -top-2 -right-2 bg-white text-[#ff0000] text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full shadow">
+          {totalItems}
+        </span>
+      )}
+    </button>
+  </div>
+
+  {/* ═════════ MOBILE CATEGORY DRAWER ═════════ */}
+  {showCategoryDrawer && (
+    <div className="lg:hidden fixed inset-0 z-50 flex">
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/40"
+        onClick={() => setShowCategoryDrawer(false)}
+      />
+       <div className="relative w-64 bg-white h-[calc(100%-6rem)] mt-24 flex flex-col shadow-2xl z-10">
+      {/* <div className="relative w-64 bg-white h-full flex flex-col shadow-2xl z-10"> */}
+        <div className="px-4 py-3 bg-[#ff0000] flex justify-between items-center">
+          <h4 className="text-white font-bold text-sm uppercase tracking-wide">Categories</h4>
+          <button
+            type="button"
+            onClick={() => setShowCategoryDrawer(false)}
+            className="text-white text-xl font-bold"
+            style={{ backgroundColor: "transparent" }}
+          >
+            ✖
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto py-2 px-2 space-y-1">
+          {newCategories.map((cat, index) => (
+            <button
+              type="button"
+              key={index}
+              onClick={() => {
+                setActiveCategory(cat);
+                setShowCategoryDrawer(false);
+              }}
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                activeCategory === cat
+                  ? "bg-[#ff0000] text-white shadow-sm"
+                  : "bg-gray-50 hover:bg-red-50 text-gray-700 border border-gray-100"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )}
+
+  {/* ═════════ MOBILE ORDER DRAWER ═════════ */}
+  {showOrderDrawer && (
+    <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end">
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/40"
+        onClick={() => setShowOrderDrawer(false)}
+      />
+      <div
+        className="relative bg-white rounded-t-2xl shadow-2xl z-10 flex flex-col"
+        style={{ maxHeight: "80vh" }}
+      >
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 bg-gray-300 rounded-full" />
+        </div>
+
+        <div className="px-4 py-3 bg-[#ff0000] flex justify-between items-center">
+          <h4 className="text-white font-bold text-sm uppercase tracking-wide">Order Summary</h4>
+          <div className="flex items-center gap-3">
+            <span className="relative">
+              <ShoppingCart size={20} className="text-white" />
+              {totalItems > 0 && (
+                <span className="absolute -top-2 -right-2 bg-white text-[#ff0000] text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full">
+                  {totalItems}
+                </span>
+              )}
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowOrderDrawer(false)}
+              className="text-white text-xl font-bold"
+              style={{ backgroundColor: "transparent" }}
+            >
+              ✖
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">{renderSummaryRows()}</div>
+
+        <div className="border-t px-4 py-3 space-y-2 bg-white">
+          <div className="flex justify-between font-bold text-gray-900">
+            <span>Total</span>
+            <span className="text-[#ff0000] text-lg">₹{watch("Amount")}</span>
+          </div>
+
+          {renderActionButtons(() => setShowOrderDrawer(false))}
+        </div>
+      </div>
+    </div>
+  )}
+
+  {/* ═════════ DESKTOP: 3 COLUMNS ═════════ */}
+  <div className="hidden lg:flex h-[calc(100vh-120px)] min-h-[560px] bg-gradient-to-br from-orange-50 via-white to-red-50">
+    {/* LEFT: categories */}
+    <aside className="w-[180px] lg:w-[200px] h-full flex-shrink-0 bg-white shadow-md flex flex-col overflow-y-auto border-r">
+      <div className="px-3 py-3 border-b bg-[#ff0000]">
+        <h4 className="text-white font-bold text-sm tracking-wide uppercase">Categories</h4>
+      </div>
+
+      <div className="flex flex-col overflow-y-auto flex-1 min-h-0 py-2 gap-1 px-2">
+        {newCategories.map((cat, index) => (
+          <button
+            type="button"
+            key={index}
+            onClick={() => setActiveCategory(cat)}
+            className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+              activeCategory === cat
+                ? "bg-[#ff0000] text-white shadow-sm"
+                : "bg-gray-50 hover:bg-red-50 text-gray-700 border border-gray-100"
+            }`}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+    </aside>
+
+    {/* MIDDLE: items */}
+    <main className="flex-1 overflow-y-auto px-3 py-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {isMenuItemsLoading || isFetching ? (
+          renderSkeletons(12)
+        ) : filteredItems.length > 0 ? (
+          filteredItems.map((item, index) => renderItemCard(item, index))
+        ) : (
+          <p className="text-gray-500 text-center col-span-full">No items found</p>
+        )}
+      </div>
+    </main>
+
+    {/* RIGHT: order summary */}
+    <aside className="w-[280px] lg:w-[300px] flex-shrink-0 bg-white shadow-md flex flex-col border-l overflow-y-auto">
+      <div className="px-4 py-3 bg-[#ff0000] flex items-center justify-between flex-shrink-0">
+        <h4 className="text-white font-bold text-sm tracking-wide uppercase">Order Summary</h4>
+        <span className="relative">
+          <ShoppingCart size={20} className="text-white" />
+          {totalItems > 0 && (
+            <span className="absolute -top-2 -right-2 bg-white text-[#ff0000] text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full shadow">
+              {totalItems}
+            </span>
+          )}
+        </span>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2 min-h-0">
+        {renderSummaryRows()}
+      </div>
+
+      <div className="border-t bg-white px-4 py-3 space-y-3 flex-shrink-0">
+        <div className="flex justify-between items-center text-base font-bold text-gray-900">
+          <span>Total</span>
+          <span className="text-[#ff0000] text-lg">₹{watch("Amount")}</span>
+        </div>
+
+        {renderActionButtons()}
+      </div>
+    </aside>
+  </div>
+
+  {/* ═════════ MOBILE: ITEMS ONLY ═════════ */}
+  <div className="lg:hidden bg-gradient-to-br from-orange-50 via-white to-red-50 pb-24">
+    <div className="px-3 py-4 grid grid-cols-2 gap-3">
+      {isMenuItemsLoading || isFetching ? (
+        renderSkeletons(6, true)
+      ) : filteredItems.length > 0 ? (
+        filteredItems.map((item, index) => renderItemCard(item, index, true))
+      ) : (
+        <p className="text-gray-500 text-center col-span-full">No items found</p>
+      )}
+    </div>
+  </div>
+
+  {/* ═════════ BILL SUMMARY SHEET (advance + submit) ═════════ */}
+  {showSummary && (
+    <button
+      type="button"
+      onClick={() => setShowSummary(false)}
+      className="fixed inset-0 bg-black/40 z-40"
+    />
+  )}
+
+  <div
+    style={{ maxHeight: "90dvh" }}
+    className={`fixed inset-x-0 bottom-0 w-full flex flex-col overflow-hidden bg-white shadow-2xl rounded-t-2xl z-50 transform transition-transform duration-300 p-4 ${
+      showSummary ? "translate-y-0" : "translate-y-full"
+    }`}
+  >
+    <div className="w-full flex justify-center py-2">
+      <div className="w-12 h-1.5 bg-gray-300 rounded-full"></div>
+    </div>
+
+    <div className="px-4 pb-3 border-b">
+      <div className="flex justify-between items-center">
+        <div className="flex justify-center items-center mx-auto">
+          <h2 className="text-lg font-bold text-gray-700">Bill Summary</h2>
+        </div>
+        <button
+          type="button"
+          style={{ backgroundColor: "transparent", fontSize: "30px" }}
+          className="text-gray-500 text-2xl font-bold"
+          onClick={() => setShowSummary(false)}
+        >
+          ✖
+        </button>
+      </div>
+    </div>
+
+    <div className="px-4 py-3 min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      {summaryItems.map((item, index) => (
+        <div key={index} className="border-b pb-2 mb-2">
+          <div className="flex justify-between">
+            <span className="font-semibold">{item?.Item_Name}</span>
+            <span>x {item?.Item_Quantity}</span>
+          </div>
+          <div className="flex justify-between text-sm text-gray-500">
+            <span>Amount</span>
+            <span>₹{item?.Amount}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <div className="px-4 py-3 border-t shrink-0 bg-white">
+      <div className="flex justify-between text-lg font-bold text-gray-900">
+        <span>Total</span>
+        <span>₹{watch("Amount")}</span>
+      </div>
+
+      <div className="border-b pb-2 mb-2"></div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="hidden sm:block"></div>
+        <div className="hidden sm:block"></div>
+        <div style={{ marginTop: "0px" }} className="flex gap-4 justify-center items-center">
+          <span className="active whitespace-nowrap">Advance payment</span>
+          <input
+            type="number"
+            id="Advance_Payment"
+            value={watch("Advance_Payment") ?? ""}
+            min={preBookedOrderDetails?.order?.Advance_Payment ?? 0}
+            className="w-full outline-none border-b border-gray-400 text-gray-900"
+            onChange={(e) => {
+              const value = e.target.value;
+              if (value === "") {
+                setValue("Advance_Payment", "", { shouldValidate: false });
+                return;
+              }
+              setValue("Advance_Payment", Number(value), { shouldValidate: false });
+            }}
+            onBlur={() => {
+              const minAdvance = preBookedOrderDetails?.order?.Advance_Payment ?? 0;
+              const current = Number(watch("Advance_Payment")) || 0;
+              if (current < minAdvance) {
+                setValue("Advance_Payment", minAdvance, { shouldValidate: true });
+              }
+            }}
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="hidden sm:block"></div>
+        <div className="hidden sm:block"></div>
+        <div style={{ marginTop: "0px" }} className="flex gap-4 justify-center items-center">
+          <span className="active whitespace-nowrap">
+            {paymentLeft < 0 ? "Extra Paid" : "Payment Left"}
+          </span>
+          <input
+            type="number"
+            readOnly
+            id="Payment_Left"
+            value={Math.abs(paymentLeft).toFixed(2)}
+            className="w-full outline-none border-b border-gray-400 text-gray-900"
+            style={{ outline: "none", marginBottom: "0px" }}
+          />
+        </div>
+      </div>
+
+      <div className="flex justify-center mt-4">
+        <button
+          style={{ backgroundColor: "#ff0000" }}
+          type="submit"
+          disabled={isUpdateOrderLoading}
+          className="w-16 h-10 flex items-center justify-center rounded-md text-white shadow"
+        >
+          {isUpdateOrderLoading ? "Saving..." : "OK"}
+        </button>
+      </div>
+    </div>
+  </div>
+</form>
 </div>
 
-                  
+              </div>
 
 
-                </div>
 
-                <div
-                  style={{ backgroundColor: "#f1f1f19d" }} className=" mx-auto px-2 py-2">
-                  <div className="sm:hidden px-2 relative">
-                    {/* <div
-    onClick={() => setCategoryOpen(!categoryOpen)}
-    className="w-full px-4 py-2  border text-sm flex justify-between items-center"
-  >
-    {activeCategory}
-    <span>▼</span>
-  </div> */}
-                    <div>
-                      <span style={{ color: "#ff0000" }}
-                        className="active">Category</span>
-                      <input
-                        type="text"
-                        id="Category"
-                        value={categorySearch}
-                        style={{ outline: "none" }}
-                        placeholder="Category"
-                        className="w-full outline-none  text-gray-900"
-                        onFocus={() => setCategoryOpen(true)}
-                        onChange={(e) => {
-                          setCategorySearch(e.target.value);
-                          setCategoryOpen(true);
 
-                        }}
-                        onBlur={() => {
-                          setTimeout(() => setCategoryOpen(false), 150);
-                        }}
-                      />
-                    </div>
 
-                    {categoryOpen && (
-                      <div className="absolute mt-1 w-full bg-white border rounded-lg shadow-md max-h-60 overflow-y-auto z-50">
-
-                        {(() => {
-                          const filteredCategories = newCategories?.filter((cat) =>
-                            cat.toLowerCase().includes(categorySearch.toLowerCase())
-                          );
-
-                          if (!filteredCategories || filteredCategories.length === 0) {
-                            return (
-                              <div className="px-4 py-3 text-sm text-gray-500 text-center">
-                                No categories found
-                              </div>
-                            );
-                          }
-
-                          return filteredCategories.map((cat, idx) => (
-                            <div
-                              key={idx}
-                              onClick={() => {
-                                setActiveCategory(cat);
-                                setCategoryOpen(false);
-                                setCategorySearch(cat);
-                              }}
-                              className="px-4 py-2 text-sm hover:bg-gray-100 cursor-pointer"
-                            >
-                              {cat}
-                            </div>
-                          ));
-                        })()}
-
-                      </div>
-                    )}
-
-
-                  </div>
-
-                  {/* Desktop */}
-                  <div className="hidden sm:flex flex-wrap gap-2">
-                    {newCategories.map((cat, index) => (
-                      <button
-                        type="button"
-                        key={index}
-                        onClick={() => setActiveCategory(cat)}
-                        className={`px-6 py-2 rounded-full transition ${activeCategory === cat
-                          ? "bg-[#ff0000] text-white"
-                          : "bg-white border"
-                          }`}
-                      >
-                        {cat}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-
-                <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-red-50">
-
-
-
-
-                  {/* Food Items Grid */}
-                  <div className=" mx-auto px-2 py-4">
-                    <div className="grid grid-cols-1 mb-10 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-6">
-                      {(isMenuItemsLoading || isFetching) ? (
-                        [...Array(12)].map((_, i) => (
-                          <div
-                            key={i}
-                            className="bg-white rounded-xl overflow-hidden shadow-md animate-pulse"
-                          >
-                            <div className="h-32 bg-gray-200" />
-                            <div className="p-2 space-y-2">
-                              <div className="h-4 bg-gray-200 rounded w-3/4" />
-                              <div className="h-3 bg-gray-200 rounded w-1/2" />
-                              <div className="h-8 bg-gray-200 rounded" />
-                            </div>
-                          </div>
-                        ))
-                      ) :
-                        filteredItems?.length > 0 ? (filteredItems?.map((item, index) => {
-
-                          const unavailable = item.is_available === 0; //  unavailable items
-
-                          // const minQty = minQuantityOfItems.get(item.Item_Id) || 0;
-                          // const currentQty = Number(cart[item.Item_Id] || 0);
-
-                          // const disableMinus =
-                          //   unavailable || currentQty <= minQty;
-
-                          return (
-                            <div
-                              key={item.id ?? index}
-                              className={`
-                                                    group relative bg-white rounded-xl overflow-hidden shadow-md transition-all duration-300 
-                                                    ${unavailable
-                                  ? "opacity-40 grayscale cursor-not-allowed"
-                                  : "hover:shadow-lg hover:-translate-y-1"
-                                }
-                                                  `}
-                            >
-
-                              {/* ===== UNAVAILABLE BADGE ===== */}
-                              {unavailable && (
-                                <div className="absolute top-2 left-2 bg-red-600 text-white text-[10px] px-2 py-1 rounded shadow">
-                                  Unavailable
-                                </div>
-                              )}
-
-                              {/* ===== IMAGE SECTION ===== */}
-                              <div className="relative h-32 bg-gradient-to-br from-[#4CA1AF22] to-[#4CA1AF44]">
-
-                                {/* <img
-                                loading="lazy"
-                                  src={
-                                    item?.Item_Image
-                                      ? `http://192.168.0.101:4000/uploads/food-item/${item?.Item_Image}`
-                                      : ""
-                                  }
-                                  alt={item?.Item_Name}
-                                  className="w-full h-full object-cover opacity-90"
-                                /> */}
-                                {item?.Item_Image && (
-                                  <img
-                                    loading="lazy"
-                                    src={`http://192.168.0.101:4000/uploads/food-item/${item.Item_Image}`}
-                                    alt={item.Item_Name}
-                                    className="w-full h-full object-cover opacity-90"
-                                  />
-                                )}
-
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-
-                                <div className="absolute top-2 right-2">
-                                  <span className="bg-white/90 px-2 py-0.5 rounded-full text-[10px] font-semibold text-[#ff0000] shadow">
-                                    {item?.Item_Category}
-                                  </span>
-                                </div>
-
-                                {/* <div className="absolute bottom-1 left-2 right-2">
-                                                      <h4 className="text-white text-[20px] leading-tight">
-                                                        {item?.Item_Name}
-                                                      </h4>
-                                                    </div> */}
-                              </div>
-
-                              {/* ===== DETAILS SECTION ===== */}
-                              <div className="p-2">
-                                <div className="flex  mb-2">
-                                  <h5 style={{ color: "red" }}
-                                    className="text-red text-[20px] leading-tight">
-                                    {item?.Item_Name}
-                                  </h5>
-                                </div>
-
-                                {/* PRICE ROW */}
-                                <div className="flex justify-between items-center mb-2">
-                                  <div>
-                                    <div className="text-base font-semibold text-gray-800">
-                                      ₹{parseFloat(item?.Item_Price).toFixed(2)}
-                                    </div>
-                                    <div className="text-[10px] text-gray-500">
-                                      Tax: {TAX_RATES[item?.Tax_Type]}%
-                                    </div>
-                                  </div>
-
-                                  <div className="text-right">
-                                    <div className="text-sm font-bold text-[#ff0000]">
-                                      ₹{parseFloat(item?.Amount).toFixed(2)}
-                                    </div>
-                                    <div className="text-[10px] text-gray-500">Total</div>
-                                  </div>
-                                </div>
-
-                                {/* ===== CART CONTROLS ===== */}
-                                <div className="flex items-center justify-between bg-[#4CA1AF10] rounded-md p-1.5">
-
-                                  {/* MINUS BUTTON */}
-                                  <button
-                                    type="button"
-                                    disabled={unavailable || cart[item.Item_Id] === 0}
-                                    onClick={() =>
-                                      !unavailable &&
-                                      updateCart(item.Item_Id, -1, index, item?.Item_Name, item?.Item_Price)
-                                      // updateCart(item.Item_Id, -1, index, item?.Item_Name, item?.Amount)
-                                    }
-                                    className={`
-                                                          w-7 h-7 flex items-center justify-center rounded-md shadow transition
-                                                          ${unavailable
-                                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                                        : "bg-white hover:bg-gray-100 text-[#ff0000]"
-                                      }
-                                                        `}
-                                  >
-                                    <Minus className="w-3 h-3" />
-                                  </button>
-                                  {/* <button
-                                                        type="button"
-                                                          
-                                                 disabled={disableMinus||unavailable || Number(cart[item.Item_Id] || 0) === 0}
-                                                  onClick={() =>
-                                                                    !disableMinus &&
-                                                    updateCart(item.Item_Id, -1, index, item?.Item_Name, item?.Amount)
-                                                              }
-          
-                                                        
-                                                         className={`
-      w-7 h-7 flex items-center justify-center rounded-md shadow transition
-      ${disableMinus
-        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-        : "bg-white hover:bg-gray-100 text-[#ff0000]"
-      }
-    `}
-                                                        
-                                                      >
-                                                        <Minus className="w-3 h-3" />
-                                                      </button> */}
-
-                                  {/* QUANTITY DISPLAY */}
-                                  <span className="text-base font-semibold text-gray-800 px-2">
-                                    {cart[item.Item_Id] || 0}
-                                  </span>
-
-                                  {/* PLUS BUTTON */}
-                                  <button
-                                    style={{ backgroundColor: "#ff0000" }}
-                                    type="button"
-                                    disabled={unavailable}
-                                    onClick={() =>
-                                      !unavailable &&
-                                      updateCart(item?.Item_Id, 1, index, item?.Item_Name, item?.Item_Price)
-                                      // updateCart(item?.Item_Id, 1, index, item?.Item_Name, item?.Amount)
-                                    }
-                                    className={`
-                                                          w-7 h-7 flex items-center justify-center rounded-md shadow transition
-                                                          ${unavailable
-                                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                                        : "bg-[#ff0000] text-white hover:bg-[#3a8c98]"
-                                      }
-                                                        `}
-                                  >
-                                    <Plus className="w-3 h-3" />
-                                  </button>
-
-                                </div>
-
-                              </div>
-                            </div>
-                          );
-                        })) : (
-                          <p className="text-gray-500 text-center col-span-full">
-                            No items found
-                          </p>
-                        )}
-
-                    </div>
-                  </div>
-
-
-                  <div className="
-                                                    fixed bottom-0 left-0 w-full 
-                                                    bg-white shadow-lg 
-                                                    px-4 py-2 z-50
-                                                  "
-                  >
-                    {/* <div className="flex justify-center 
-                                                   items-center flex-col gap-6  w-full sm:flex-row sm:gap-12"> */}
-
-                    <div className="grid grid-cols-2 sm:grid-cols-3  items-center gap-2">
-                      {/* <div className="grid grid-cols-3"> */}
-
-
-                      {/* SAVE & HOLD */}
-                      <button
-                        type="button"
-                        disabled={isUpdateOrderLoading}
-                        onClick={() => setShowSummary(true)}   // open bottom sheet
-                        // disabled={formValues.errorCount > 0 || isAddingOrder}
-                        className="relative w-full py-2 px-4 whitespace-nowrap md:w-auto 
-                                                      flex items-center justify-center gap-3 
-                                                      
-                                                            text-white font-bold  rounded shadow sm:py-3 sm:x-6"
-                        style={{ backgroundColor: "black" }}
-                      >
-                        {isUpdateOrderLoading ? "Saving..." : "Save & Hold"}
-                        {/* {isAddingOrder ? "Saving..." : "Save & Hold"} */}
-
-                        <span className="relative">
-                          <ShoppingCart size={22} />
-                          {totalItems > 0 && (
-                            <span className="absolute -top-2 -right-2 bg-red-500 text-white 
-                                                                           text-[10px] font-bold w-4 h-4 flex items-center justify-center 
-                                                                           rounded-full shadow">
-                              {totalItems}
-                            </span>
-                          )}
-                        </span>
-                      </button>
-
-                      {/* <div></div> */}
-                      {/* SAVE & PAY BILL */}
-
-                      <button
-                        type="button"
-                        disabled={summaryItems.length === 0 || isUpdateOrderLoading}
-                        onClick={() => setPreBookBillModalOpen(true)}
-                        className="relative w-full whitespace-nowrap py-2 px-4 md:w-auto 
-                                                      flex items-center justify-center gap-3 
-                                                      
-                                                            text-white font-bold  rounded shadow sm:py-4 sm:px-6"
-                        style={{ backgroundColor: "#ff0000" }}
-                      >
-                        Save & Pay Bill
-                      </button>
-                      <button
-                        type="button"
-                        disabled={summaryItems.length === 0 || isUpdateAndPrintPreBookKOTLoading}
-                        onClick={() => handleKOTPrint()}
-                        className="relative w-full whitespace-nowrap py-2 px-4 md:w-auto 
-                                                      flex items-center justify-center gap-3 
-                                                      
-                                                            text-white font-bold  rounded shadow sm:py-4 sm:px-6"
-                        style={{ backgroundColor: "#ffa600" }}
-                      >
-                        Print KOT
-                      </button>
-
-
-                    </div>
-                  </div>
-                  {showSummary && (
-                    <div>
-
-                      <button
-                        type="button"
-                        onClick={() => setShowSummary(false)}
-                        className="fixed inset-0 bg-black/40 z-40"></button>
-                    </div>
-                  )}
-
-                  {/* BOTTOM SHEET */}
-                  <div
-                    className={`
-                                                    fixed left-0 bottom-0 w-full 
-                                                    bg-white shadow-2xl rounded-t-2xl z-50
-                                                    transform transition-transform duration-300 p-4
-                                                    ${showSummary ? "translate-y-0" : "translate-y-full"}
-                                                  `}
-
-                  >
-                    {/* HANDLE BAR */}
-                    <div className="w-full flex justify-center py-2">
-                      <div className="w-12 h-1.5 bg-gray-300 rounded-full"></div>
-                    </div>
-
-                    <div className="px-4 pb-3 border-b">
-                      <div className="flex justify-between items-center">
-                        <div className="flex justify-center items-center mx-auto">
-                          <h2 className="text-lg font-bold text-gray-700">Bill Summary</h2>
-                        </div>
-                        <div className="flex justify-enditems-center gap-2">
-                          <button type="button" style={{ backgroundColor: "transparent" }}
-                            className="text-gray-500 text-2xl font-bold"
-                            onClick={() => setShowSummary(false)}>✖</button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* SUMMARY CONTENT */}
-                    <div className="px-4 py-3 overflow-y-auto" style={{ maxHeight: "55vh" }}>
-                      {summaryItems?.map((item, index) => (
-                        <div key={index} className="border-b pb-2 mb-2">
-                          <div className="flex justify-between">
-                            <span className="font-semibold">{item?.Item_Name}</span>
-                            <span>x {item?.Item_Quantity}</span>
-                          </div>
-                          <div className="flex justify-between text-sm text-gray-500">
-                            <span>Amount</span>
-                            <span>₹{item?.Amount}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* TOTAL FOOTER */}
-                    <div className="px-4 py-3 border-t">
-                      <div className="flex justify-between text-lg font-bold text-gray-900">
-                        <span>Total</span>
-                        <span>₹{watch("Amount")}</span>
-                      </div>
-                      <div className="border-b pb-2 mb-2"></div>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div className="hidden sm:block"></div>
-                        <div className="hidden sm:block"></div>
-                        <div style={{ marginTop: "0px" }} className="flex gap-4  justify-center items-center">
-
-                          <span className="active whitespace-nowrap">Advance payment</span>
-
-                          {/* <input
-                                                                type="number"
-                                                                id="Advance_Payment"
-
-                                                                value={watch("Advance_Payment") || 0}
-                                                                min={preBookedOrderDetails?.Advance_Payment || 0}
-                                                                //value={watchedCustomerAddress || ""} 
-                                                                //readOnly={isExistingCustomer} 
-                                                                className="w-full outline-none border-b-1 
-                                                            border-gray-400 text-gray-900"
-                                                                style={{ outline: "none", resize: "none", marginBottom: "0px" }}
-                                                                onChange={(e)=>{
-                                                                    const advancePayment = parseFloat(e.target.value) || 0;
-                                                                    setValue("Advance_Payment", advancePayment, {
-                                                                        shouldValidate: true,
-                                                                    });
-                                                                }}
-                                                            /> */}
-                          <input
-                            type="number"
-                            id="Advance_Payment"
-                            value={watch("Advance_Payment") ?? ""}
-                            min={preBookedOrderDetails?.order?.Advance_Payment ?? 0}
-                            className="w-full outline-none border-b border-gray-400 text-gray-900"
-                            onChange={(e) => {
-                              const value = e.target.value;
-
-                              // allow empty while editing
-                              if (value === "") {
-                                setValue("Advance_Payment", "", { shouldValidate: false });
-                                return;
-                              }
-
-                              setValue("Advance_Payment", Number(value), { shouldValidate: false });
-                            }}
-                            onBlur={() => {
-                              const minAdvance = preBookedOrderDetails?.order?.Advance_Payment ?? 0;
-                              const current = Number(watch("Advance_Payment")) || 0;
-
-                              // 🔒 HARD RULE APPLIED ONLY HERE
-                              if (current < minAdvance) {
-                                setValue("Advance_Payment", minAdvance, {
-                                  shouldValidate: true,
-                                });
-                              }
-                            }}
-                          />
-
-
-
-
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div className="hidden sm:block"></div>
-                        <div className="hidden sm:block"></div>
-                        {/* <div style={{ marginTop: "0px" }} className="flex gap-4  justify-center items-center">
-
-                                                            <span className="active whitespace-nowrap">
-                                                              {paymentLeft>0?"Payment Left":" Extra Paid"}
-                                                              </span>
-
-                                                            <input
-                                                                type="number"
-                                                                readOnly
-                                                                id="Payment_Left"
-                                                                value={(watch("Payment_Left") )}
-                                                                //value={parseFloat(watch("Sub_Total") || 0) - parseFloat(watch("Advance_Payment") || 0)}
-
-                                                                //value={watchedCustomerAddress || ""} 
-                                                                //readOnly={isExistingCustomer} 
-                                                                className="w-full outline-none border-b-1 
-                                                            border-gray-400 text-gray-900"
-                                                                style={{
-                                                                    outline: "none", resize: "none",
-                                                                    marginBottom: "0px"
-                                                                }}
-
-                                                            />
-
-                                                            {/* {errors?.Payment_Left && (
-                                                            <p className="text-red-500 text-xs mt-1">
-                                                                {errors.Advance_Payment.message}
-                                                            </p>
-                                                        )} 
-                                                        </div> */}
-                        <div style={{ marginTop: "0px" }} className="flex gap-4 justify-center items-center">
-                          <span className="active whitespace-nowrap">
-                            {paymentLeft < 0 ? "Extra Paid" : "Payment Left"}
-                          </span>
-
-                          <input
-                            type="number"
-                            readOnly
-                            id="Payment_Left"
-                            value={
-                              paymentLeft < 0
-                                ? Math.abs(paymentLeft).toFixed(2)
-                                : paymentLeft.toFixed(2)
-                            }
-                            className="w-full outline-none border-b border-gray-400 text-gray-900"
-                            style={{ outline: "none", marginBottom: "0px" }}
-                          />
-                        </div>
-
-                      </div>
-                      <div
-                        className="flex justify-center mt-4">
-                        <button style={{ backgroundColor: "#ff0000" }}
-                          type="submit"
-                          className="w-16 h-10 flex items-center justify-center bg-[#ff0000] 
-                                                          rounded-md text-white shadow hover:bg-[#3a8c98] ">
-                          {isUpdateOrderLoading ? "Saving..." : "OK"}
-                        </button>
-
-                      </div>
-                    </div>
-                  </div>
-                  {/* </div>
-                                            </div> */}
-
-
-                </div>
-
-
-
-
-
-
-              </form>
+            </div>
+            <div style={{ padding: "0", backgroundColor: "#f1f1f19d" }}
+              className="tab-inn">
+             
               {preBookBillModalOpen &&
                 <PreBookBillModal
                   onClose={() => setPreBookBillModalOpen(false)}
@@ -3252,3 +2924,5 @@ const handleOrderTypeChange = (newOrderType) => {
   );
 
 };
+
+

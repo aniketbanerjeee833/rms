@@ -36,9 +36,9 @@ import { useGetAllCategoriesQuery } from "../../../redux/api/itemApi";
 
 
 
-const socket = io("http://192.168.0.101:4000", {
-  transports: ["websocket"],
-});
+// const socket = io("http://192.168.0.111:4000", {
+//   transports: ["websocket"],
+// });
 
 
 export default function PreBookOrders() {
@@ -110,9 +110,9 @@ export default function PreBookOrders() {
 
   const newCategories = ["All", ...existingCategories];
 
-  const lastUpdatedItemRef = useRef(null);
+  // const lastUpdatedItemRef = useRef(null);
   const [categoryOpen, setCategoryOpen] = useState(false);
-  const [categorySearch, setCategorySearch] = useState("");
+  //const [categorySearch, setCategorySearch] = useState("");
 
   const categoryOpenRef = useRef(null);
   // Close on outside click
@@ -142,29 +142,35 @@ export default function PreBookOrders() {
   //onst existingCategories=categories?.map((category) => category.Item_Category);
   // const existingCategories = [...new Set(categories?.map(c => c.Item_Category))];
   const [searchTerm, setSearchTerm] = useState('');
-  // const newCategories = ["All", ...existingCategories];
-  //   const [rows, setRows] = useState([
-  //     {
-  //       CategoryOpen: false, categorySearch: "", preview: null
-  //     }
-  //   ]);
+
+
 
 
   useEffect(() => {
+    // Create the socket when this component mounts.
+    const socket = io("http://192.168.0.111:4000", {
+      transports: ["websocket"],
+    });
+
     const handleSoftDeletedItem = (data) => {
       console.log("📢 Food status changed:", data);
 
-      // Force RTK Query to refetch
-      dispatch(foodItemApi.util.invalidateTags([{ type: "Food-Item", id: "LIST" }]));
+      // Refetch food items through RTK Query.
+      dispatch(
+        foodItemApi.util.invalidateTags([
+          { type: "Food-Item", id: "LIST" },
+        ])
+      );
     };
 
     socket.on("food_item_deleted", handleSoftDeletedItem);
 
+    // Clean up when the component unmounts.
     return () => {
       socket.off("food_item_deleted", handleSoftDeletedItem);
+      socket.disconnect();
     };
-  }, []);
-
+  }, [dispatch]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -272,58 +278,58 @@ export default function PreBookOrders() {
     setValue("Amount", subTotal.toFixed(2));
   };
 
-useEffect(() => {
-  // Wait until the menu for the selected order type has loaded.
-  if (isFetching || !items?.length) return;
+  useEffect(() => {
+    // Wait until the menu for the selected order type has loaded.
+    if (isFetching || !items?.length) return;
 
-  const currentItems = watch("items") || [];
+    const currentItems = watch("items") || [];
 
-  if (currentItems.length === 0) return;
+    if (currentItems.length === 0) return;
 
-  // Match existing cart rows with the newly fetched menu.
-  const menuById = new Map(
-    items.map((menuItem) => [
-      String(menuItem.id ?? menuItem.Item_Id),
-      menuItem,
-    ])
-  );
-
-  let subTotal = 0;
-
-  currentItems.forEach((orderItem, index) => {
-    const menuItem = menuById.get(
-      String(orderItem.id ?? orderItem.Item_Id)
+    // Match existing cart rows with the newly fetched menu.
+    const menuById = new Map(
+      items.map((menuItem) => [
+        String(menuItem.id ?? menuItem.Item_Id),
+        menuItem,
+      ])
     );
 
-    const quantity = Number(orderItem.Item_Quantity) || 0;
+    let subTotal = 0;
 
-    // Preserve the existing price if the item is absent from this menu.
-    const price = menuItem
-      ? Number(menuItem.Item_Price)
-      : Number(orderItem.Item_Price) || 0;
+    currentItems.forEach((orderItem, index) => {
+      const menuItem = menuById.get(
+        String(orderItem.id ?? orderItem.Item_Id)
+      );
 
-    if (!Number.isFinite(price) || price < 0) return;
+      const quantity = Number(orderItem.Item_Quantity) || 0;
 
-    const amount = price * quantity;
-    subTotal += amount;
+      // Preserve the existing price if the item is absent from this menu.
+      const price = menuItem
+        ? Number(menuItem.Item_Price)
+        : Number(orderItem.Item_Price) || 0;
 
-    setValue(`items.${index}.Item_Price`, price, {
+      if (!Number.isFinite(price) || price < 0) return;
+
+      const amount = price * quantity;
+      subTotal += amount;
+
+      setValue(`items.${index}.Item_Price`, price, {
+        shouldDirty: true,
+      });
+
+      setValue(`items.${index}.Amount`, amount.toFixed(2), {
+        shouldDirty: true,
+      });
+    });
+
+    setValue("Sub_Total", subTotal.toFixed(2), {
       shouldDirty: true,
     });
 
-    setValue(`items.${index}.Amount`, amount.toFixed(2), {
+    setValue("Amount", subTotal.toFixed(2), {
       shouldDirty: true,
     });
-  });
-
-  setValue("Sub_Total", subTotal.toFixed(2), {
-    shouldDirty: true,
-  });
-
-  setValue("Amount", subTotal.toFixed(2), {
-    shouldDirty: true,
-  });
-}, [items, orderType, isFetching, setValue, watch]);
+  }, [items, orderType, isFetching, setValue, watch]);
 
 
   const updateCart = (itemId, delta, _index, itemName, itemPrice) => {
@@ -331,9 +337,9 @@ useEffect(() => {
     if (!price || price <= 0) return;
 
     // 🔥 MARK RECENT ONLY WHEN ADDING
-    if (delta > 0) {
-      lastUpdatedItemRef.current = itemId;
-    }
+    // if (delta > 0) {
+    //   lastUpdatedItemRef.current = itemId;
+    // }
 
     setCart((prev) => {
       const currentQty = Number(prev[itemId] || 0);
@@ -408,22 +414,23 @@ useEffect(() => {
     // update category ref AFTER filtering
     lastCategoryRef.current = activeCategory;
 
-    return [...filtered].sort((a, b) => {
-      const aId = a.id;
-      const bId = b.id;
+    // return [...filtered].sort((a, b) => {
+    //   const aId = a.id;
+    //   const bId = b.id;
 
-      const aInCart = cart[aId] ? 1 : 0;
-      const bInCart = cart[bId] ? 1 : 0;
+    //   const aInCart = cart[aId] ? 1 : 0;
+    //   const bInCart = cart[bId] ? 1 : 0;
 
-      // 🔥 MOST RECENT ITEM ALWAYS ON TOP
-      if (aId === lastUpdatedItemRef.current) return -1;
-      if (bId === lastUpdatedItemRef.current) return 1;
+    //   // 🔥 MOST RECENT ITEM ALWAYS ON TOP
+    //   if (aId === lastUpdatedItemRef.current) return -1;
+    //   if (bId === lastUpdatedItemRef.current) return 1;
 
-      // 🔥 CART ITEMS ABOVE NON-CART ITEMS
-      if (aInCart !== bInCart) return bInCart - aInCart;
+    //   // 🔥 CART ITEMS ABOVE NON-CART ITEMS
+    //   if (aInCart !== bInCart) return bInCart - aInCart;
 
-      return 0;
-    });
+    //   return 0;
+    // });
+    return filtered;
   }, [items, activeCategory, searchTerm, cart]);
 
   const totalItems = Object.values(cart).reduce((sum, qty) => sum + qty, 0);
@@ -817,7 +824,7 @@ useEffect(() => {
     //   w.document.close();
 
   };
-  
+
   const onSubmit = async (data) => {
     console.log("Form Data:", data);
 
@@ -906,25 +913,25 @@ useEffect(() => {
     //   items: itemsSafe, // 👈 EMPTY ARRAY IS OK
     // };
     const payload = {
-  Customer_Name: data.Customer_Name || null,
-  Customer_Phone: data.Customer_Phone || null,
-  userId,
+      Customer_Name: data.Customer_Name || null,
+      Customer_Phone: data.Customer_Phone || null,
+      userId,
 
-  Order_Type: orderType === "DINE_IN" ? "dine-in" : "takeaway",
+      Order_Type: orderType === "DINE_IN" ? "dine-in" : "takeaway",
 
-  Table_Names: orderType === "DINE_IN" ? selectedTables : [],
+      Table_Names: orderType === "DINE_IN" ? selectedTables : [],
 
-  Customer_Address: data.Customer_Address || "",
-  Booking_Date: data.Booking_Date,
-  Booking_Time: bookingTime,
+      Customer_Address: data.Customer_Address || "",
+      Booking_Date: data.Booking_Date,
+      Booking_Time: bookingTime,
 
-  Sub_Total: data.Sub_Total || "0.00",
-  Amount: data.Amount || "0.00",
-  Advance_Payment: data.Advance_Payment || "0.00",
-  Payment_Left: data.Payment_Left || "0.00",
+      Sub_Total: data.Sub_Total || "0.00",
+      Amount: data.Amount || "0.00",
+      Advance_Payment: data.Advance_Payment || "0.00",
+      Payment_Left: data.Payment_Left || "0.00",
 
-  items: itemsSafe,
-};
+      items: itemsSafe,
+    };
 
     console.log("📦 Final JSON to send:", payload);
 
@@ -974,8 +981,147 @@ useEffect(() => {
   // console.log("updateCart", cart);
   console.log("Current form values:", formValues);
   console.log("Form errors:", errors);
+  const [showCategoryDrawer, setShowCategoryDrawer] = useState(false);
+  const [showOrderDrawer, setShowOrderDrawer] = useState(false);
+  const renderSkeletons = (count, compact = false) =>
+    [...Array(count)].map((_, i) => (
+      <div key={i} className="bg-white rounded-xl overflow-hidden shadow-md animate-pulse">
+        <div className={`${compact ? "h-28" : "h-32"} bg-gray-200`} />
+        <div className="p-2 space-y-2">
+          <div className="h-4 bg-gray-200 rounded w-3/4" />
+          <div className="h-3 bg-gray-200 rounded w-1/2" />
+          <div className="h-8 bg-gray-200 rounded" />
+        </div>
+      </div>
+    ));
 
+  const renderItemCard = (item, index, compact = false) => {
+    const unavailable = item.is_available === 0;
+    const inCart = Number(cart[item.id] || 0) > 0;
 
+    return (
+      <div
+        key={item.id ?? index}
+        onClick={() => {
+          if (unavailable) return;
+          updateCart(item.id, 1, index, item.Item_Name, item.Item_Price);
+        }}
+        className={`relative bg-white rounded-xl overflow-hidden shadow-md transition-all duration-300 ${unavailable
+            ? "opacity-40 grayscale cursor-not-allowed"
+            : "cursor-pointer hover:shadow-lg"
+          } ${inCart ? "border-2 border-green-500" : ""}`}
+      >
+        {unavailable && (
+          <div className="absolute top-2 left-2 bg-red-600 text-white text-[10px] px-2 py-1 rounded shadow z-10">
+            Unavailable
+          </div>
+        )}
+
+        <div
+          className={`relative ${compact ? "h-28" : "h-32"} bg-gradient-to-br from-[#4CA1AF22] to-[#4CA1AF44]`}
+        >
+          {item?.Item_Image && (
+            <img
+              loading="lazy"
+              src={`http://192.168.0.111:4000/uploads/food-item/${item.Item_Image}`}
+              alt={item?.Item_Name}
+              className="w-full h-full object-cover opacity-90"
+            />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+          <div className="absolute top-2 right-2">
+            <span className="bg-white/90 px-2 py-0.5 rounded-full text-[10px] font-semibold text-[#ff0000] shadow">
+              {item.Item_Category}
+            </span>
+          </div>
+        </div>
+
+        <div className="p-2">
+          <h5
+            style={{ color: "red" }}
+            className={`leading-tight ${compact ? "text-[15px] font-semibold mb-1" : "text-[20px] mb-2"}`}
+          >
+            {item?.Item_Name}
+          </h5>
+
+          <div className="flex justify-between items-center">
+            <div>
+              <div className={`${compact ? "text-sm" : "text-base"} font-semibold text-gray-800`}>
+                ₹{Number(item?.Item_Price || 0).toFixed(2)}
+              </div>
+              <div className="text-[10px] text-gray-500">
+                Tax: {TAX_RATES[item?.Tax_Type] ?? 0}%
+              </div>
+            </div>
+
+            <div className="text-right">
+              <div className={`${compact ? "text-xs" : "text-sm"} font-bold text-[#ff0000]`}>
+                ₹{Number(item?.Amount || 0).toFixed(2)}
+              </div>
+              <div className="text-[10px] text-gray-500">Total</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderSummaryRows = () =>
+    summaryItems.length > 0 ? (
+      summaryItems.map((item, index) => {
+        const qty = Number(cart[item.id] || 0);
+
+        return (
+          <div
+            key={item.id ?? index}
+            className="bg-gray-50 rounded-lg px-3 py-2 border border-gray-100"
+          >
+            <div className="flex justify-between items-start">
+              <span className="font-semibold text-sm text-gray-800 leading-tight flex-1 pr-2">
+                {item?.Item_Name}
+              </span>
+              <span className="text-xs bg-red-100 text-[#ff0000] px-2 py-0.5 rounded-full font-medium whitespace-nowrap">
+                x {item?.Item_Quantity}
+              </span>
+            </div>
+
+            <div className="flex justify-between text-xs text-gray-500 mt-1 mb-2">
+              <span>Amount</span>
+              <span className="font-semibold text-gray-700">₹{item?.Amount}</span>
+            </div>
+
+            <div className="flex items-center justify-between bg-[#4CA1AF10] rounded-md p-1.5">
+              <button
+                type="button"
+                disabled={qty === 0}
+                onClick={() => updateCart(item.id, -1, index, item.Item_Name, item.Item_Price)}
+                className={`w-7 h-7 flex items-center justify-center rounded-md shadow transition ${qty === 0
+                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    : "bg-white hover:bg-gray-100 text-[#ff0000]"
+                  }`}
+              >
+                <Minus className="w-3 h-3" />
+              </button>
+
+              <span className="text-base font-semibold text-gray-800 px-2">{qty}</span>
+
+              <button
+                type="button"
+                onClick={() => updateCart(item.id, 1, index, item.Item_Name, item.Item_Price)}
+                className="w-7 h-7 flex items-center justify-center rounded-md shadow transition bg-[#ff0000] text-white"
+              >
+                <Plus className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+        );
+      })
+    ) : (
+      <div className="flex flex-col items-center justify-center h-32 text-gray-400">
+        <ShoppingCart size={32} className="mb-2 opacity-30" />
+        <p className="text-sm">No items added yet</p>
+      </div>
+    );
 
   return (
     <>
@@ -1004,12 +1150,7 @@ useEffect(() => {
                   </div>
 
                   {/* RIGHT BUTTON SECTION */}
-                  {/* <div className="
-      w-full sm:w-auto 
-      flex flex-wrap sm:flex-nowrap 
-      justify-start sm:justify-end 
-      gap-3
-    "> */}
+        
                   <div className="
        w-full flex justify-center items-center mb-2 sm:w-auto 
        flex flex-wrap sm:flex-nowrap 
@@ -1044,9 +1185,19 @@ useEffect(() => {
   p-2  heading-wrapper
 ">
 
-                  <div style={{ marginTop: "0px" }}
+                  {/* <div style={{ marginTop: "0px" }}
                     className="  gap-2 flex flex-col w-full
-  p-2  gap-6 sm:w-full sm:grid grid-cols-5 sm:flex-row">
+  p-2  gap-6 sm:w-full sm:grid grid-cols-5 sm:flex-row"> */}
+
+<div
+  style={{ marginTop: "0px" }}
+  className="
+    grid grid-cols-1
+    sm:grid-cols-2
+    lg:grid-cols-5
+    w-full p-2 gap-6
+  "
+>
 
                     <div style={{ marginTop: "0px" }} className="input-field relative">
                       <span className="active">
@@ -1208,27 +1359,7 @@ useEffect(() => {
 
 
                     </div>
-                    {/* <div style={{marginTop:"0px"}} className="input-field  ">
-  <span className="active">Time</span>
 
-  <input
-    type="time"
-    id="Booking_Time"
-  
-
-       //value={watchedCustomerAddress || ""} 
-       //readOnly={isExistingCustomer} 
-    className="w-full outline-none border-b-1 border-gray-400 text-gray-900"
-    style={{outline:"none",resize:"none"}}
-   {...register("Booking_Time")}
- />
-
-  {errors?.Booking_Time && (
-    <p className="text-red-500 text-xs mt-1">
-      {errors.Booking_Time.message}
-    </p>
-  )}
-</div> */}
                     <div style={{ marginTop: "0px" }} className="input-field">
                       <span className="active">Time
                         <span className="text-red-500">*</span>
@@ -1242,21 +1373,7 @@ useEffect(() => {
                           max="12"
                           placeholder="HH"
                           {...register("Booking_Hour")}
-                          //       onInput={(e) => {
-                          //     let value = e.target.value.replace(/\D/g, "").slice(0, 2);
 
-                          //     if (value === "") {
-                          //       e.target.value = "";
-                          //       return;
-                          //     }
-
-                          //     let num = Number(value);
-
-                          //     if (num < 1) num = 1;
-                          //     if (num > 12) num = 12;
-
-                          //     e.target.value = num;
-                          //   }}
                           onInput={(e) => {
                             let value = e.target.value.replace(/\D/g, "").slice(0, 2);
 
@@ -1394,668 +1511,503 @@ useEffect(() => {
               <div style={{ padding: "0", backgroundColor: "#f1f1f19d" }} className="tab-inn">
                 <form onSubmit={handleSubmit(onSubmit)}>
 
-
-
-                  {/* <div className="grid grid-cols-3  p-2 mt-0 gap-6 w-full heading-wrapper"> */}
-
-
-
-
-
-                  {/* EMPTY MIDDLE COLUMN */}
-                  {/* <div className="hidden md:block"></div> */}
-
-                  {/* <div className="sm:visible"></div> */}
-
-                  {/* RIGHT PANEL showing selected tables */}
-                  {/* <div className="grid grid-cols-1 items-center  gap-4 sm:grid-cols-4 "> */}
-                  <div
-                    className={`grid grid-cols-1 items-center gap-4 ${orderType === "DINE_IN"
-                        ? "sm:grid-cols-4"
-                        : "sm:grid-cols-2"
+                  {/* ─── TOP BAR: order type, tables, search ─── */}
+                  {/* <div
+                    className={`grid grid-cols-1 items-center gap-4 ${orderType === "DINE_IN" ? "sm:grid-cols-4" : "sm:grid-cols-2"
                       }`}
-                  >
-                    <div className="p-3 mb-4">
-                      <label className="block font-semibold mb-2">
-                        Order Type
-                      </label>
+                  > */}
+                 
+<div
+  className={`grid grid-cols-1 items-start gap-4 p-3 ${
+    orderType === "DINE_IN"
+      ? "md:grid-cols-2 xl:grid-cols-4"
+      : "md:grid-cols-2"
+  }`}
+>
 
-                      <div className="flex gap-3">
+
+                    {/* <div className="p-3 mb-4"> */}
+                    <div className=" min-w-0 mb-4">
+                      <label className="block font-semibold mb-2">Order Type</label>
+                       {/* <div className="flex gap-3"> */}
+                      <div className="flex flex-wrap gap-3">
                         <button
                           type="button"
-                         onClick={() => {
-  setOrderType("DINE_IN");
-  setSelectedTables([]);
-  setValue("Table_Names", []);
-}}
+                          onClick={() => {
+                            setOrderType("TAKEAWAY");
+                            setSelectedTables([]);
+                            setValue("Table_Names", []);
+                          }}
+                          className={`px-5 py-2 rounded-md border ${orderType === "TAKEAWAY"
+                              ? "bg-red-600 text-white border-red-600"
+                              : "bg-white text-gray-700"
+                            }`}
+                        >
+                          Takeaway
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOrderType("DINE_IN");
+                            setSelectedTables([]);
+                            setValue("Table_Names", []);
+                          }}
                           className={`px-4 py-2 rounded-md border ${orderType === "DINE_IN"
-                            ? "bg-red-600 text-white border-red-600"
-                            : "bg-white text-gray-700"
+                              ? "bg-red-600 text-white border-red-600"
+                              : "bg-white text-gray-700"
                             }`}
                         >
                           Dine-in
                         </button>
 
-                        <button
-                          type="button"
-                        onClick={() => {
-  setOrderType("TAKEAWAY");
-  setSelectedTables([]);
-  setValue("Table_Names", []);
-}}
-                          className={`px-5 py-2 rounded-md border ${orderType === "TAKEAWAY"
-                            ? "bg-red-600 text-white border-red-600"
-                            : "bg-white text-gray-700"
-                            }`}
-                        >
-                          Takeaway
-                        </button>
+
                       </div>
                     </div>
-                    {orderType === "DINE_IN" && (<div ref={tableRef} className="relative">
-                      <div
-                        className="flex flex-row border rounded-md bg-white cursor-pointer h-[3rem]"
-                        onClick={() => setOpen((prev) => !prev)}
-                      >
-                        <input
-                          type="text"
-                          placeholder="Search tables..."
-                          value={tableSearch}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            setTableSearch(value);
-                            setOpen(true);
-                          }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setOpen(true);
-                          }}
-                          onBlur={() => {
-                            setTimeout(() => setOpen(false), 150);
-                          }}
-                          className="w-full outline-none py-1 px-2 text-gray-900"
-                          style={{ marginTop: "4px", border: "none", height: "2rem" }}
-                        />
 
-                        <span className="absolute right-0 px-3 top-1/3 text-gray-700">
-                          ▼
-                        </span>
-                      </div>
-
-                      {open && (
-                        <div className="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
-
-                          {tables?.tables
-                            ?.filter((table) =>
-                              table.Table_Name.toLowerCase().includes(tableSearch.toLowerCase())
-                            )
-                            .map((table, i) => {
-                              const isSelected = selectedTables.includes(table.Table_Name);
-                              //const isAvailable = table.Status === "available";
-
-                              return (
-                                <div
-                                  key={i}
-                                  onClick={() => {
-                                    //if (!isAvailable) return; // ❌ Prevent clicking occupied tables
-
-                                    let updatedSelection;
-
-                                    if (isSelected) {
-                                      updatedSelection = selectedTables.filter(
-                                        (t) => t !== table.Table_Name
-                                      );
-                                    } else {
-                                      updatedSelection = [...selectedTables, table.Table_Name];
-                                    }
-
-                                    setSelectedTables(updatedSelection);
-
-                                    setValue("Table_Names", updatedSelection, {
-                                      shouldValidate: true,
-                                      shouldDirty: true,
-                                    });
-                                  }}
-                                  className={`px-3 py-2 flex justify-between items-center 
-                            
-
-                               
-                            `}
-                                >
-                                  {/* Table Name */}
-                                  <span className="cursor-pointer">
-                                    {table.Table_Name}
-
-                                  </span>
-
-                                  {/* Checkmark only for selected available tables */}
-                                  {isSelected && (
-                                    <span className="text-blue-600 font-bold">✔</span>
-                                  )}
-                                </div>
-                              );
-                            })}
-
-                          {tables?.tables?.filter((table) =>
-                            table.Table_Name.toLowerCase().includes(tableSearch.toLowerCase())
-                          ).length === 0 && (
-                              <p className="px-3 py-2 text-gray-500">No table found</p>
-                            )}
-                        </div>
-                      )}
-                    </div>)}
-
-
-                    {/* EMPTY MIDDLE COLUMN */}
-                    {/* <div className="hidden md:block"></div> */}
-
-
-
-                    {/* RIGHT PANEL showing selected tables */}
-                    {orderType === "DINE_IN" && (<div className="flex flex-wrap gap-2  ">
-                      {selectedTables.map((name, idx) => (
-                        <span
-                          key={idx}
-                          className="px-3 py-1 bg-blue-200 text-blue-900 rounded-md text-sm flex items-center gap-2"
+                    {orderType === "DINE_IN" && (
+                      <div ref={tableRef} className="relative min-w-0 mt-4">
+                        <div
+                          className="flex flex-row border rounded-md bg-white cursor-pointer h-[3rem]"
+                          onClick={() => setOpen((prev) => !prev)}
                         >
-                          {name}
-                          <button
-                            className="text-red-600 font-bold"
-                            onClick={() => {
-                              const updated = selectedTables.filter((t) => t !== name);
-                              setSelectedTables(updated);
-                              setValue("Table_Names", updated);
+                          <input
+                            type="text"
+                            placeholder="Search tables..."
+                            value={tableSearch}
+                            onChange={(e) => {
+                              setTableSearch(e.target.value);
+                              setOpen(true);
                             }}
-                          >
-                            ×
-                          </button>
-                        </span>
-                      ))}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpen(true);
+                            }}
+                            onBlur={() => setTimeout(() => setOpen(false), 150)}
+                            className="w-full outline-none py-1 px-2 text-gray-900"
+                            style={{  border: "none", height: "2rem",marginBottom:"0px" }}
+                          />
+                          <span className="absolute right-0 px-3 top-1/3 text-gray-700">▼</span>
+                        </div>
 
-                      {selectedTables.length === 0 && (
-                        <p className="text-gray-500 flex w-full
-                        items-center justify-center">No tables selected</p>
-                      )}
-                    </div>)}
-                    {/* <div className="sm:visible"></div> */}
-                    {/* <div className="hidden sm:block"></div> */}
-                    <div className=" w-full ">
+                        {open && (
+                          <div className="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                            {tables?.tables
+                              ?.filter((table) =>
+                                table.Table_Name.toLowerCase().includes(tableSearch.toLowerCase())
+                              )
+                              .map((table, i) => {
+                                const isSelected = selectedTables.includes(table.Table_Name);
+
+                                return (
+                                  <div
+                                    key={i}
+                                    onClick={() => {
+                                      const updatedSelection = isSelected
+                                        ? selectedTables.filter((t) => t !== table.Table_Name)
+                                        : [...selectedTables, table.Table_Name];
+
+                                      setSelectedTables(updatedSelection);
+                                      setValue("Table_Names", updatedSelection, {
+                                        shouldValidate: true,
+                                        shouldDirty: true,
+                                      });
+                                    }}
+                                    className="px-3 py-2 flex justify-between items-center cursor-pointer hover:bg-gray-100"
+                                  >
+                                    <span>{table.Table_Name}</span>
+                                    {isSelected && <span className="text-blue-600 font-bold">✔</span>}
+                                  </div>
+                                );
+                              })}
+
+                            {tables?.tables?.filter((table) =>
+                              table.Table_Name.toLowerCase().includes(tableSearch.toLowerCase())
+                            ).length === 0 && (
+                                <p className="px-3 py-2 text-gray-500">No table found</p>
+                              )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {orderType === "DINE_IN" && (
+    <div className="min-w-0 flex flex-wrap content-start items-start gap-2 mt-4">
+      {selectedTables.length > 0 ? (
+        selectedTables.map((name, idx) => (
+          <span
+            key={idx}
+            className="max-w-full break-words px-3 py-1 bg-blue-200 text-blue-900 rounded-md text-sm flex items-center gap-2"
+          >
+            <span>{name}</span>
+            <button
+              type="button"
+              className="text-red-600 font-bold shrink-0"
+              onClick={() => {
+                const updated = selectedTables.filter((t) => t !== name);
+                setSelectedTables(updated);
+                setValue("Table_Names", updated);
+              }}
+            >
+              ×
+            </button>
+          </span>
+        ))
+      ) : (
+        <p className="text-gray-500">No tables selected</p>
+      )}
+    </div>
+  )}
+
+                    <div className="w-full">
                       <input
                         type="text"
                         placeholder="Search ..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full "
+                        className="w-full"
                       />
                     </div>
                   </div>
 
+                  {/* ═════════ MOBILE FLOATING BUTTONS ═════════ */}
+                  <div className="flex lg:hidden fixed bottom-4 left-0 right-0 z-40 justify-between px-4 pointer-events-none">
+                    <button
+                      type="button"
+                      onClick={() => setShowCategoryDrawer(true)}
+                      className="pointer-events-auto flex items-center gap-1 bg-white border border-gray-200 text-[#ff0000] font-bold px-4 py-2 rounded-full shadow-lg text-sm"
+                    >
+                      ☰ Categories
+                    </button>
 
-                  <div
-                    style={{ backgroundColor: "#f1f1f19d" }} className=" mx-auto px-2 py-2">
-
-                    <div className="sm:hidden px-2 relative">
-                      {/* <div
-    onClick={() => setCategoryOpen(!categoryOpen)}
-    className="w-full px-4 py-2  border text-sm flex justify-between items-center"
-  >
-    {activeCategory}
-    <span>▼</span>
-  </div> */}
-                      <div>
-                        <span style={{ color: "#ff0000" }}
-                          className="active">Category</span>
-                        <input
-                          type="text"
-                          id="Category"
-                          value={categorySearch}
-                          style={{ outline: "none" }}
-                          placeholder="Category"
-                          className="w-full outline-none  text-gray-900"
-                          onFocus={() => setCategoryOpen(true)}
-                          onChange={(e) => {
-                            setCategorySearch(e.target.value);
-                            setCategoryOpen(true);
-
-                          }}
-                          onBlur={() => {
-                            setTimeout(() => setCategoryOpen(false), 150);
-                          }}
-                        />
-                      </div>
-
-                      {categoryOpen && (
-                        <div className="absolute mt-1 w-full bg-white border rounded-lg shadow-md max-h-60 overflow-y-auto z-50">
-
-                          {(() => {
-                            const filteredCategories = newCategories?.filter((cat) =>
-                              cat.toLowerCase().includes(categorySearch.toLowerCase())
-                            );
-
-                            if (!filteredCategories || filteredCategories.length === 0) {
-                              return (
-                                <div className="px-4 py-3 text-sm text-gray-500 text-center">
-                                  No categories found
-                                </div>
-                              );
-                            }
-
-                            return filteredCategories.map((cat, idx) => (
-                              <div
-                                key={idx}
-                                onClick={() => {
-                                  setActiveCategory(cat);
-                                  setCategoryOpen(false);
-                                  setCategorySearch(cat);
-                                }}
-                                className="px-4 py-2 text-sm hover:bg-gray-100 cursor-pointer"
-                              >
-                                {cat}
-                              </div>
-                            ));
-                          })()}
-
-                        </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowOrderDrawer(true)}
+                      className="pointer-events-auto relative flex items-center gap-1 text-white font-bold px-4 py-2 rounded-full shadow-lg text-sm"
+                      style={{ backgroundColor: "#ff0000" }}
+                    >
+                      🧾 Order
+                      {totalItems > 0 && (
+                        <span className="absolute -top-2 -right-2 bg-white text-[#ff0000] text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full shadow">
+                          {totalItems}
+                        </span>
                       )}
-
-
-                    </div>
-
-                    {/* Desktop */}
-                    <div className="hidden sm:flex flex-wrap gap-2">
-                      {newCategories.map((cat, index) => (
-                        <button
-                          type="button"
-                          key={index}
-                          onClick={() => setActiveCategory(cat)}
-                          className={`px-6 py-2 rounded-full transition ${activeCategory === cat
-                            ? "bg-[#ff0000] text-white"
-                            : "bg-white border"
-                            }`}
-                        >
-                          {cat}
-                        </button>
-                      ))}
-                    </div>
+                    </button>
                   </div>
 
-
-
-
-
-
-
-
-                  <div>
-                    {/* <div className="table-responsive table-desi mt-2"> */}
-                    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-red-50">
-
-                      <div className="bg-white shadow-md sticky top-0 ">
-                        {/* TOP HEADER */}
-
-
-
-
-                      </div>
-
-
-                      {/* Food Items Grid */}
-                      <div className=" mx-auto px-2 py-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 
-                                                lg:grid-cols-4 xl:grid-cols-6 gap-6">
-                          {(isMenuItemsLoading || isFetching) ? (
-                            [...Array(12)].map((_, i) => (
-                              <div
-                                key={i}
-                                className="bg-white rounded-xl overflow-hidden shadow-md animate-pulse"
-                              >
-                                <div className="h-32 bg-gray-200" />
-                                <div className="p-2 space-y-2">
-                                  <div className="h-4 bg-gray-200 rounded w-3/4" />
-                                  <div className="h-3 bg-gray-200 rounded w-1/2" />
-                                  <div className="h-8 bg-gray-200 rounded" />
-                                </div>
-                              </div>
-                            ))
-                          ) :
-                            filteredItems.length > 0 ? (filteredItems?.map((item, index) => {
-
-                              const unavailable = item.is_available === 0; //  unavailable items
-
-                              return (
-                                <div
-                                  key={item.id ?? index}
-                                  className={`
-        group relative bg-white rounded-xl overflow-hidden shadow-md transition-all duration-300 
-        ${unavailable
-                                      ? "opacity-40 grayscale cursor-not-allowed"
-                                      : "hover:shadow-lg hover:-translate-y-1"
-                                    }
-      `}
-                                >
-
-                                  {/* ===== UNAVAILABLE BADGE ===== */}
-                                  {unavailable && (
-                                    <div className="absolute top-2 left-2 bg-red-600 text-white text-[10px] px-2 py-1 rounded shadow">
-                                      Unavailable
-                                    </div>
-                                  )}
-
-                                  {/* ===== IMAGE SECTION ===== */}
-                                  <div className="relative h-32 bg-gradient-to-br from-[#4CA1AF22] to-[#4CA1AF44]">
-                                    {item?.Item_Image && (
-                                      <img
-                                        loading="lazy"
-                                        src={`http://192.168.0.101:4000/uploads/food-item/${item.Item_Image}`}
-                                        alt={item.Item_Name}
-                                        className="w-full h-full object-cover opacity-90"
-                                      />
-                                    )}
-
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-
-                                    <div className="absolute top-2 right-2">
-                                      <span className="bg-white/90 px-2 py-0.5 rounded-full text-[10px] font-semibold text-[#ff0000] shadow">
-                                        {item.Item_Category}
-                                      </span>
-                                    </div>
-
-
-                                  </div>
-
-                                  {/* ===== DETAILS SECTION ===== */}
-                                  <div className="p-2">
-                                    <div className="flex  mb-2">
-                                      <h5 style={{ color: "red" }}
-                                        className="text-red text-[20px] leading-tight">
-                                        {item?.Item_Name}
-                                      </h5>
-                                    </div>
-                                    {/* PRICE ROW */}
-                                    <div className="flex justify-between items-center mb-2">
-
-                                      <div>
-                                        <div className="text-base font-semibold text-gray-800">
-                                          ₹{parseFloat(item.Item_Price).toFixed(2)}
-                                        </div>
-                                        <div className="text-[10px] text-gray-500">
-                                          Tax: {TAX_RATES[item?.Tax_Type]}%
-                                        </div>
-                                      </div>
-
-                                      <div className="text-right">
-                                        <div className="text-sm font-bold text-[#ff0000]">
-                                          ₹{parseFloat(item.Amount).toFixed(2)}
-                                        </div>
-                                        <div className="text-[10px] text-gray-500">Total</div>
-                                      </div>
-                                    </div>
-
-                                    {/* ===== CART CONTROLS ===== */}
-                                    <div className="flex items-center justify-between bg-[#4CA1AF10] rounded-md p-1.5">
-
-                                      {/* MINUS BUTTON */}
-                                      <button
-                                        type="button"
-                                        disabled={unavailable || Number(cart[item.id] || 0) === 0}
-                                        onClick={() =>
-                                          !unavailable &&
-                                          updateCart(item.id, -1, index, item.Item_Name, item.Item_Price)
-                                          // updateCart(item.id, -1, index, item.Item_Name, item.Amount)
-                                        }
-                                        className={`
-              w-7 h-7 flex items-center justify-center rounded-md shadow transition
-              ${unavailable
-                                            ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                                            : "bg-white hover:bg-gray-100 text-[#ff0000]"
-                                          }
-            `}
-                                      >
-                                        <Minus className="w-3 h-3" />
-                                      </button>
-
-
-                                      {/* QUANTITY DISPLAY */}
-                                      <span className="text-base font-semibold text-gray-800 px-2">
-                                        {cart[item.id] || 0}
-                                      </span>
-
-                                      {/* PLUS BUTTON */}
-                                      <button
-                                        style={{ backgroundColor: "#ff0000" }}
-                                        type="button"
-                                        disabled={unavailable}
-                                        onClick={() =>
-                                          !unavailable &&
-                                          updateCart(item.id, 1, index, item.Item_Name, item.Item_Price)
-                                          // updateCart(item.id, 1, index, item.Item_Name, item.Amount)
-                                        }
-                                        className={`
-              w-7 h-7 flex items-center justify-center rounded-md shadow transition
-              ${unavailable
-                                            ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                                            : "bg-[#ff0000] text-white hover:bg-[#3a8c98]"
-                                          }
-            `}
-                                      >
-                                        <Plus className="w-3 h-3" />
-                                      </button>
-
-                                    </div>
-
-                                  </div>
-                                </div>
-                              );
-                            })) : (
-                              <p className="text-gray-500 text-center col-span-full">
-                                No items found
-                              </p>
-                            )}
-
-                        </div>
-                      </div>
-
-
-                      <div className="
-    fixed bottom-0 left-0 w-full 
-    bg-white shadow-lg 
-    px-4 py-2 z-50
-  "
-                      >
-
-                        <div className="flex justify-center items-center  w-full">
-                          {/* <div className="grid grid-cols-3"> */}
-
-
-                          {/* SAVE & HOLD */}
+                  {/* ═════════ MOBILE CATEGORY DRAWER ═════════ */}
+                  {showCategoryDrawer && (
+                    <div className="lg:hidden fixed inset-0 z-50 flex">
+                      <button
+                        type="button"
+                        className="absolute inset-0 bg-black/40"
+                        onClick={() => setShowCategoryDrawer(false)}
+                      />
+                      <div className="relative w-64 bg-white h-[calc(100%-6rem)] mt-24 flex flex-col shadow-2xl z-10">
+                        {/* <div className="relative w-64 bg-white h-full flex flex-col shadow-2xl z-10"> */}
+                        <div className="px-4 py-3 bg-[#ff0000] flex justify-between items-center">
+                          <h4 className="text-white font-bold text-sm uppercase tracking-wide">Categories</h4>
                           <button
                             type="button"
-                            onClick={() => setShowSummary(true)}   // open bottom sheet
-                            // disabled={formValues.errorCount > 0 || isAddingOrder}
-                            className="relative w-full py-2 px-4 md:w-auto 
-                            flex items-center justify-center gap-3 
-                            
-                                  text-white font-bold  rounded shadow sm:py-3 px-6"
-                            style={{ backgroundColor: "black" }}
+                            onClick={() => setShowCategoryDrawer(false)}
+                            className="text-white text-xl font-bold"
                           >
-                            {isAddPreBookOrderLoading ? "Saving..." : "Save & Book"}
-                            {/* Save & Book */}
-                            {/* {isAddingOrder ? "Saving..." : "Save & Hold"} */}
+                            ✖
+                          </button>
+                        </div>
 
+                        <div className="flex-1 overflow-y-auto py-2 px-2 space-y-1">
+                          {newCategories.map((cat, index) => (
+                            <button
+                              type="button"
+                              key={index}
+                              onClick={() => {
+                                setActiveCategory(cat);
+                                setShowCategoryDrawer(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all ${activeCategory === cat
+                                  ? "bg-[#ff0000] text-white shadow-sm"
+                                  : "bg-gray-50 hover:bg-red-50 text-gray-700 border border-gray-100"
+                                }`}
+                            >
+                              {cat}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ═════════ MOBILE ORDER DRAWER ═════════ */}
+                  {showOrderDrawer && (
+                    <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end">
+                      <button
+                        type="button"
+                        className="absolute inset-0 bg-black/40"
+                        onClick={() => setShowOrderDrawer(false)}
+                      />
+                      <div
+                        className="relative bg-white rounded-t-2xl shadow-2xl z-10 flex flex-col"
+                        style={{ maxHeight: "80vh" }}
+                      >
+                        <div className="flex justify-center pt-3 pb-1">
+                          <div className="w-10 h-1 bg-gray-300 rounded-full" />
+                        </div>
+
+                        <div className="px-4 py-3 bg-[#ff0000] flex justify-between items-center">
+                          <h4 className="text-white font-bold text-sm uppercase tracking-wide">Order Summary</h4>
+                          <div className="flex items-center gap-3">
                             <span className="relative">
-                              <ShoppingCart size={22} />
+                              <ShoppingCart size={20} className="text-white" />
                               {totalItems > 0 && (
-                                <span className="absolute -top-2 -right-2 bg-red-500 text-white 
-                                                                             text-[10px] font-bold w-4 h-4 flex items-center justify-center 
-                                                                             rounded-full shadow">
+                                <span className="absolute -top-2 -right-2 bg-white text-[#ff0000] text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full">
                                   {totalItems}
                                 </span>
                               )}
                             </span>
-                          </button>
-
-
-
-
+                            <button
+                              type="button"
+                              onClick={() => setShowOrderDrawer(false)}
+                              className="text-white text-xl font-bold"
+                            >
+                              ✖
+                            </button>
+                          </div>
                         </div>
-                      </div>
 
-                      {/* BACKDROP */}
-                      {showSummary && (
-                        <div>
+                        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">{renderSummaryRows()}</div>
+
+                        <div className="border-t px-4 py-3 space-y-2 bg-white">
+                          <div className="flex justify-between font-bold text-gray-900">
+                            <span>Total</span>
+                            <span className="text-[#ff0000] text-lg">₹{watch("Amount")}</span>
+                          </div>
 
                           <button
                             type="button"
-                            onClick={() => setShowSummary(false)}
-                            className="fixed inset-0 bg-black/40 z-40"></button>
-                        </div>
-                      )}
+                            disabled={isAddPreBookOrderLoading}
+                            onClick={() => {
+                              setShowOrderDrawer(false);
+                              setShowSummary(true);
+                            }}
+                            className="w-full py-2.5 flex items-center justify-center gap-3 rounded-lg text-white font-bold shadow text-sm"
+                            style={{ backgroundColor: "black" }}
+                          >
+                            <span className="relative inline-flex">
+                              <ShoppingCart size={18} className="text-white" />
 
-                      {/* BOTTOM SHEET */}
-                      <div
-                        className={`
-    fixed left-0 bottom-0 w-full 
-    bg-white shadow-2xl rounded-t-2xl z-50
-    transform transition-transform duration-300 p-4
-    ${showSummary ? "translate-y-0" : "translate-y-full"}
-  `}
-                      // style={{ maxHeight: "vh" }}
-                      >
-                        {/* HANDLE BAR */}
-                        <div className="w-full flex justify-center py-2">
-                          <div className="w-12 h-1.5 bg-gray-300 rounded-full"></div>
-                        </div>
-
-                        {/* HEADER */}
-                        <div className="px-4 pb-3 border-b">
-                          <div className="flex justify-between items-center">
-                            <div className="flex justify-center items-center mx-auto">
-                              <h2 className="text-lg font-bold text-gray-700">Bill Summary</h2>
-                            </div>
-                            <div className="flex justify-enditems-center gap-2">
-                              <button type="button" style={{ backgroundColor: "transparent", fontSize: "30px" }}
-                                className="text-gray-500 text-2xl font-bold"
-                                onClick={() => setShowSummary(false)}>✖</button>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* SUMMARY CONTENT */}
-                        <div className="px-4 py-3 overflow-y-auto" style={{ maxHeight: "55vh" }}>
-                          {summaryItems?.map((item, index) => (
-                            <div key={index} className="border-b pb-2 mb-2">
-                              <div className="flex justify-between">
-                                <span className="font-semibold">{item?.Item_Name}</span>
-                                <span>x {item?.Item_Quantity}</span>
-                              </div>
-                              <div className="flex justify-between text-sm text-gray-500">
-                                <span>Amount</span>
-                                <span>₹{item?.Amount}</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* TOTAL FOOTER */}
-                        <div className="px-4 py-3 border-t">
-                          <div className="flex justify-between text-lg font-bold text-gray-900">
-                            <span>Total</span>
-                            <span>₹{watch("Amount")}</span>
-                          </div>
-                          <div className="border-b pb-2 mb-2"></div>
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <div className="hidden sm:block"></div>
-                            <div className="hidden sm:block"></div>
-                            <div style={{ marginTop: "0px" }} className="flex gap-4  justify-center items-center">
-
-                              <span className="active whitespace-nowrap">Advance payment</span>
-
-                              <input
-                                type="number"
-                                id="Advance_Payment"
-
-
-                                //value={watchedCustomerAddress || ""} 
-                                //readOnly={isExistingCustomer} 
-                                className="w-full outline-none border-b-1 
-                                                            border-gray-400 text-gray-900"
-                                style={{ outline: "none", resize: "none", marginBottom: "0px" }}
-                                {...register("Advance_Payment")}
-                              />
-
-                              {errors?.Advance_Payment && (
-                                <p className="text-red-500 text-xs mt-1">
-                                  {errors.Advance_Payment.message}
-                                </p>
+                              {totalItems > 0 && (
+                                <span className="absolute -top-2 -right-3 min-w-5 h-5 px-1 bg-white text-[#ff0000] text-[10px] font-bold flex items-center justify-center rounded-full shadow">
+                                  {totalItems}
+                                </span>
                               )}
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <div className="hidden sm:block"></div>
-                            <div className="hidden sm:block"></div>
-                            {/*<div style={{ marginTop: "0px" }} className="flex gap-4  justify-center items-center">
+                            </span>
 
-                                                            <span className="active whitespace-nowrap">Payment Left</span>
+                            {isAddPreBookOrderLoading ? "Saving..." : "Save & Book"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
-                                                            <input
-                                                                type="number"
-                                                                readOnly
-                                                                id="Payment_Left"
-                                                                {...register("Payment_Left")}
-               
-                                                                className="w-full outline-none border-b-1 
-                                                            border-gray-400 text-gray-900"
-                                                                style={{
-                                                                    outline: "none", resize: "none",
-                                                                    marginBottom: "0px"
-                                                                }}
+                  {/* ═════════ DESKTOP: 3 COLUMNS ═════════ */}
+                  <div className="hidden lg:flex h-[calc(100vh-120px)] min-h-[560px] bg-gradient-to-br from-orange-50 via-white to-red-50">
+                    {/* LEFT: categories */}
+                    <aside className="w-[180px] lg:w-[200px] h-full flex-shrink-0 bg-white shadow-md flex flex-col overflow-y-auto border-r">
+                      <div className="px-3 py-3 border-b bg-[#ff0000]">
+                        <h4 className="text-white font-bold text-sm tracking-wide uppercase">Categories</h4>
+                      </div>
 
-                                                            />
+                      <div className="flex flex-col overflow-y-auto flex-1 min-h-0 py-2 gap-1 px-2">
+                        {newCategories.map((cat, index) => (
+                          <button
+                            type="button"
+                            key={index}
+                            onClick={() => setActiveCategory(cat)}
+                            className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all ${activeCategory === cat
+                                ? "bg-[#ff0000] text-white shadow-sm"
+                                : "bg-gray-50 hover:bg-red-50 text-gray-700 border border-gray-100"
+                              }`}
+                          >
+                            {cat}
+                          </button>
+                        ))}
+                      </div>
+                    </aside>
 
-                                                             {errors?.Payment_Left && (
-                                                            <p className="text-red-500 text-xs mt-1">
-                                                                {errors.Advance_Payment.message}
-                                                            </p>
-                                                        )} 
-                                                        </div>*/}
-                            <div style={{ marginTop: "0px" }} className="flex gap-4 justify-center items-center">
-                              <span className="active whitespace-nowrap">
-                                {paymentLeft < 0 ? "Extra Paid" : "Payment Left"}
+                    {/* MIDDLE: items */}
+                    <main className="flex-1 overflow-y-auto px-3 py-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {isMenuItemsLoading || isFetching ? (
+                          renderSkeletons(12)
+                        ) : filteredItems.length > 0 ? (
+                          filteredItems.map((item, index) => renderItemCard(item, index))
+                        ) : (
+                          <p className="text-gray-500 text-center col-span-full">No items found</p>
+                        )}
+                      </div>
+                    </main>
+
+                    {/* RIGHT: order summary */}
+                    <aside className="w-[280px] lg:w-[300px] flex-shrink-0 bg-white shadow-md flex flex-col border-l overflow-y-auto">
+                      <div className="px-4 py-3 bg-[#ff0000] flex items-center justify-between flex-shrink-0">
+                        <h4 className="text-white font-bold text-sm tracking-wide uppercase">Order Summary</h4>
+                        <span className="relative">
+                          <ShoppingCart size={20} className="text-white" />
+                          {totalItems > 0 && (
+                            <span className="absolute -top-2 -right-2 bg-white text-[#ff0000] text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full shadow">
+                              {totalItems}
+                            </span>
+                          )}
+                        </span>
+                      </div>
+
+                      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2 min-h-0">
+                        {renderSummaryRows()}
+                      </div>
+
+                      <div className="border-t bg-white px-4 py-3 space-y-3 flex-shrink-0">
+                        <div className="flex justify-between items-center text-base font-bold text-gray-900">
+                          <span>Total</span>
+                          <span className="text-[#ff0000] text-lg">₹{watch("Amount")}</span>
+                        </div>
+
+                        <button
+                          type="button"
+                          disabled={isAddPreBookOrderLoading}
+                          onClick={() => setShowSummary(true)}
+                          className="w-full py-2.5 px-4 flex items-center justify-center gap-2 rounded-lg text-white font-bold shadow transition hover:opacity-90"
+                          style={{ backgroundColor: "black" }}
+                        >
+                          <span className="relative">
+                            <ShoppingCart size={20} className="text-white" />
+                            {totalItems > 0 && (
+                              <span className="absolute -top-2 -right-2 bg-white text-[#ff0000] text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full">
+                                {totalItems}
                               </span>
+                            )}
+                          </span>
+                          {isAddPreBookOrderLoading ? "Saving..." : "Save & Book"}
+                        </button>
+                      </div>
+                    </aside>
+                  </div>
 
-                              <input
-                                type="number"
-                                readOnly
-                                id="Payment_Left"
-                                value={
-                                  paymentLeft < 0
-                                    ? Math.abs(paymentLeft).toFixed(2)
-                                    : paymentLeft.toFixed(2)
-                                }
-                                className="w-full outline-none border-b border-gray-400 text-gray-900"
-                                style={{ outline: "none", marginBottom: "0px" }}
-                              />
-                            </div>
+                  {/* ═════════ MOBILE: ITEMS ONLY ═════════ */}
+                  <div className="lg:hidden bg-gradient-to-br from-orange-50 via-white to-red-50 pb-24">
+                    <div className="px-3 py-4 grid grid-cols-2 gap-3">
+                      {isMenuItemsLoading || isFetching ? (
+                        renderSkeletons(6, true)
+                      ) : filteredItems.length > 0 ? (
+                        filteredItems.map((item, index) => renderItemCard(item, index, true))
+                      ) : (
+                        <p className="text-gray-500 text-center col-span-full">No items found</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* ═════════ BILL SUMMARY SHEET (advance + submit) ═════════ */}
+                  {showSummary && (
+                    <button
+                      type="button"
+                      onClick={() => setShowSummary(false)}
+                      className="fixed inset-0 bg-black/40 z-40"
+                    />
+                  )}
+
+                  <div
+                    className={`fixed left-0 bottom-0 w-full bg-white shadow-2xl rounded-t-2xl z-50 transform transition-transform duration-300 p-4 ${showSummary ? "translate-y-0" : "translate-y-full"
+                      }`}
+                  >
+                    <div className="w-full flex justify-center py-2">
+                      <div className="w-12 h-1.5 bg-gray-300 rounded-full"></div>
+                    </div>
+
+                    <div className="px-4 pb-3 border-b">
+                      <div className="flex justify-between items-center">
+                        <div className="flex justify-center items-center mx-auto">
+                          <h2 className="text-lg font-bold text-gray-700">Bill Summary</h2>
+                        </div>
+                        <button
+                          type="button"
+                          style={{ backgroundColor: "transparent", fontSize: "30px" }}
+                          className="text-gray-500 text-2xl font-bold"
+                          onClick={() => setShowSummary(false)}
+                        >
+                          ✖
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="px-4 py-3 overflow-y-auto" style={{ maxHeight: "45vh" }}>
+                      {summaryItems.map((item, index) => (
+                        <div key={index} className="border-b pb-2 mb-2">
+                          <div className="flex justify-between">
+                            <span className="font-semibold">{item?.Item_Name}</span>
+                            <span>x {item?.Item_Quantity}</span>
                           </div>
-                          <div className="flex justify-center mt-4">
-                            <button type="submit"
-                              disabled={isAddPreBookOrderLoading}
-                              style={{ backgroundColor: "#ff0000" }}
-                              className="w-16 h-10 flex items-center justify-center 
-          rounded-md text-white shadow  ">
-                              {isAddPreBookOrderLoading ? "Saving..." : "OK"}
-                            </button>
-
+                          <div className="flex justify-between text-sm text-gray-500">
+                            <span>Amount</span>
+                            <span>₹{item?.Amount}</span>
                           </div>
+                        </div>
+                      ))}
+                    </div>
 
+                    <div className="px-4 py-3 border-t">
+                      <div className="flex justify-between text-lg font-bold text-gray-900">
+                        <span>Total</span>
+                        <span>₹{watch("Amount")}</span>
+                      </div>
+
+                      <div className="border-b pb-2 mb-2"></div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="hidden sm:block"></div>
+                        <div className="hidden sm:block"></div>
+                        <div className="flex gap-4 justify-center items-center">
+                          <span className="active whitespace-nowrap">Advance payment</span>
+                          <input
+                            type="number"
+                            id="Advance_Payment"
+                            className="w-full outline-none border-b-1 border-gray-400 text-gray-900"
+                            style={{ outline: "none", resize: "none", marginBottom: "0px" }}
+                            {...register("Advance_Payment")}
+                          />
+                          {errors?.Advance_Payment && (
+                            <p className="text-red-500 text-xs mt-1">{errors.Advance_Payment.message}</p>
+                          )}
                         </div>
                       </div>
 
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="hidden sm:block"></div>
+                        <div className="hidden sm:block"></div>
+                        <div className="flex gap-4 justify-center items-center">
+                          <span className="active whitespace-nowrap">
+                            {paymentLeft < 0 ? "Extra Paid" : "Payment Left"}
+                          </span>
+                          <input
+                            type="number"
+                            readOnly
+                            id="Payment_Left"
+                            value={Math.abs(paymentLeft).toFixed(2)}
+                            className="w-full outline-none border-b border-gray-400 text-gray-900"
+                            style={{ outline: "none", marginBottom: "0px" }}
+                          />
+                        </div>
+                      </div>
 
-
+                      <div className="flex justify-center mt-4">
+                        <button
+                          type="submit"
+                          disabled={isAddPreBookOrderLoading}
+                          style={{ backgroundColor: "#ff0000" }}
+                          className="w-16 h-10 flex items-center justify-center rounded-md text-white shadow"
+                        >
+                          {isAddPreBookOrderLoading ? "Saving..." : "OK"}
+                        </button>
+                      </div>
                     </div>
-
-
                   </div>
                 </form>
 
@@ -2200,3 +2152,9 @@ useEffect(() => {
     </>
   );
 }
+
+
+
+
+
+

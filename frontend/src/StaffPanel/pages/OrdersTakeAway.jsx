@@ -41,12 +41,15 @@ import { useGetAllCouponsQuery } from "../../redux/api/couponApi";
 
 
 
+
 export default function OrdersTakeAway() {
   //const { userId } = useSelector((state) => state.user);
   // const dispatch = useDispatch();
-  const socket = io("http://192.168.0.101:4000", {
-  transports: ["websocket"],
-});
+  // const socket = io("https://helloguys.co.in/billmeal", {
+  //   path: "/billmeal/socket.io",
+  //   transports: ["polling", "websocket"], // fallback
+  //   withCredentials: true,
+  // });
 
   const TAX_RATES = {
     "None": 0,
@@ -189,34 +192,7 @@ export default function OrdersTakeAway() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // useEffect(() => {
-  //   const handleClickOutside = (event) => {
-  //     setRows((prev) =>
-  //       prev.map((row, idx) => {
-  //         const catRef = categoryRefs.current[idx];
-  //         const itemRef = itemRefs.current[idx];
-
-  //         const clickedInsideCategory =
-  //           catRef && catRef.contains(event.target);
-  //         const clickedInsideItem =
-  //           itemRef && itemRef.contains(event.target);
-
-  //         // if clicked outside both → close
-  //         if (!clickedInsideCategory && !clickedInsideItem) {
-  //           return { ...row, CategoryOpen: false, itemOpen: false };
-  //         }
-
-  //         return row;
-  //       })
-  //     );
-  //   };
-
-  //   document.addEventListener("mousedown", handleClickOutside);
-  //   return () => {
-  //     document.removeEventListener("mousedown", handleClickOutside);
-  //   };
-  // }, []);
-
+ 
 
   const {
 
@@ -567,36 +543,57 @@ export default function OrdersTakeAway() {
   const totalItems = Object.values(cart).reduce((sum, qty) => sum + qty, 0);
 
   const summaryItems = watch("items") || []
-  useEffect(() => {
-    const handleAvailabilityChange = (data) => {
-      console.log("📢 Food status changed:", data);
+  // useEffect(() => {
+  //   const handleAvailabilityChange = (data) => {
+  //     console.log("📢 Food status changed:", data);
 
-      // Force RTK Query to refetch
-      dispatch(foodItemApi.util.invalidateTags([{ type: "Food-Item", id: "LIST" }]));
+  //     // Force RTK Query to refetch
+  //     dispatch(foodItemApi.util.invalidateTags([{ type: "Food-Item", id: "LIST" }]));
+  //   };
+
+  //   socket.on("food_item_availability_changed", handleAvailabilityChange);
+
+  //   return () => {
+  //     socket.off("food_item_availability_changed", handleAvailabilityChange);
+  //   };
+  // }, []);
+  // useEffect(() => {
+  //   const handleSoftDeletedItem = (data) => {
+  //     console.log("📢 Food status changed:", data);
+
+  //     // Force RTK Query to refetch
+  //     dispatch(foodItemApi.util.invalidateTags([{ type: "Food-Item", id: "LIST" }]));
+  //   };
+
+  //   socket.on("food_item_deleted", handleSoftDeletedItem);
+
+  //   return () => {
+  //     socket.off("food_item_deleted", handleSoftDeletedItem);
+  //   };
+  // }, []);
+
+
+  useEffect(() => {
+     const socket = io("http://192.168.0.111:4000", {
+  transports: ["websocket"],
+});
+
+    const refreshFoodItems = (data) => {
+      console.log("📢 Food item changed:", data);
+      dispatch(
+        foodItemApi.util.invalidateTags([{ type: "Food-Item", id: "LIST" }]),
+      );
     };
 
-    socket.on("food_item_availability_changed", handleAvailabilityChange);
+    socket.on("food_item_availability_changed", refreshFoodItems);
+    socket.on("food_item_deleted", refreshFoodItems);
 
     return () => {
-      socket.off("food_item_availability_changed", handleAvailabilityChange);
+      socket.off("food_item_availability_changed", refreshFoodItems);
+      socket.off("food_item_deleted", refreshFoodItems);
+      socket.disconnect();
     };
-  }, []);
-  useEffect(() => {
-    const handleSoftDeletedItem = (data) => {
-      console.log("📢 Food status changed:", data);
-
-      // Force RTK Query to refetch
-      dispatch(foodItemApi.util.invalidateTags([{ type: "Food-Item", id: "LIST" }]));
-    };
-
-    socket.on("food_item_deleted", handleSoftDeletedItem);
-
-    return () => {
-      socket.off("food_item_deleted", handleSoftDeletedItem);
-    };
-  }, []);
-
-
+  }, [dispatch]);
   
   console.log(summaryItems, "summaryItems");
   // const subTotal = Number(watch("Sub_Total") || 0);
@@ -1977,8 +1974,9 @@ const finalAmount = Number(
                         onClick={() => setShowCategoryDrawer(false)}
                       />
                       {/* Drawer */}
-                      <div className="relative w-64 bg-white h-full
-                       flex flex-col shadow-2xl z-10">
+                      {/* <div className="relative w-64 bg-white h-full
+                       flex flex-col shadow-2xl z-10"> */}
+                       <div className="relative w-64 bg-white h-[calc(100%-6rem)] mt-24 flex flex-col shadow-2xl z-10">
                         <div className="px-4 py-3 bg-[#ff0000] flex justify-between items-center">
                           <h4 className="text-white font-bold text-sm uppercase tracking-wide">Categories</h4>
                           <button type="button"
@@ -2419,7 +2417,7 @@ const finalAmount = Number(
                                 )}
                                 <div className="relative h-32 bg-gradient-to-br from-[#4CA1AF22] to-[#4CA1AF44]">
                                   {item?.Item_Image && (
-                                    <img loading="lazy" src={`http://192.168.0.101:4000/uploads/food-item/${item.Item_Image}`} alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
+                                    <img loading="lazy" src={`https://helloguys.co.in/billmeal/backend/uploads/food-item/${item.Item_Image}`} alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
                                   )}
                                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
                                   <div className="absolute top-2 right-2">
@@ -2873,7 +2871,7 @@ const finalAmount = Number(
                               )}
                               <div className="relative h-28 bg-gradient-to-br from-[#4CA1AF22] to-[#4CA1AF44]">
                                 {item?.Item_Image && (
-                                  <img loading="lazy" src={`http://192.168.0.101:4000/uploads/food-item/${item.Item_Image}`} alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
+                                  <img loading="lazy" src={`https://helloguys.co.in/billmeal/backend/uploads/food-item/${item.Item_Image}`} alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
                                 )}
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
                                 <div className="absolute top-1 right-1">
@@ -3117,780 +3115,4 @@ const finalAmount = Number(
     </>
   );
 }
-
-{/* <div className="w-full flex justify-center md:justify-end sale-wrapper px-4">
- 
-   <div className="w-full md:w-1/2 lg:w-1/3 flex flex-col gap-4">
- 
- 
-     <div className="flex justify-between items-center gap-4  ">
-       <span className="font-medium whitespace-nowrap">Sub Total</span>
-       <input
-         type="text"
-         {...register("Sub_Total")}
-         readOnly
-         className="form-control bg-transparent text-right"
-         style={{ height: "1.2rem" }}
-       />
-     </div>
- 
-   
-     <div className="flex justify-between items-center gap-4">
-       <span className="font-medium whitespace-nowrap">Amount</span>
-       <input
-         type="text"
-         {...register("Amount")}
-         readOnly
-         className="form-control bg-transparent text-right"
-         style={{ height: "1.2rem" }}
-       />
-     </div>
- 
-   
-     <div className="
-         flex flex-col 
-         md:flex-row 
-         gap-3 
-         md:justify-end 
-         w-full
-       "
-     >
- 
-    
-       <button
-         type="button"
-         onClick={()=>setOrdertakeawayModalOpen(true)}
-         disabled={formValues.errorCount > 0 || isAddingOrder}
-         className="relative w-full md:w-auto flex items-center justify-center gap-3 
-                    text-white font-bold py-2 px-5 rounded shadow"
-         style={{ backgroundColor: "#ff0000" }}
-       >
-         {isAddingOrder ? "Saving..." : "Save & Pay Bill"}
- 
-         
-         <span className="relative">
-           <ShoppingCart size={22} />
-           {totalItems > 0 && (
-             <span className="
-                 absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold 
-                 w-4 h-4 flex items-center justify-center rounded-full shadow
-               "
-             >
-               {totalItems}
-             </span>
-           )}
-         </span>
-       </button>
- 
-      
-       <button
-         type="submit"
-         className="w-full md:w-auto text-white font-bold py-2 px-5 rounded shadow"
-         style={{ backgroundColor: "#ff0000" }}
-       >
-         Save & Pay Bill
-       </button> 
- 
-     </div>
-   </div>
- </div> */}
-
-{/* <div 
-                                    className="relative sm:w-1/4">
-                                      <div
-                                        className="flex flex-row border rounded-md bg-white cursor-pointer"
-                                        onClick={() => setCustomerDropdownOpen((prev) => !prev)}
-                                      >
-                                        <input
-                                          type="text"
-                                          id="Customer_Name"
-                                          value={customerSearch}
-                                          // value={customerSearch.length>10?customerSearch.slice(0,15)+"...":customerSearch}
-                                          onChange={(e) => {
-                                            const value = e.target.value;
-                                            setCustomerSearch(value);
-                                            setValue("Customer_Name", value, { shouldValidate: true });
-                                            setCustomerDropdownOpen(true);
-                                          }}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setCustomerDropdownOpen(true);
-                                          }}
-                                          onBlur={() => {
-                                            setTimeout(() => {
-                                              const typedValue = customerSearch?.trim()?.toLowerCase();
-                                              const matchedParty = customers?.parties?.find(
-                                                (p) => p.Customer_Name.toLowerCase() === typedValue
-                                              );
-                                    
-                                              if (matchedParty) {
-                                                setCustomerSearch(matchedParty.Customer_Name);
-                                                setValue("Customer_Name", matchedParty.Customer_Name, { shouldValidate: true });
-                                                //setValue("GSTIN", matchedParty.GSTIN || "", { shouldValidate: true });
-                                              }
-                                    
-                                              setCustomerDropdownOpen(false);
-                                            }, 150);
-                                          }}
-                                          placeholder="Search By Name/Phone"
-                                          className="w-full outline-none py-1 px-2 text-gray-900"
-                                          style={{ marginBottom: 0, marginTop: "4px", border: "none",borderBottom:"none", height: "2rem" }}
-                                        />
-                                        <div className="w-10 "></div>
-                                        <span className=" absolute right-0 px-2  top-1/3  text-gray-700">▼</span>
-                                      </div>
-                                    {customerDropdownOpen && (
-                    <div className="absolute z-20 flex flex-col mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
-                      
-                    
-                      <span
-                        onClick={() => setShowCustomerModal(true)}
-                        className="block px-3 py-2 text-[#ff0000] font-medium hover:bg-gray-100 cursor-pointer"
-                      >
-                        + Add Customer
-                      </span>
-                  
-                      {(() => {
-                        const isPhoneSearch = /^\d+$/.test(customerSearch);
-                  
-                        const filteredCustomers = customers?.filter((party) => {
-                          if (isPhoneSearch) {
-                            return party?.Customer_Phone?.includes(customerSearch);
-                          }
-                          return party?.Customer_Name
-                            ?.toLowerCase()
-                            ?.includes(customerSearch.toLowerCase());
-                        });
-                  
-                        return (
-                          <>
-                            {filteredCustomers?.map((party, i) => (
-                              <div
-                                key={i}
-                                onClick={() => {
-                    const displayValue =
-                      party?.Customer_Name?.trim() ||
-                      party?.Customer_Phone ||
-                      "";
-                  
-                    setCustomerSearch(displayValue);
-                  
-                    setValue(
-                      "Customer_Name",
-                      party?.Customer_Name?.trim() || "",
-                      { shouldValidate: true }
-                    );
-                  
-                    setValue(
-                      "Customer_Phone",
-                      party?.Customer_Phone || "",
-                      { shouldValidate: true }
-                    );
-                  
-                    setCustomerDropdownOpen(false);
-                  }}
-                  
-                                // onClick={() => {
-                                //   setCustomerSearch(party?.Customer_Name || "");
-                                //   setValue("Customer_Name", party?.Customer_Name || "", {
-                                //     shouldValidate: true,
-                                //   });
-                                //   setValue("Customer_Phone", party?.Customer_Phone || "", {
-                                //     shouldValidate: true,
-                                //   });
-                                //   setCustomerDropdownOpen(false);
-                                // }}
-                                className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                              >
-                                <span className="font-medium">
-                                  {party?.Customer_Name || "Unknown"}
-                                </span>{" "}
-                                <span className="text-gray-500">
-                                  ({party?.Customer_Phone})
-                                </span>
-                              </div>
-                            ))}
-                  
-                         
-                            {filteredCustomers?.length === 0 && (
-                              <p className="px-3 py-2 text-gray-500">No Customers found</p>
-                            )}
-                          </>
-                        );
-                      })()}
-                    </div>
-                  )}
-                  
-                                      {/* {customerDropdownOpen && (
-                                        <div className="absolute z-20 flex flex-col mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
-                                          <span
-                                            onClick={() => setShowCustomerModal(true)}
-                                            className="block px-3 py-2 text-[#ff0000] font-medium hover:bg-gray-100 cursor-pointer"
-                                          >
-                                            + Add Customer
-                                          </span>
-                                    
-                                          {customers
-                                            ?.filter(
-                                              (party) =>
-                                                party?.Customer_Name?.toLowerCase()?.includes(customerSearch.toLowerCase()) ||
-                                                party?.Customer_Phone?.includes(customerSearch)
-                                            )
-                                            .map((party, i) => (
-                                              <div
-                                                key={i}
-                                                onClick={() => {
-                                                    setCustomerSearch(`${party?.Customer_Name} (${party?.Customer_Phone})`);
-                                                  setCustomerSearch(party?.Customer_Name);
-                                                  setValue("Customer_Name", party?.Customer_Name, { shouldValidate: true });
-                                                  setValue("Customer_Phone", party?.Customer_Phone, { shouldValidate: true });
-                                                 
-                                                  setCustomerDropdownOpen(false);
-                                                }}
-                                                className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                                              >
-                                                     <span className="font-medium">{party?.Customer_Name}</span>{" "}
-                                <span className="text-gray-500">({party?.Customer_Phone})</span>
-                                              </div>
-                                            ))}
-                                    
-                                          {customers?.filter((party) =>
-                                            party?.Customer_Name?.toLowerCase()?.includes(customerSearch.toLowerCase())
-                                          ).length === 0 && (
-                                            <p className="px-3 py-2 text-gray-500">No Customers found</p>
-                                          )}
-                                        </div>
-                                      )} 
-                                    </div>
-                                    
-                                    
-                                                          
-                                                            {customerModal && (
-                                                              <AddCustomerModal
-                                                                onClose={() => setShowCustomerModal(false)}
-                                                                onSave={(newParty) => {
-                                                                  setCustomerSearch(newParty);
-                                                                  setValue("Customer_Name", newParty, { shouldValidate: true });
-                                                                  setShowCustomerModal(false);
-                                                                }}
-                                                              />
-                                                            )}
-                                    
-                                                           
-                                                            {errors?.Customer_Name && (
-                                                              <p className="text-red-500 text-xs mt-1">{errors?.Customer_Name?.message}</p>
-                                                            )} */}
-
-
-{/* <div 
-                                      className="w-full flex flex-col   mt-2 gap-2  "
-                                                            >
-                                                            {/* <span className="whitespace-nowrap active ">
-                                                              Customer
-                                                              <span className="text-red-500">*</span>
-                                                            </span>
-                                                            
-                                 
-
-                                                             <div className="relative sm:w-full">
-                                                          
-                                                             {!hasCustomer ? (
-                                                              <span className="text-sm font-medium text-gray-700">
-                                                                Customer
-                                                              </span>
-                                                            ) : (
-                                                              <div className="flex items-center gap-2 text-sm text-gray-700 w-full">
-                                                                <i className="fa fa-user-circle text-gray-400" />
-                                                                <span className="font-semibold ">
-                                                                  Customer Name:
-                                                                  <span>{customerName ??""}</span>
-                                                                </span>
-                                                                <span className="font-semibold">
-                                                                  <span className="font-semibold">Phone:</span>
-                                                                  {customerPhone}
-                                                                </span>
-                                                              </div>
-                                                            )}
-                                                            
-                                                          
-                                                           
-                                                            
-                                                              {!hasCustomer && (
-                                                              <span
-                                                                onClick={() => setCustomerModal({ open: true, mode: "add" })}
-                                                                className="block py-2 text-[#ff0000] font-medium cursor-pointer hover:bg-gray-100"
-                                                              >
-                                                                + Add Customer
-                                                              </span>
-                                                            )}
-                                                            
-                                                            </div>
-                                                            
-                                                            {customerModal.open && (
-                                                              <AddCustomerModal
-                                                                mode="add"          // 🔒 force add-only
-                                                                initialData={null}  // 🔒 no edit data
-                                                                onClose={() => setCustomerModal({ open: false, mode: "add" })}
-                                                                onSave={(customer) => {
-                                                                  setValue("Customer_Name", customer.Customer_Name || null, {
-                                                                    shouldValidate: true,
-                                                                  });
-                                                                  setValue("Customer_Phone", customer.Customer_Phone, {
-                                                                    shouldValidate: true,
-                                                                  });
-                                                                }}
-                                                              />
-                                                            )}
-                                                            
-                                                          </div> */}
-
-
-
-
-
-                                                          // const handleConfirmBillAndGenerateInvoice = async () => {
-  //   // const printWindow = window.open("", "_blank", "width=320,height=600");
-
-  //   // if (!printWindow) {
-  //   //   toast.error("Please allow pop-ups to print invoice");
-  //   //   return;
-  //   // }
-
-  //   try {
-  //     const payload = {
-  //       userId: user?.User_Id,
-  //       items: orderDetails?.items,
-  //       Sub_Total: orderDetails?.Sub_Total,
-  //       Final_Amount: invoiceDetails?.Final_Amount,
-  //       Customer_Name: invoiceDetails?.Customer_Name,
-  //       Customer_Phone: invoiceDetails?.Customer_Phone,
-  //       Discount: invoiceDetails?.Discount,
-  //       Discount_Type: invoiceDetails?.Discount_Type,
-  //       Payment_Type: invoiceDetails?.Payment_Type,
-  //     };
-
-  //     const response=await confirmTakeawayBillAndInvoiceGenerated(payload).unwrap();
-  //     console.log(response,"response");
-  //     printInvoiceWindow();
-  //     toast.success("Invoice Generated & Bill Paid!");
-  //     dispatch(tableApi.util.invalidateTags(["Table"]));
-  //     dispatch(kitchenStaffApi.util.invalidateTags(["Kitchen-Staff"]));
-  //     dispatch(orderApi.util.invalidateTags(["Order"]));
-  //     // renderInvoiceHTML(printWindow);
-
-  //     onClose();
-  //     navigate("/staff/orders/all-orders");
-
-  //   } catch (err) {
-  //    console.error(err);
-  //     toast.error("Failed to generate invoice");
-  //   }
-  // };
-
-
-  //  const renderInvoiceHTML = (w) => {
-  //   const getCurrentDate = () => new Date().toLocaleDateString("en-GB");
-  //   const getCurrentTime = () =>
-  //     new Date().toLocaleTimeString("en-US", {
-  //       hour: "2-digit",
-  //       minute: "2-digit",
-  //       hour12: true,
-  //     });
-
-  //   const total = calculateGrandTotal();
-
-  // const html = `
-  //     <!DOCTYPE html>
-  //     <html>
-  //       <head>
-  //         <title>Invoice - ${invoiceDetails?.Invoice_Number ?? ""}</title>
-  //         <meta charset="UTF-8">
-  //         <style>
-  //           * {
-  //             margin: 0;
-  //             padding: 0;
-  //             box-sizing: border-box;
-  //           }
-
-  //           body { 
-  //             font-family: 'Courier New', Courier, monospace;
-  //             font-size: 11px;
-  //             line-height: 1.3;
-  //             color: #000;
-  //             width: 2.5in;
-  //             margin: 0 auto;
-  //             padding: 0;
-  //           }
-
-  //           .invoice {
-  //             width: 2.5in;
-  //             padding: 8px;
-  //           }
-
-  //           /* CENTER HEADER */
-  //           .header-center { 
-  //             text-align: center; 
-  //             margin-bottom: 8px;
-  //             border-bottom: 1px dashed #000;
-  //             padding-bottom: 8px;
-  //           }
-
-  //           .logo { 
-  //             width: 60px; 
-  //             height: auto; 
-  //             margin-bottom: 4px;
-  //             background-color: black;
-  //           }
-
-  //           .brand { 
-  //             font-size: 16px; 
-  //             font-weight: bold; 
-  //             text-transform: uppercase;
-  //             letter-spacing: 1px;
-  //             margin-bottom: 2px;
-  //           }
-
-  //           .line { 
-  //             border-top: 1px dashed #000; 
-  //             margin: 6px 0;
-  //           }
-
-  //           .line-solid {
-  //             border-top: 1px solid #000;
-  //             margin: 6px 0;
-  //           }
-
-  //           /* INFO SECTION */
-  //           .info-row {
-  //             display: flex;
-  //             justify-content: space-between;
-  //             margin: 2px 0;
-  //             font-size: 10px;
-  //           }
-
-  //           .info-label {
-  //             font-weight: bold;
-  //           }
-
-  //           /* ITEMS TABLE */
-  //           .items-header {
-  //             display: flex;
-  //             justify-content: space-between;
-  //             font-weight: bold;
-  //             border-bottom: 1px solid #000;
-  //             padding: 4px 0;
-  //             font-size: 10px;
-  //           }
-
-  //           .item-row {
-  //             display: flex;
-  //             justify-content: space-between;
-  //             padding: 3px 0;
-  //             border-bottom: 1px dashed #ddd;
-  //             font-size: 10px;
-  //           }
-
-  //           .item-name {
-  //             flex: 1;
-  //             padding-right: 8px;
-  //             word-wrap: break-word;
-  //           }
-
-  //           .item-qty {
-  //             width: 30px;
-  //             text-align: center;
-  //           }
-
-  //           .item-price {
-  //             width: 50px;
-  //             text-align: right;
-  //           }
-
-  //           .item-amount {
-  //             width: 55px;
-  //             text-align: right;
-  //             font-weight: bold;
-  //           }
-
-  //           /* SUMMARY */
-  //           .summary {
-  //             margin-top: 8px;
-  //             font-size: 11px;
-  //           }
-
-  //           .summary-row {
-  //             display: flex;
-  //             justify-content: space-between;
-  //             padding: 3px 0;
-  //           }
-
-  //           .summary-row.total {
-  //             font-size: 13px;
-  //             font-weight: bold;
-  //             border-top: 1px solid #000;
-  //             border-bottom: 2px solid #000;
-  //             margin-top: 4px;
-  //             padding: 5px 0;
-  //           }
-
-  //           /* FOOTER */
-  //           .footer {
-  //             text-align: center;
-  //             margin-top: 10px;
-  //             padding-top: 8px;
-  //             border-top: 1px dashed #000;
-  //             font-size: 10px;
-  //           }
-
-  //           .footer-title {
-  //             font-weight: bold;
-  //             margin-bottom: 4px;
-  //             font-size: 11px;
-  //           }
-
-  //           /* PRINT STYLES */
-  //           @media print {
-  //             body {
-  //               width: 2.5in;
-  //               margin: 0;
-  //               padding: 0;
-  //             }
-
-  //             .invoice {
-  //               width: 2.5in;
-  //               padding: 8px;
-  //             }
-
-  //             @page {
-  //               size: 2.5in auto;
-  //               margin: 0;
-  //             }
-
-  //             .no-print {
-  //               display: none !important;
-  //             }
-  //           }
-  //         </style>
-  //       </head>
-  //       <body>
-  //         <div class="invoice">
-
-  //           <!-- HEADER -->
-  //           <div class="header-center">
-  //             <img  src="${"http://localhost:5173"}/assets/images/restaurant-logo.png" 
-  //              class="logo" alt="Logo" />
-  //             <div class="brand">HELLO GUYS</div>
-  //           </div>
-
-  //           <!-- CUSTOMER INFO -->
-  //           <div class="info-row">
-  //             <span><span class="info-label">Customer:</span> ${invoiceDetails?.Customer_Name ?? "Walk-in"}</span>
-  //           </div>
-  //           ${invoiceDetails?.Customer_Phone ? `
-  //           <div class="info-row">
-  //             <span><span class="info-label">Phone:</span> ${invoiceDetails.Customer_Phone}</span>
-  //           </div>
-  //           ` : ''}
-
-  //           <div class="line"></div>
-
-  //           <!-- DATE & TIME -->
-  //           <div class="info-row">
-  //             <span><span class="info-label">Date:</span> ${getCurrentDate()}</span>
-  //             <span><span class="info-label">Time:</span> ${getCurrentTime()}</span>
-  //           </div>
-  //           <div class="info-row">
-  //             <span><span class="info-label">Invoice:</span> ${invoiceNumberData?.nextInvoiceNumber ?? "-"}</span>
-  //           </div>
-
-  //           <div class="line-solid"></div>
-
-  //           <!-- ITEMS HEADER -->
-  //           <div class="items-header">
-  //             <div style="width: 30px;">#</div>
-  //             <div class="item-name">ITEM</div>
-  //             <div class="item-qty">QTY</div>
-  //             <div class="item-amount">AMOUNT</div>
-  //           </div>
-
-  //           <!-- ITEMS LIST -->
-  //           ${
-  //             (orderDetails?.items || []).map((it, i) => `
-  //               <div class="item-row">
-  //                 <div style="width: 30px;">${i + 1}</div>
-  //                 <div class="item-name">${it.Item_Name ?? "-"}</div>
-  //                 <div class="item-qty">${it.Item_Quantity ?? 1}</div>
-  //                 <div class="item-amount">₹${Number(it.Amount ?? 0).toFixed(2)}</div>
-  //               </div>
-  //             `).join("")
-  //           }
-
-  //           <div class="line-solid"></div>
-
-  //           <!-- SUMMARY -->
-  //           <div class="summary">
-  //             <div class="summary-row">
-  //               <span>Subtotal</span>
-  //               <span>₹${Number(invoiceDetails?.Sub_Total ?? 0).toFixed(2)}</span>
-  //             </div>
-  //             ${Number(invoiceDetails?.Service_Charge ?? 0) > 0 ? `
-  //             <div class="summary-row">
-  //               <span>Service Charge</span>
-  //               <span>₹${Number(invoiceDetails.Service_Charge).toFixed(2)}</span>
-  //             </div>
-  //             ` : ''}
-  //             ${invoiceDetails?.Discount && Number(invoiceDetails.Discount) > 0 ? `
-  //             <div class="summary-row">
-  //               <span>Discount</span>
-  //               <span>${
-  //                 invoiceDetails.Discount_Type === "percentage"
-  //                   ? `${invoiceDetails.Discount}%`
-  //                   : `₹${invoiceDetails.Discount}`
-  //               }</span>
-  //             </div>
-  //             ` : ''}
-  //             <div class="summary-row total">
-  //               <span>TOTAL</span>
-  //               <span>₹${Number(total).toFixed(2)}</span>
-  //             </div>
-  //           </div>
-
-  //           <!-- FOOTER -->
-  //           <div class="footer">
-  //             <div class="footer-title">THANK YOU!</div>
-  //             <div>Please Visit Again</div>
-  //           </div>
-
-  //         </div>
-  //       </body>
-  //     </html>
-  //   `;
-
-  //   w.document.open();
-  //   w.document.write(html);
-  //   w.document.close();
-  // };
-  // console.log(invoiceDetails,"invoiceDetails");
-  // const buildThermalPrintPayload = (response) => {
-  //   return {
-  //     Invoice_Number: response?.invoice?.Invoice_Number,
-  //     Order_Type: "takeaway",
-
-  //     Customer_Name: invoiceDetails?.Customer_Name || "Walk-in",
-  //     Customer_Phone: invoiceDetails?.Customer_Phone || "",
-
-  //     Payment_Type: invoiceDetails?.Payment_Type,
-  //     Date: new Date().toLocaleDateString("en-GB"),
-  //     Time: new Date().toLocaleTimeString("en-IN", {
-  //       hour: "2-digit",
-  //       minute: "2-digit",
-  //       hour12: true,
-  //     }),
-
-  //     Sub_Total: invoiceDetails?.Sub_Total,
-  //     Discount: invoiceDetails?.Discount || 0,
-  //     Discount_Type: invoiceDetails?.Discount_Type,
-  //     Service_Charge: invoiceDetails?.Service_Charge || 0,
-  //     Final_Amount: invoiceDetails?.Final_Amount,
-
-  //     items: orderDetails?.items?.map((it) => ({
-  //       Item_Name: it.Item_Name,
-  //       Quantity: it.Item_Quantity,
-  //       Price: it.Item_Price,
-  //       Amount: it.Amount,
-  //     })),
-  //   };
-  // };
-  // const handleConfirmBillAndGenerateInvoice = async () => {
-  //   try {
-  //     const payload = {
-  //       Customer_Name: invoiceDetails?.Customer_Name,
-  //       Customer_Phone: invoiceDetails?.Customer_Phone,
-  //       Discount: invoiceDetails?.Discount,
-  //       Discount_Type: invoiceDetails?.Discount_Type ?? "amount",
-  //       Service_Charge: invoiceDetails?.Service_Charge,
-  //       Payment_Type: invoiceDetails?.Payment_Type,
-  //       Final_Amount: invoiceDetails?.Final_Amount,
-  //     };
-
-  //     // 1️⃣ Generate Invoice
-  //     const response = await confirmTakeawayBillAndInvoiceGenerated({
-  //       takeawayOrderId,
-  //       payload,
-  //     }).unwrap();
-
-  //     toast.success("Invoice Generated & Bill Paid!");
-
-  //     // 2️⃣ Build thermal print payload
-  //     const printPayload = buildThermalPrintPayload(response);
-
-  //     // 3️⃣ PRINT (BACKEND)
-  //     await printThermalInvoice(printPayload).unwrap();
-
-  //     toast.success("Bill Printed Successfully!");
-
-  //     // 4️⃣ Refresh UI
-  //     dispatch(kitchenStaffApi.util.invalidateTags(["Kitchen-Staff"]));
-  //     dispatch(orderApi.util.invalidateTags(["Order"]));
-
-  //     onClose();
-  //     navigate("/staff/orders/all-orders");
-
-  //   } catch (error) {
-  //     console.error("❌ Invoice / Print Error:", error);
-  //     toast.error(error?.data?.message || "Invoice or Print failed");
-  //   }
-  // };
-
-  // const handleConfirmBillAndGenerateInvoice = async () => {
-  //   printInvoiceWindow(); // 👈 FIRST (user gesture)
-  //   try {
-  //     const payload = {
-  //       Customer_Name: invoiceDetails?.Customer_Name,
-  //       Customer_Phone: invoiceDetails?.Customer_Phone,
-  //       Discount: invoiceDetails?.Discount,
-  //       Discount_Type: invoiceDetails?.Discount_Type ?? "amount",
-  //       Service_Charge: invoiceDetails.Service_Charge,
-  //       Payment_Type: invoiceDetails?.Payment_Type,
-  //       Final_Amount: invoiceDetails?.Final_Amount,
-  //     };
-  //     console.log(payload,"payload");
-
-  //     // 🔥 API CALL
-  //     const response = await confirmTakeawayBillAndInvoiceGenerated({
-  //       takeawayOrderId,
-  //       payload
-  //     }).unwrap();
-
-  //     toast.success("Invoice Generated & Bill Paid!");
-  //     console.log(response,"response");
-  //     // RESPONSE MUST INCLUDE invoice number
-  //     //const newInvoiceNumber = response.invoiceNumber; 
-
-  //     // 🔥 NOW PRINT THE INVOICE
-  //     //printInvoiceWindow();
-
-  //     // Refresh UI & close modal
-
-  //     dispatch(kitchenStaffApi.util.invalidateTags(["Kitchen-Staff"]));
-  //     dispatch(orderApi.util.invalidateTags(["Order"]));
-
-  //   navigate("/staff/orders/all-orders");
-
-  //   } catch (error) {
-  //     console.error("❌ Error confirming bill and generating invoice:", error);
-  //     toast.error(error?.data?.message || "Failed to generate invoice");
-  //   }
-  // };
-
-
-  // const onSubmit = async (data) => {
-  //   // const printWindow = window.open("", "_blank", "width=320,height=600");
-
-  //   // if (!printWindow) {
-  //   //   toast.error("Please allow pop-ups to print invoice");
-  //   //   return;
-  //   // }
-
-  // };
 

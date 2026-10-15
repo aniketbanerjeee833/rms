@@ -601,14 +601,28 @@ console.log(invoiceNumber,"invoiceNumber");
   }}
 >
      
-     <div
+     {/* <div
       className="bg-white 
       w-full
        max-w-4xl rounded-lg 
       shadow-lg p-6 
     overflow-hidden max-h-[90vh]
       "
-    >
+    > */}
+      <div
+  className="
+    bg-white 
+    w-full
+    max-w-4xl rounded-lg 
+    shadow-lg p-6
+
+    max-h-[85vh]        /* 🔥 mobile height */
+    overflow-y-auto     /* 🔥 enable scroll */
+
+    sm:max-h-[90vh]    /* desktop unchanged */
+    sm:overflow-visible /* desktop unchanged */
+  "
+>
          <div className="flex justify-end items-center "
       >
         <h4 className="text-xl font-semibold text-gray-900">

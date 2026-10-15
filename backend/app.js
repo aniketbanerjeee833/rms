@@ -124,11 +124,13 @@ app.use(cookieParser());
 //   methods: ['GET', 'POST',"PUT","DELETE","PATCH",'OPTIONS'],  // your React app port
 //   credentials: true                // allow cookies
 // }));
+//"https://192.168.0.111:5173"
 const allowedOrigins = [
-  process.env.CLIENT_URL,               // e.g. http://localhost:5173
+  // process.env.CLIENT_URL,               // e.g. http://localhost:5173
+  "http://localhost:5173", 
   "http://localhost:5174",              // second allowed origin
-"http://192.168.0.101:5173",
-"https://192.168.0.101:5173"
+"http://192.168.0.111:5173",
+
 
 ];
 

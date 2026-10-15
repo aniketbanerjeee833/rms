@@ -9,7 +9,7 @@ import { toast } from "react-toastify";
 import { useDispatch, useSelector } from "react-redux";
 import { orderApi } from "../../redux/api/Staff/orderApi";
 
-const socket = io("http://192.168.0.101:4000", {
+const socket = io("http://192.168.0.111:4000", {
   transports: ["websocket"],
 });
 

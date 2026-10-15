@@ -6,7 +6,7 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 export const orderApi = createApi({
   reducerPath: "orderApi",
   baseQuery: fetchBaseQuery({
-    baseUrl: "http://192.168.0.101:4000/api/staff/",
+    baseUrl: "http://192.168.0.111:4000/api/staff/",
     credentials: "include",
   }),
    invalidatesTags: ["Order","Takeaway-Order","Customer","PreBookOrder"],
@@ -273,6 +273,19 @@ getPreBookOrderItemsForKOT: builder.query({
 }),
 
 
+startPreBookOrder: builder.mutation({
+  query: (Pre_Booked_Order_Id) => ({
+    url: `/order/start-pre-book-order/${Pre_Booked_Order_Id}`,
+    method: "POST",
+  }),
+  invalidatesTags: (result, error, Pre_Booked_Order_Id) => [
+    { type: "PreBookOrder", id: Pre_Booked_Order_Id },
+    { type: "PreBookOrder", id: "LIST" },
+    { type: "PreBookOrder", id: "DAYWISE" },
+    { type: "Order" },
+  ],
+}),
+
 
 updatePreBookOrder: builder.mutation({
   query: ({ Pre_Booked_Order_Id, ...body }) => ({
@@ -283,7 +296,9 @@ updatePreBookOrder: builder.mutation({
   invalidatesTags: (result, error, { Pre_Booked_Order_Id }) => [
     { type: "PreBookOrder", id: Pre_Booked_Order_Id }, // 🔥 details page
     { type: "PreBookOrder", id: "LIST" },               // 🔥 list page
-      { type: "PreBookOrder", id: "DAYWISE" },  
+      { type: "PreBookOrder", id: "DAYWISE" },
+       { type: "Order" }
+        
   ],
 }),
 
@@ -398,6 +413,7 @@ useAddPreBookOrderMutation,
 useGetAllPreBookingOrdersQuery,useGetPreBookOrderDetailsQuery,
 useLazyGetPreBookOrderItemsForKOTQuery,
 useUpdatePreBookOrderMutation,
+useStartPreBookOrderMutation,
 useCancelPreBookOrderMutation,
 useConfirmPreOrderBillPaidAndInvoiceGeneratedMutation,
 useUpdateAndPrintPreBookKOTMutation,

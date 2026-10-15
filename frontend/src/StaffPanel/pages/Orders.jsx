@@ -34,9 +34,9 @@ import { useGetAllCategoriesQuery } from "../../redux/api/itemApi";
 
 
 
-const socket = io("http://192.168.0.101:4000", {
-  transports: ["websocket"],
-});
+// const socket = io("http://192.168.0.111:4000", {
+//   transports: ["websocket"],
+// });
 export default function Orders() {
   const { userId } = useSelector((state) => state.user);
   const dispatch = useDispatch();
@@ -180,35 +180,79 @@ export default function Orders() {
   //   }
   // ]);
 
-  useEffect(() => {
-    const handleAvailabilityChange = (data) => {
-      console.log("📢 Food status changed:", data);
+  // useEffect(() => {
+  //   const handleAvailabilityChange = (data) => {
+  //     console.log("📢 Food status changed:", data);
 
-      // Force RTK Query to refetch
-      dispatch(foodItemApi.util.invalidateTags([{ type: "Food-Item", id: "LIST" }]));
-    };
+  //     // Force RTK Query to refetch
+  //     dispatch(foodItemApi.util.invalidateTags([{ type: "Food-Item", id: "LIST" }]));
+  //   };
 
-    socket.on("food_item_availability_changed", handleAvailabilityChange);
+  //   socket.on("food_item_availability_changed", handleAvailabilityChange);
 
-    return () => {
-      socket.off("food_item_availability_changed", handleAvailabilityChange);
-    };
-  }, []);
-  useEffect(() => {
-    const handleSoftDeletedItem = (data) => {
-      console.log(" Food status changed:", data);
+  //   return () => {
+  //     socket.off("food_item_availability_changed", handleAvailabilityChange);
+  //   };
+  // }, []);
+  // useEffect(() => {
+  //   const handleSoftDeletedItem = (data) => {
+  //     console.log(" Food status changed:", data);
 
-      // Force RTK Query to refetch
-      dispatch(foodItemApi.util.invalidateTags([{ type: "Food-Item", id: "LIST" }]));
-    };
+  //     // Force RTK Query to refetch
+  //     dispatch(foodItemApi.util.invalidateTags([{ type: "Food-Item", id: "LIST" }]));
+  //   };
 
-    socket.on("food_item_deleted", handleSoftDeletedItem);
+  //   socket.on("food_item_deleted", handleSoftDeletedItem);
 
-    return () => {
-      socket.off("food_item_deleted", handleSoftDeletedItem);
-    };
-  }, []);
+  //   return () => {
+  //     socket.off("food_item_deleted", handleSoftDeletedItem);
+  //   };
+  // }, []);
 
+
+useEffect(() => {
+  const socket = io("http://192.168.0.111:4000", {
+    transports: ["websocket"],
+  });
+
+  const handleAvailabilityChange = (data) => {
+    console.log("📢 Food status changed:", data);
+
+    dispatch(
+      foodItemApi.util.invalidateTags([
+        { type: "Food-Item", id: "LIST" },
+      ])
+    );
+  };
+
+  const handleSoftDeletedItem = (data) => {
+    console.log("Food item deleted:", data);
+
+    dispatch(
+      foodItemApi.util.invalidateTags([
+        { type: "Food-Item", id: "LIST" },
+      ])
+    );
+  };
+
+  socket.on(
+    "food_item_availability_changed",
+    handleAvailabilityChange
+  );
+
+  socket.on("food_item_deleted", handleSoftDeletedItem);
+
+  return () => {
+    socket.off(
+      "food_item_availability_changed",
+      handleAvailabilityChange
+    );
+
+    socket.off("food_item_deleted", handleSoftDeletedItem);
+
+    socket.disconnect();
+  };
+}, [dispatch]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -272,36 +316,7 @@ export default function Orders() {
 
 
 
-  // const handleAddRow = () => {
-  //   setRows((prev) => [
-  //     ...prev.map((row) => ({
-  //       ...row,
-  //       CategoryOpen: false,
-
-  //       //   itemOpen: false
-  //     })),
-  //     {
-  //       //   itemSearch: "",
-  //       //   itemOpen: false,
-  //       CategoryOpen: false,
-  //       categorySearch: "",
-
-  //     },
-  //   ]);
-
-  //   append({
-  //     Item_Name: "",
-
-  //     Item_Price: "",
-  //     Item_Quantity: "1",
-  //   });
-  // };
-
-
-  // const handleDeleteRow = (i) => {
-  //   setRows((prev) => prev.filter((_, idx) => idx !== i)); // remove UI state
-  //   remove(i); // remove from form
-  // };
+ 
   const formValues = watch();
   //const itemsValues = watch("items");   // watch all item rows
   //const totalPaid = watch("Total_Paid"); // watch Total_Paid
@@ -311,38 +326,6 @@ export default function Orders() {
   console.log(items)
   const [cart, setCart] = useState({});
 
-
-  //const categories = ['All', ...new Set(items?.map(item => items?.Item_Category))];
-
-  // const filteredItems = activeCategory === 'All'
-  //   ? items
-  //   : items?.filter(item => item?.Item_Category === activeCategory);
-
-  // const filteredItems = useMemo(() => {
-  //   if (!items) return [];
-
-  //   const categoryChanged = lastCategoryRef.current !== activeCategory;
-
-  //   const result = items.filter((item) => {
-  //     const matchesCategory =
-  //       activeCategory === "All" ||
-  //       item.Item_Category === activeCategory;
-
-  //     // 🔥 Ignore search when category JUST changed
-  //     const matchesSearch =
-  //       categoryChanged
-  //         ? true
-  //         : !searchTerm.trim() ||
-  //           item.Item_Name.toLowerCase().includes(searchTerm.toLowerCase());
-
-  //     return matchesCategory && matchesSearch;
-  //   });
-
-  //   // update ref AFTER filtering
-  //   lastCategoryRef.current = activeCategory;
-
-  //   return result;
-  // }, [items, activeCategory, searchTerm]);
 
 
   const itemRowMap = useRef({});
@@ -877,133 +860,7 @@ export default function Orders() {
                   </div>
 
                 </div>
-                {/* 
-                  <div style={{  backgroundColor: "#f1f1f19d" }} 
-                    className="w-full flex flex-col p-2  mt-2 gap-2 heading-wrapper "
-                                          >
-                                         
-              
-                   {/* <div 
-                  className="relative sm:w-1/4">
-
-                     <span className="whitespace-nowrap active ">
-                                            Customer
-                                            <span className="text-red-500">*</span>
-                          <span
-      onClick={() => setShowCustomerModal(true)}
-      className="block  py-2 text-[#ff0000] font-medium hover:bg-gray-100 cursor-pointer"
-    >
-      + Add Customer
-    </span>
-                                          </span>
-                                          
-          
-
-
-                  </div>
-                   
- <div className="relative sm:w-full">
-
- {!hasCustomer ? (
-  <span className="text-sm font-medium text-gray-700">
-    Customer
-  </span>
-) : (
-  <div className="flex items-center gap-2 text-sm text-gray-700 w-full">
-    <i className="fa fa-user-circle text-gray-400" />
-    <span className="font-semibold ">
-      Customer Name:
-      <span>{customerName ??""}</span>
-    </span>
-    <span className="font-semibold">
-      <span className="font-semibold">Phone:</span>
-      {customerPhone}
-    </span>
-  </div>
-)}
-
-
-  {/* {!hasCustomer ? (
- 
-    <span
-      onClick={() =>     setCustomerModal({ open: true, mode: "add" })}
-      className="block py-2 text-[#ff0000] font-medium cursor-pointer hover:bg-gray-100"
-    >
-      + Add Customer
-    </span>
-  ) : (
-    
-    <span
-      onClick={() =>
-        setCustomerModal({
-          open: true,
-          mode: "edit",
-        })
-      }
-      className="block py-2 text-blue-600 font-medium cursor-pointer hover:bg-gray-100"
-    >
-      ✏️ Edit Customer
-    </span>
-  )} 
-
-  {!hasCustomer && (
-  <span
-    onClick={() => setCustomerModal({ open: true, mode: "add" })}
-    className="block py-2 text-[#ff0000] font-medium cursor-pointer hover:bg-gray-100"
-  >
-    + Add Customer
-  </span>
-)}
-
-</div>
-
-{customerModal.open && (
-  <AddCustomerModal
-    mode="add"          // 🔒 force add-only
-    initialData={null}  // 🔒 no edit data
-    onClose={() => setCustomerModal({ open: false, mode: "add" })}
-    onSave={(customer) => {
-      setValue("Customer_Name", customer.Customer_Name || null, {
-        shouldValidate: true,
-      });
-      setValue("Customer_Phone", customer.Customer_Phone, {
-        shouldValidate: true,
-      });
-    }}
-  />
-)}
-
-
-{/* {customerModal.open && (
-  <AddCustomerModal
-    mode={customerModal.mode}
-    initialData={
-      customerModal.mode === "edit"
-        ? {
-            Customer_Name: customerName || "",
-            Customer_Phone: customerPhone || "",
-          }
-        : null
-    }
-    onClose={() => setCustomerModal({ open: false, mode: "add" })}
-    onSave={(customer) => {
-      setValue("Customer_Name", customer.Customer_Name || null, {
-        shouldValidate: true,
-      });
-      setValue("Customer_Phone", customer.Customer_Phone, {
-        shouldValidate: true,
-      });
-    }}
-  />
-)} 
-
-
-                  
-                                         
-                                          {/* {errors?.Customer_Name && (
-                                            <p className="text-red-500 text-xs mt-1">{errors?.Customer_Name?.message}</p>
-                                          )} 
-                                        </div> */}
+            
 
 
                 <div style={{ backgroundColor: "#f1f1f19d" }}
@@ -1298,7 +1155,8 @@ export default function Orders() {
                         onClick={() => setShowCategoryDrawer(false)}
                       />
                       {/* Drawer */}
-                      <div className="relative w-64 bg-white h-full flex flex-col shadow-2xl z-10">
+                      <div className="relative w-64 bg-white h-[calc(100%-6rem)] mt-24 flex flex-col shadow-2xl z-10">
+                      {/* <div className="relative w-64 bg-white h-full flex flex-col shadow-2xl z-10 mt-24"> */}
                         <div className="px-4 py-3 bg-[#ff0000] flex justify-between items-center">
                           <h4 className="text-white font-bold text-sm uppercase tracking-wide">Categories</h4>
                           <button type="button"
@@ -1537,7 +1395,7 @@ export default function Orders() {
                                 )}
                                 <div className="relative h-32 bg-gradient-to-br from-[#4CA1AF22] to-[#4CA1AF44]">
                                   {item?.Item_Image && (
-                                    <img loading="lazy" src={`http://192.168.0.101:4000/uploads/food-item/${item.Item_Image}`} alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
+                                    <img loading="lazy" src={`http://192.168.0.111:4000/uploads/food-item/${item.Item_Image}`} alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
                                   )}
                                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
                                   <div className="absolute top-2 right-2">
@@ -1738,7 +1596,7 @@ export default function Orders() {
                               )}
                               <div className="relative h-28 bg-gradient-to-br from-[#4CA1AF22] to-[#4CA1AF44]">
                                 {item?.Item_Image && (
-                                  <img loading="lazy" src={`http://192.168.0.101:4000/uploads/food-item/${item.Item_Image}`} alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
+                                  <img loading="lazy" src={`http://192.168.0.111:4000/uploads/food-item/${item.Item_Image}`} alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
                                 )}
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
                                 <div className="absolute top-1 right-1">

@@ -14,7 +14,7 @@ import { useGetAllFoodItemsQuery } from "../../redux/api/foodItemApi";
 import { useGetAllCategoriesQuery } from "../../redux/api/itemApi";
 
 // put VITE_API_URL= in frontend/.env and restart Vite
-const API_URL = "http://192.168.0.101:4000";
+const API_URL = "http://192.168.0.111:4000";
 const getDeviceId = () => {
   let id = localStorage.getItem("restaurant_device_id");
 
@@ -552,7 +552,7 @@ if (sessionClosed) {
                 <div className="aspect-[4/3] w-full bg-gray-100 flex items-center justify-center">
                   {item.Item_Image && (
                     <img
-                      src={`${API_URL}http://192.168.0.101:4000/uploads/food-item/${item.Item_Image}`}
+                      src={`${API_URL}http://192.168.0.111:4000/uploads/food-item/${item.Item_Image}`}
                       alt={item.Item_Name}
                       loading="lazy"
                       className="w-full h-full object-contain"

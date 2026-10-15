@@ -333,16 +333,16 @@ const getUpcomingPreBookings = async (req, res, next) => {
           'completed'
           
         )
-        AND TIMESTAMP(pbo.Booking_Date, pbo.Booking_Time) >= ?
+        
         AND TIMESTAMP(pbo.Booking_Date, pbo.Booking_Time)
             < DATE_ADD(?, INTERVAL 72 HOUR)
       ORDER BY
         pbo.Booking_Date ASC,
         pbo.Booking_Time ASC
       `,
-      [nowIST, nowIST]
+      [nowIST]
     );
-
+ //[nowIST, nowIST]
     return res.status(200).json({
       success: true,
       count: bookings.length,
@@ -353,7 +353,7 @@ const getUpcomingPreBookings = async (req, res, next) => {
     next(err);
   }
 };
-
+//AND TIMESTAMP(pbo.Booking_Date, pbo.Booking_Time) >= ?
 
 
 const addOrder = async (req, res, next) => {
@@ -1901,7 +1901,16 @@ const userId = req.user?.User_Id;
 
     connection = await db.getConnection();
     await connection.beginTransaction();
+// Identify the user who originally created the order.
+const [[originalOrder]] = await connection.execute(
+  `SELECT User_Id
+   FROM orders
+   WHERE Order_Id = ?
+   LIMIT 1`,
+  [Order_Id]
+);
 
+const waiterUserId = originalOrder?.User_Id;
     /* ---------------------------------------------------
        🔥 A️⃣ FETCH EXISTING KITCHEN ITEMS (BEFORE DELETE)
     --------------------------------------------------- */
@@ -1950,7 +1959,7 @@ const userId = req.user?.User_Id;
         [ Order_Id]
       );
       const kotNum=kotResult.insertId
-      const KOT_Id="KOT"+kotNum.toString().padStart(5,"0")
+      KOT_Id="KOT"+kotNum.toString().padStart(5,"0")
       await connection.execute(`UPDATE kitchen_orders SET KOT_Id=? WHERE id=?`,[KOT_Id,kotNum])
 
     }
@@ -2242,12 +2251,63 @@ for (const d of deltaItems) {
 
     await connection.commit();
     // 🔔 Notify cashier/frontdesk that this order was updated
-io.to("staff").emit("waiter_order_update", {
+
+const actorRole = String(
+  req.user?.role || ""
+)
+  .trim()
+  .toLowerCase();
+
+const eventPayload = {
   Order_Id,
   KOT_Id,
-  Source: "waiter",
+  Source: actorRole || "staff",
   at: new Date().toISOString(),
-});
+};
+
+if (actorRole === "waiter") {
+  // Waiter updated the order: notify the staff dashboard.
+  io.to("staff").emit(
+    "waiter_order_update",
+    eventPayload
+  );
+} else {
+  // Staff updated the order: notify the staff dashboard.
+  io.to("staff").emit(
+    "order_updated",
+    eventPayload
+  );
+
+  // NEW: Notify only the waiter who originally took this order.
+  if (waiterUserId != null) {
+    io.to(`waiter_${waiterUserId}`).emit(
+      "waiter_order_updated",
+      eventPayload
+    );
+
+    console.log(
+      `🔔 Order ${Order_Id} update sent to waiter ${waiterUserId}`
+    );
+  }
+}
+// const actorRole = String(
+//   req.user?.role || ""
+// )
+//   .trim()
+//   .toLowerCase();
+
+// const eventPayload = {
+//   Order_Id,
+//   KOT_Id,
+//   Source: actorRole || "staff",
+//   at: new Date().toISOString(),
+// };
+
+// if (actorRole === "waiter") {
+//   io.to("staff").emit("waiter_order_update", eventPayload);
+// } else {
+//   io.to("staff").emit("order_updated", eventPayload);
+// }
 
     return res.status(200).json({
       success: true,
@@ -2996,19 +3056,54 @@ const confirmOrderBillPaidAndInvoiceGenerated = async (req, res, next) => {
     /* ---------------------------------------
      ⃣ Free Tables
     --------------------------------------- */
-    const [tableIds] = await connection.execute(
-      `SELECT Table_Id FROM order_tables WHERE Order_Id = ?`,
-      [Order_Id]
-    );
+  //   const [tableIds] = await connection.execute(
+  //     `SELECT Table_Id FROM order_tables WHERE Order_Id = ?`,
+  //     [Order_Id]
+  //   );
+  //   const tableNames = tableRows
+  // .map((row) => row.Table_Name)
+  // .filter(Boolean);
 
-    if (tableIds.length) {
-      await connection.query(
-        `UPDATE add_table
-         SET Status = 'available', Start_Time = NULL, End_Time = NOW()
-         WHERE Table_Id IN (?)`,
-        [tableIds.map((t) => t.Table_Id)]
-      );
-    }
+
+  //   if (tableIds.length) {
+  //     await connection.query(
+  //       `UPDATE add_table
+  //        SET Status = 'available', Start_Time = NULL, End_Time = NOW()
+  //        WHERE Table_Id IN (?)`,
+  //       [tableIds.map((t) => t.Table_Id)]
+  //     );
+  //   }
+  
+/* ---------------- FREE TABLES ---------------- */
+
+const [tableRows] = await connection.execute(
+  `SELECT ot.Table_Id, t.Table_Name
+   FROM order_tables ot
+   INNER JOIN add_table t
+     ON t.Table_Id = ot.Table_Id
+   WHERE ot.Order_Id = ?`,
+  [Order_Id]
+);
+
+const tableIds = tableRows
+  .map((row) => row.Table_Id)
+  .filter(Boolean);
+
+const tableNames = tableRows
+  .map((row) => row.Table_Name)
+  .filter(Boolean);
+
+if (tableIds.length > 0) {
+  await connection.query(
+    `UPDATE add_table
+     SET Status = 'available',
+         Start_Time = NULL,
+         End_Time = NOW()
+     WHERE Table_Id IN (?)`,
+    [tableIds]
+  );
+}
+
     await closeSessionsForOrder(connection, Order_Id);   
 
     /* ---------------------------------------
@@ -3046,11 +3141,26 @@ const confirmOrderBillPaidAndInvoiceGenerated = async (req, res, next) => {
       });
     }
     // Notify ALL waiters that table is available again
+// io.to("all_waiters").emit("table_ready_for_order", {
+//   Order_Id,
+//   Table_Ids: tableIds.map((t) => t.Table_Id),
+//   message: "Table is now available for a new order.",
+// });
+
+const tableReadyMessage =
+  tableNames.length > 0
+    ? `${tableNames.join(", ")} ${
+        tableNames.length === 1 ? "Table is" : "Tables are"
+      } now ready for a new order.`
+    : "The table is now ready for a new order.";
+
 io.to("all_waiters").emit("table_ready_for_order", {
   Order_Id,
-  Table_Ids: tableIds.map((t) => t.Table_Id),
-  message: "Table is now available for a new order.",
+  Table_Ids: tableIds,
+  Table_Names: tableNames,
+  message: tableReadyMessage,
 });
+
 
     return res.status(200).json({
       success: true,
@@ -7993,239 +8103,6 @@ if(customerRows.length === 0){
   }
 };
 
-// const updateTakeawayOrder = async (req, res, next) => {
-//   let connection;
-
-//   try {
-//     const { Takeaway_Order_Id } = req.params;
-//     const { items, Sub_Total, Amount } = req.body;
-
-//     if (!Takeaway_Order_Id) {
-//       return res.status(400).json({ success: false, message: "TakeawayOrder ID missing" });
-//     }
-
-//     if (!Array.isArray(items)) {
-//       return res.status(400).json({ success: false, message: "Items required" });
-//     }
-
-//     connection = await db.getConnection();
-//     await connection.beginTransaction();
-
-//     /* ---------------------------------------------------
-//        1️⃣ UPDATE ORDER TOTALS
-//     --------------------------------------------------- */
-//     await connection.query(
-//       `UPDATE orders_takeaway SET Sub_Total = ?, Amount = ? WHERE Takeaway_Order_Id = ?`,
-//       [Sub_Total, Amount, Takeaway_Order_Id]
-//     );
-
-//     /* ---------------------------------------------------
-//        2️⃣ FETCH OR CREATE KOT
-//     --------------------------------------------------- */
-//     const [[existingKOT]] = await connection.query(
-//       `SELECT KOT_Id FROM kitchen_orders WHERE Order_Id = ? LIMIT 1`,
-//       [Takeaway_Order_Id]
-//     );
-
-//     let KOT_Id;
-//     if (existingKOT) {
-//       KOT_Id = existingKOT.KOT_Id;
-//     } else {
-//       KOT_Id = await generateNextId(connection, "KOT", "KOT_Id", "kitchen_orders");
-//       await connection.query(
-//         `INSERT INTO kitchen_orders (KOT_Id, Order_Id, Status)
-//          VALUES (?, ?, 'pending')`,
-//         [KOT_Id, Takeaway_Order_Id]
-//       );
-//     }
-
-//     /* ---------------------------------------------------
-//        3️⃣ FETCH EXISTING FRONTDESK ITEMS
-//     --------------------------------------------------- */
-//     const [existingOrderItems] = await connection.query(
-//       `SELECT oi.Item_Id, oi.Quantity, afi.Item_Name
-//        FROM order_takeaway_items oi
-//        JOIN add_food_item afi ON oi.Item_Id = afi.Item_Id
-//        WHERE oi.Takeaway_Order_Id = ?`,
-//       [Takeaway_Order_Id]
-//     );
-
-//     const existingOrderMap = {};
-//     existingOrderItems.forEach(row => {
-//       existingOrderMap[row.Item_Id] = {
-//         name: row.Item_Name,
-//         quantity: Number(row.Quantity),
-//       };
-//     });
-
-//     /* ---------------------------------------------------
-//        4️⃣ BUILD NEW ITEMS MAP (FROM FRONTEND)
-//     --------------------------------------------------- */
-//     const newItemMap = {};
-//     items.forEach(item => {
-//       if (item.Item_Name && item.Item_Quantity > 0) {
-//         newItemMap[item.Item_Name] = Number(item.Item_Quantity);
-//       }
-//     });
-
-//     /* ---------------------------------------------------
-//        5️⃣ FIND REMOVED ITEMS
-//     --------------------------------------------------- */
-//     const removedItemIds = [];
-
-//     for (const [itemId, data] of Object.entries(existingOrderMap)) {
-//       const stillExists = items.some(i => i.Item_Name === data.name);
-//       if (!stillExists) {
-//         removedItemIds.push(itemId);
-//       }
-//     }
-
-//     /* ---------------------------------------------------
-//        6️⃣ DELETE REMOVED ITEMS (FRONTDESK + KITCHEN)
-//     --------------------------------------------------- */
-//     if (removedItemIds.length > 0) {
-//       await connection.query(
-//         `DELETE FROM order_takeaway_items
-//          WHERE Takeaway_Order_Id = ? AND Item_Id IN (?)`,
-//         [Takeaway_Order_Id, removedItemIds]
-//       );
-
-//       await connection.query(
-//         `DELETE FROM kitchen_order_items
-//          WHERE KOT_Id = ? AND Item_Id IN (?)`,
-//         [KOT_Id, removedItemIds]
-//       );
-//     }
-
-//     /* ---------------------------------------------------
-//        7️⃣ CLEAR & REINSERT FRONTDESK ITEMS
-//     --------------------------------------------------- */
-//     await connection.query(
-//       `DELETE FROM order_takeaway_items WHERE Takeaway_Order_Id = ?`,
-//       [Takeaway_Order_Id]
-//     );
-
-//     /* ---------------------------------------------------
-//        8️⃣ FETCH EXISTING KITCHEN ITEMS (QTY MAP)
-//     --------------------------------------------------- */
-//     const [existingKitchenItems] = await connection.query(
-//       `SELECT Item_Id, SUM(Quantity) AS qty
-//        FROM kitchen_order_items
-//        WHERE KOT_Id = ?
-//        GROUP BY Item_Id`,
-//       [KOT_Id]
-//     );
-
-//     const kitchenQtyMap = {};
-//     existingKitchenItems.forEach(row => {
-//       kitchenQtyMap[row.Item_Id] = Number(row.qty) || 0;
-//     });
-
-//     /* ---------------------------------------------------
-//        9️⃣ SOCKET NOTIFICATION MAP
-//     --------------------------------------------------- */
-//     const notifyByCategory = {};
-
-//     /* ---------------------------------------------------
-//        🔟 PROCESS ITEMS
-//     --------------------------------------------------- */
-//     for (const item of items) {
-//       const { Item_Name, Item_Quantity, Item_Price, Amount: ItemAmount } = item;
-
-//       if (!Item_Name || Item_Quantity <= 0) continue;
-
-//       const [[dbItem]] = await connection.query(
-//         `SELECT Item_Id, Item_Category
-//          FROM add_food_item
-//          WHERE Item_Name = ?
-//          LIMIT 1`,
-//         [Item_Name]
-//       );
-
-//       if (!dbItem) continue;
-
-//       const Item_Id = dbItem.Item_Id;
-//       const Category = dbItem.Item_Category;
-
-//       /* --------- FRONTDESK INSERT --------- */
-//       const Takeaway_Order_Item_Id = await generateNextId(
-//         connection,
-//         "TKODRITM",
-//         "Takeaway_Order_Item_Id",
-//         "order_takeaway_items"
-//       );
-
-//       await connection.query(
-//         `INSERT INTO order_takeaway_items
-//          (Takeaway_Order_Item_Id, Takeaway_Order_Id, Item_Id, Quantity, Price, Amount)
-//          VALUES (?, ?, ?, ?, ?, ?)`,
-//         [Takeaway_Order_Item_Id, Takeaway_Order_Id, Item_Id, Item_Quantity, Item_Price, ItemAmount]
-//       );
-
-//       /* --------- KITCHEN DELTA LOGIC --------- */
-//       const oldQty = kitchenQtyMap[Item_Id] || 0;
-//       const newQty = Item_Quantity - oldQty;
-
-//       if (newQty <= 0) continue;
-
-//       const KOT_Item_Id = await generateNextId(
-//         connection,
-//         "KOTITM",
-//         "KOT_Item_Id",
-//         "kitchen_order_items"
-//       );
-
-//       await connection.query(
-//         `INSERT INTO kitchen_order_items
-//          (KOT_Item_Id, KOT_Id, Item_Id, Item_Name, Quantity, Item_Status)
-//          VALUES (?, ?, ?, ?, ?, 'pending')`,
-//         [KOT_Item_Id, KOT_Id, Item_Id, Item_Name, newQty]
-//       );
-
-//       notifyByCategory[Category] ??= [];
-//       notifyByCategory[Category].push({
-//         KOT_Item_Id,
-//         Item_Id,
-//         Item_Name,
-//         Item_Category: Category,
-//         Quantity: newQty,
-//         Item_Status: "pending",
-//       });
-//     }
-
-//     /* ---------------------------------------------------
-//        1️⃣1️⃣ COMMIT
-//     --------------------------------------------------- */
-//     await connection.commit();
-
-//     /* ---------------------------------------------------
-//        1️⃣2️⃣ SOCKET NOTIFY (CATEGORY-WISE)
-//     --------------------------------------------------- */
-//     Object.entries(notifyByCategory).forEach(([category, items]) => {
-//       io.to(`category_${category}`).emit("new_kitchen_order", {
-//         KOT_Id,
-//         Order_Id: Takeaway_Order_Id,
-//         Order_Type: "takeaway",
-//         Status: "pending",
-//         items,
-//       });
-//     });
-
-//     return res.status(200).json({
-//       success: true,
-//       message: "Order updated successfully",
-//       KOT_Id,
-//     });
-
-//   } catch (err) {
-//     if (connection) await connection.rollback();
-//     console.error("❌ Update Order Error:", err);
-//     next(err);
-//   } finally {
-//     if (connection) connection.release();
-//   }
-// };
-
 const updateTakeawayOrder = async (req, res, next) => {
   let connection;
 
@@ -9556,260 +9433,7 @@ if (orderType === "takeaway") {
   }
 };
 
-// const printThermalInvoice = async (req, res) => {
-//   try {
-//     const invoice = req.body;
 
-//     if (!invoice || !Array.isArray(invoice.items)) {
-//       return res.status(400).json({ message: "Invalid invoice data" });
-//     }
-
-//     const printer = new ThermalPrinter({
-//       type: PrinterTypes.EPSON,
-//       interface: "printer:80mm Series Printer",
-//       options: {
-//         timeout: 5000,
-//       },
-//     });
-
-//     const isConnected = await printer.isPrinterConnected();
-//     if (!isConnected) {
-//       return res.status(500).json({ message: "Printer not connected" });
-//     }
-
-//     // -------- PRINT START --------
-//     printer.alignCenter();
-//     printer.println("HELLO GUYS");
-//     printer.println("----------------------------");
-
-//     printer.alignLeft();
-//     printer.println(`Invoice: ${invoice.Invoice_Number}`);
-//     printer.println(`Customer: ${invoice.Customer_Name || "Walk-in"}`);
-//     printer.println("----------------------------");
-
-//     printer.println("ITEM               QTY  AMT");
-//     printer.println("----------------------------");
-
-//     invoice.items.forEach((it) => {
-//       printer.println(
-//         `${it.Item_Name.substring(0, 18).padEnd(18)} ${String(
-//           it.Quantity
-//         ).padStart(3)} ₹${Number(it.Amount).toFixed(2)}`
-//       );
-//     });
-
-//     printer.println("----------------------------");
-//     printer.println(`TOTAL: ₹${Number(invoice.Final_Amount).toFixed(2)}`);
-//     printer.println("----------------------------");
-
-//     printer.alignCenter();
-//     printer.println("THANK YOU! VISIT AGAIN");
-//     printer.cut();
-
-//     await printer.execute();
-//     // -------- PRINT END --------
-
-//     return res.json({ success: true, message: "Printed successfully" });
-//   } catch (error) {
-//     console.error("Thermal print error:", error);
-//     return res.status(500).json({ message: "Print failed" });
-//   }
-// };
-
-
-
-
-//PRE BOOK ORDERS
-// const addPreBookOrder = async (req, res, next) => {
-//   let connection;
-
-//   try {
-//     const {
-//       Customer_Name,
-//       Customer_Phone,
-//       userId,
-//       Customer_Address,
-//       Booking_Date,
-//       Booking_Time,
-//       items,
-//       Sub_Total,
-//       Amount,
-//       Advance_Payment,
-//       Payment_Left
-//     } = req.body;
-
-//     if (!userId) {
-//       return res.status(400).json({ success: false, message: "User ID required" });
-//     }
-
-//     if (!Array.isArray(items) || items.length === 0) {
-//       return res.status(400).json({ success: false, message: "Items required" });
-//     }
-
-
-//     if(!Booking_Date || !Booking_Time){
-//       return res.status(400).json({ success: false, message: "Booking date and time required" });
-//     }
-
-//     const paymentStatus =
-//       Number(Payment_Left) === 0 ? "completed" : "pending";
-
-//     connection = await db.getConnection();
-//     await connection.beginTransaction();
-
-//     /* ---------- CUSTOMER ---------- */
-//     let Customer_Id = null;
-
-//     if (Customer_Phone) {
-//       const [existingCustomer] = await connection.query(
-//         `SELECT Customer_Id FROM customers WHERE Customer_Phone = ? LIMIT 1`,
-//         [Customer_Phone]
-//       );
-
-//       if (existingCustomer.length) {
-//         Customer_Id = existingCustomer[0].Customer_Id;
-//       } else {
-//         Customer_Id = await generateNextId(
-//           connection,
-//           "CUST",
-//           "Customer_Id",
-//           "customers"
-//         );
-
-//         await connection.query(
-//           `INSERT INTO customers (Customer_Id, Customer_Name, Customer_Phone)
-//            VALUES (?, ?, ?)`,
-//           [Customer_Id, Customer_Name?.trim() || null, Customer_Phone]
-//         );
-//       }
-//     }
-
-//     /* ---------- ORDER ---------- */
-//     const Pre_Booked_Order_Id = await generateNextId(
-//       connection,
-//       "PRBODR",
-//       "Pre_Booked_Order_Id",
-//       "pre_booked_orders"
-//     );
-
-//    await connection.query(
-//   `INSERT INTO pre_booked_orders
-//    (Pre_Booked_Order_Id, User_Id, Customer_Id, Booking_Date, Booking_Time,
-//     Address, Advance_Payment, Payment_Left, Sub_Total, Amount, Status, Payment_Status)
-//    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ? , ?, ?)`,
-//   [
-//     Pre_Booked_Order_Id,
-//     userId,
-//     Customer_Id,
-//     Booking_Date,
-//     Booking_Time,
-//     Customer_Address,
-//     Advance_Payment,
-//     Payment_Left,
-//     Sub_Total,
-   
-//     Amount,
-//     "pending",        // Status
-//     paymentStatus     // Payment_Status
-//   ]
-// );
-
-
-//     /* ---------- ITEMS ---------- */
-//     for (const item of items) {
-//       const [[dbItem]] = await connection.query(
-//         `SELECT Item_Id FROM add_food_item WHERE Item_Name = ? LIMIT 1`,
-//         [item.Item_Name]
-//       );
-
-//       if (!dbItem) {
-//         await connection.rollback();
-//         return res.status(400).json({
-//           success: false,
-//           message: `Item not found: ${item.Item_Name}`,
-//         });
-//       }
-
-//       const Pre_Booked_Order_Item_Id = await generateNextId(
-//         connection,
-//         "PRBODRITM",
-//         "Pre_Booked_Order_Item_Id",
-//         "pre_booked_order_items"
-//       );
-
-//       await connection.query(
-//         `INSERT INTO pre_booked_order_items
-//          (Pre_Booked_Order_Item_Id, Pre_Booked_Order_Id, Item_Id,Item_Name, Quantity, Price, Amount)
-//          VALUES (?, ?, ?,?, ?, ?, ?)`,
-//         [
-//           Pre_Booked_Order_Item_Id,
-//           Pre_Booked_Order_Id,
-//           dbItem.Item_Id,
-//           item.Item_Name,
-//           item.Item_Quantity,
-//           item.Item_Price,
-//           item.Amount
-//         ]
-//       );
-//     }
-
-//     await connection.commit();
-
-//     return res.status(201).json({
-//       success: true,
-//       message: "Pre-book order created successfully",
-//       Pre_Booked_Order_Id
-//     });
-
-//   } catch (err) {
-//     if (connection) await connection.rollback();
-//     console.error("❌ Pre-book Error:", err);
-//     next(err);
-//   } finally {
-//     if (connection) connection.release();
-//   }
-// };
-
-// const getAllPreBookingOrders = async (req, res, next) => {
-//   let connection;
-
-//   try {
-//     connection = await db.getConnection();
-
-//     const [preBookedOrders] = await connection.query(`
-//       SELECT 
-//         pbo.Pre_Booked_Order_Id,
-//         DATE_FORMAT(pbo.Booking_Date, '%d-%m-%Y') AS Booking_Date,
-//         TIME_FORMAT(pbo.Booking_Time, '%h:%i %p') AS Booking_Time,
-//         pbo.Payment_Status,
-//         pbo.Advance_Payment,
-//         pbo.Sub_Total,
-//         pbo.Amount,
-//         pbo.Payment_Left,
-//         c.Customer_Name,
-//         c.Customer_Phone
-//       FROM pre_booked_orders pbo
-//       LEFT JOIN customers c 
-//         ON pbo.Customer_Id = c.Customer_Id
-//         WHERE pbo.Status = 'pending'
-//       ORDER BY pbo.created_at DESC
-//     `);
-
-//     const preBookedorderIds=preBookedOrders.map((pb)=>pb.Pre_Booked_Order_Id)
-//     const [preBookedOrderTables]=`SELECT `
- 
-
-//     return res.status(200).json({
-//       success: true,
-//       preBookedOrders,
-//     });
-//   } catch (err) {
-//     console.error("❌ Error fetching pre-book orders:", err);
-//     next(err);
-//   } finally {
-//     if (connection) connection.release();
-//   }
-// };
 const getAllPreBookingOrders = async (req, res, next) => {
   let connection;
 
@@ -9834,7 +9458,7 @@ const getAllPreBookingOrders = async (req, res, next) => {
       FROM pre_booked_orders pbo
       LEFT JOIN customers c 
         ON pbo.Customer_Id = c.Customer_Id
-      WHERE pbo.Status = 'pending'
+      WHERE LOWER(pbo.Status) IN ('pending', 'hold')
       ORDER BY pbo.created_at DESC
     `);
 
@@ -9856,6 +9480,7 @@ const getAllPreBookingOrders = async (req, res, next) => {
       SELECT
         pbot.Pre_Booked_Order_Id,
         t.Table_Id,
+         t.Start_Time,
         t.Table_Name
       FROM pre_booked_order_tables pbot
       JOIN add_table t
@@ -9876,6 +9501,7 @@ const getAllPreBookingOrders = async (req, res, next) => {
       orderTableMap[row.Pre_Booked_Order_Id].push({
         Table_Id: row.Table_Id,
         Table_Name: row.Table_Name,
+         Start_Time: row.Start_Time
       });
     });
 
@@ -10330,6 +9956,7 @@ const getPreBookOrderDetails = async (req, res, next) => {
         pbo.Amount,
         pbo.Advance_Payment,
         pbo.Payment_Left,
+        pbo.Status,
         pbo.Payment_Status,
         c.Customer_Name,
         c.Customer_Phone
@@ -10375,6 +10002,7 @@ const getPreBookOrderDetails = async (req, res, next) => {
         pbot.Pre_Booked_Order_Table_Id,
         pbot.Table_Id,
         at.Table_Name,
+         at.Start_Time,
        
         (at.Table_Id IS NULL) AS Table_Deleted
       FROM pre_booked_order_tables pbot
@@ -10400,7 +10028,203 @@ const getPreBookOrderDetails = async (req, res, next) => {
   }
 };
 
+const startPreBookOrder = async (req, res, next) => {
+  let connection;
+  let transactionStarted = false;
 
+  try {
+    const { Pre_Booked_Order_Id } = req.params;
+
+    if (!Pre_Booked_Order_Id) {
+      return res.status(400).json({
+        success: false,
+        message: "Pre-booked order ID is required.",
+      });
+    }
+
+    connection = await db.getConnection();
+
+    await connection.beginTransaction();
+    transactionStarted = true;
+
+    // 1. Lock the booking and check its current status.
+    const [[booking]] = await connection.query(
+      `SELECT
+          Pre_Booked_Order_Id,
+          Order_Type,
+          Booking_Date,
+          Booking_Time,
+          Status
+       FROM pre_booked_orders
+       WHERE Pre_Booked_Order_Id = ?
+       FOR UPDATE`,
+      [Pre_Booked_Order_Id]
+    );
+
+    if (!booking) {
+      await connection.rollback();
+      transactionStarted = false;
+
+      return res.status(404).json({
+        success: false,
+        message: "Pre-booking not found.",
+      });
+    }
+
+    if (String(booking.Status).toLowerCase() !== "pending") {
+      await connection.rollback();
+      transactionStarted = false;
+
+      return res.status(409).json({
+        success: false,
+        message: `Cannot start this booking. Current status: ${booking.Status}.`,
+      });
+    }
+
+    // 2. Only allow starting at or after the booking date/time.
+    const [[timeCheck]] = await connection.query(
+      `SELECT (
+         CAST(? AS DATE) < CURDATE()
+         OR (
+           CAST(? AS DATE) = CURDATE()
+           AND CAST(? AS TIME) <= CURTIME()
+         )
+       ) AS Can_Start`,
+      [
+        booking.Booking_Date,
+        booking.Booking_Date,
+        booking.Booking_Time,
+      ]
+    );
+
+    if (!Number(timeCheck.Can_Start)) {
+      await connection.rollback();
+      transactionStarted = false;
+
+      return res.status(400).json({
+        success: false,
+        message: "This booking cannot be started before its scheduled date and time.",
+      });
+    }
+
+    let tables = [];
+
+    // 3. Lock and validate assigned tables for dine-in bookings.
+    if (String(booking.Order_Type).toLowerCase() === "dine-in") {
+      const [assignedTables] = await connection.query(
+        `SELECT
+            t.Table_Id,
+            t.Table_Name,
+            t.Status AS Table_Status
+         FROM pre_booked_order_tables pbot
+         INNER JOIN add_table t
+           ON t.Table_Id = pbot.Table_Id
+         WHERE pbot.Pre_Booked_Order_Id = ?
+         ORDER BY t.Table_Id
+         FOR UPDATE`,
+        [Pre_Booked_Order_Id]
+      );
+
+      tables = assignedTables;
+
+      if (tables.length === 0) {
+        await connection.rollback();
+        transactionStarted = false;
+
+        return res.status(400).json({
+          success: false,
+          message: "No tables are assigned to this dine-in booking.",
+        });
+      }
+
+      // Do not take over a table already occupied by another order.
+      const occupiedTable = tables.find(
+        (table) =>
+          String(table.Table_Status).toLowerCase() === "occupied"
+      );
+
+      if (occupiedTable) {
+        await connection.rollback();
+        transactionStarted = false;
+
+        return res.status(409).json({
+          success: false,
+          message: `Table ${occupiedTable.Table_Name} is already occupied.`,
+          Table_Name: occupiedTable.Table_Name,
+        });
+      }
+
+      // 4. Mark the assigned tables occupied.
+      for (const table of tables) {
+        await connection.query(
+          `UPDATE add_table
+           SET Status = 'occupied',
+               Start_Time = NOW()
+           WHERE Table_Id = ?`,
+          [table.Table_Id]
+        );
+      }
+    }
+
+    // 5. Mark the pre-booking as a held/active order.
+    await connection.query(
+      `UPDATE pre_booked_orders
+       SET Status = 'hold'
+       WHERE Pre_Booked_Order_Id = ?
+         AND Status = 'pending'`,
+      [Pre_Booked_Order_Id]
+    );
+
+    await connection.commit();
+    transactionStarted = false;
+
+    const Table_Names = tables.map((table) => table.Table_Name);
+    const Table_Ids = tables.map((table) => table.Table_Id);
+
+    // 6. Notify pre-booking screens.
+    io.emit("prebooking_updated", {
+      action: "started",
+      Pre_Booked_Order_Id,
+      Order_Type: booking.Order_Type,
+      Status: "hold",
+      Table_Names,
+    });
+
+    // 7. Notify staff/table screens.
+    io.to("all_waiters").emit("tables_occupied", {
+      Source: "pre-booking",
+      Pre_Booked_Order_Id,
+      Table_Ids,
+      Table_Names,
+    });
+
+    io.to("staff").emit("waiter_order", {
+      Source: "pre-booking",
+      Pre_Booked_Order_Id,
+      Order_Type: booking.Order_Type,
+      Status: "hold",
+      Table_Names,
+      at: new Date().toISOString(),
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Pre-booking started successfully.",
+      Pre_Booked_Order_Id,
+      Status: "hold",
+      Table_Names,
+    });
+  } catch (err) {
+    if (connection && transactionStarted) {
+      await connection.rollback();
+    }
+
+    console.error("Start Pre-Book Order Error:", err);
+    next(err);
+  } finally {
+    if (connection) connection.release();
+  }
+};
 const updatePreBookOrder = async (req, res, next) => {
   let connection;
 
@@ -10518,9 +10342,9 @@ const hasItems = itemsProvided && items.length > 0;
        1️⃣ FETCH EXISTING ORDER
     -------------------------------------------------- */
     const [[order]] = await connection.query(
-      `SELECT Customer_Id,Advance_Payment
+      `SELECT Customer_Id,Advance_Payment, Status
        FROM pre_booked_orders
-       WHERE Pre_Booked_Order_Id = ?`,
+       WHERE Pre_Booked_Order_Id = ? FOR UPDATE`,
       [Pre_Booked_Order_Id]
     );
 
@@ -10642,6 +10466,36 @@ if (itemsProvided) {
     /* --------------------------------------------------
    4️⃣ UPDATE ORDER (NO RECALCULATION)
 -------------------------------------------------- */
+// await connection.query(
+//   `UPDATE pre_booked_orders
+//    SET Customer_Id = ?,
+//        Booking_Date = ?,
+//        Booking_Time = ?,
+//        Address = ?,
+//        Order_Type = ?,
+//        Sub_Total = ?,
+//        Amount = ?,
+//        Advance_Payment = ?,
+//        Payment_Left = ?,
+//        Payment_Status = "pending",
+//        Status = 'pending'
+//    WHERE Pre_Booked_Order_Id = ?`,
+//   [
+//     Customer_Id,
+//     Booking_Date,
+//     Booking_Time,
+//     Address,
+//     Order_Type,
+//     subTotalNum,
+//     amountNum,
+//     advanceNum,
+//     paymentLeftNum,
+//     Pre_Booked_Order_Id,
+//   ]
+// );
+
+const paymentStatus = paymentLeftNum <= 0 ? "paid" : "pending";
+
 await connection.query(
   `UPDATE pre_booked_orders
    SET Customer_Id = ?,
@@ -10653,8 +10507,7 @@ await connection.query(
        Amount = ?,
        Advance_Payment = ?,
        Payment_Left = ?,
-       Payment_Status = "pending",
-       Status = 'pending'
+       Payment_Status = ?
    WHERE Pre_Booked_Order_Id = ?`,
   [
     Customer_Id,
@@ -10666,6 +10519,7 @@ await connection.query(
     amountNum,
     advanceNum,
     paymentLeftNum,
+    paymentStatus,
     Pre_Booked_Order_Id,
   ]
 );
@@ -10673,181 +10527,10 @@ await connection.query(
 /* --------------------------------------------------
    5️⃣ UPDATE TABLES (DIFF-BASED, SAFE)
 -------------------------------------------------- */
-// if (Array.isArray(Table_Names)) {
-
-//   /* 1️⃣ Fetch existing tables */
-//   const [existingRows] = await connection.query(
-//     `
-//     SELECT t.Table_Name, pbot.Table_Id
-//     FROM pre_booked_order_tables pbot
-//     JOIN add_table t ON t.Table_Id = pbot.Table_Id
-//     WHERE pbot.Pre_Booked_Order_Id = ?
-//     `,
-//     [Pre_Booked_Order_Id]
-//   );
-
-//   const existingTableNames = existingRows.map(r => r.Table_Name);
-
-//   /* 2️⃣ Normalize input (safety) */
-//   const incomingTableNames = [...new Set(Table_Names)];
-
-//   /* 3️⃣ Find differences */
-//   const tablesToAdd = incomingTableNames.filter(
-//     name => !existingTableNames.includes(name)
-//   );
-
-//   const tablesToRemove = existingTableNames.filter(
-//     name => !incomingTableNames.includes(name)
-//   );
-
-//   /* 4️⃣ REMOVE unselected tables */
-//   if (tablesToRemove.length > 0) {
-//     await connection.query(
-//       `
-//       DELETE pbot
-//       FROM pre_booked_order_tables pbot
-//       JOIN add_table t ON t.Table_Id = pbot.Table_Id
-//       WHERE pbot.Pre_Booked_Order_Id = ?
-//         AND t.Table_Name IN (?)
-//       `,
-//       [Pre_Booked_Order_Id, tablesToRemove]
-//     );
-//   }
-
-//   /* 5️⃣ ADD newly selected tables */
-//   for (const tableName of tablesToAdd) {
-//     const [[tbl]] = await connection.query(
-//       `SELECT Table_Id FROM add_table WHERE Table_Name = ? LIMIT 1`,
-//       [tableName]
-//     );
-
-//     if (!tbl) continue;
-
-//     const Pre_Booked_Order_Table_Id = await generateNextId(
-//       connection,
-//       "PRBODRTBL",
-//       "Pre_Booked_Order_Table_Id",
-//       "pre_booked_order_tables"
-//     );
-
-//     await connection.query(
-//       `
-//       INSERT INTO pre_booked_order_tables
-//       (Pre_Booked_Order_Table_Id, Pre_Booked_Order_Id, Table_Id)
-//       VALUES (?, ?, ?)
-//       `,
-//       [
-//         Pre_Booked_Order_Table_Id,
-//         Pre_Booked_Order_Id,
-//         tbl.Table_Id,
-//       ]
-//     );
-//   }
-// }
-
-/* --------------------------------------------------
-   5️⃣ UPDATE TABLES (DIFF-BASED, SAFE)
--------------------------------------------------- */
-
-// if (Order_Type === "TAKEAWAY") {
-//   // Remove all table assignments for takeaway orders
-//   await connection.query(
-//     `DELETE FROM pre_booked_order_tables
-//      WHERE Pre_Booked_Order_Id = ?`,
-//     [Pre_Booked_Order_Id]
-//   );
-
-// } else if (Array.isArray(Table_Names)) {
-
-//   /* 1️⃣ Fetch existing tables */
-//   const [existingRows] = await connection.query(
-//     `
-//     SELECT t.Table_Name, pbot.Table_Id
-//     FROM pre_booked_order_tables pbot
-//     JOIN add_table t ON t.Table_Id = pbot.Table_Id
-//     WHERE pbot.Pre_Booked_Order_Id = ?
-//     `,
-//     [Pre_Booked_Order_Id]
-//   );
-
-//   const existingTableNames = existingRows.map(
-//     (r) => r.Table_Name
-//   );
-
-//   /* 2️⃣ Normalize input */
-//   const incomingTableNames = [
-//     ...new Set(
-//       Table_Names.filter(
-//         (name) => typeof name === "string" && name.trim()
-//       ).map((name) => name.trim())
-//     ),
-//   ];
-
-//   /* 3️⃣ Find differences */
-//   const tablesToAdd = incomingTableNames.filter(
-//     (name) => !existingTableNames.includes(name)
-//   );
-
-//   const tablesToRemove = existingTableNames.filter(
-//     (name) => !incomingTableNames.includes(name)
-//   );
-
-//   /* 4️⃣ Remove unselected tables */
-//   if (tablesToRemove.length > 0) {
-//     await connection.query(
-//       `
-//       DELETE pbot
-//       FROM pre_booked_order_tables pbot
-//       JOIN add_table t ON t.Table_Id = pbot.Table_Id
-//       WHERE pbot.Pre_Booked_Order_Id = ?
-//         AND t.Table_Name IN (?)
-//       `,
-//       [Pre_Booked_Order_Id, tablesToRemove]
-//     );
-//   }
-
-//   /* 5️⃣ Add newly selected tables */
-//   for (const tableName of tablesToAdd) {
-//     const [[tbl]] = await connection.query(
-//       `SELECT Table_Id
-//        FROM add_table
-//        WHERE Table_Name = ?
-//        LIMIT 1`,
-//       [tableName]
-//     );
-
-//     if (!tbl) {
-//       await connection.rollback();
-//       return res.status(400).json({
-//         success: false,
-//         message: `Table not found: ${tableName}`,
-//       });
-//     }
-
-//     const Pre_Booked_Order_Table_Id = await generateNextId(
-//       connection,
-//       "PRBODRTBL",
-//       "Pre_Booked_Order_Table_Id",
-//       "pre_booked_order_tables"
-//     );
-
-//     await connection.query(
-//       `
-//       INSERT INTO pre_booked_order_tables
-//         (Pre_Booked_Order_Table_Id, Pre_Booked_Order_Id, Table_Id)
-//       VALUES (?, ?, ?)
-//       `,
-//       [
-//         Pre_Booked_Order_Table_Id,
-//         Pre_Booked_Order_Id,
-//         tbl.Table_Id,
-//       ]
-//     );
-//   }
-// }
 
 
 
+if (String(order.Status).toLowerCase() === "pending") {
 if (Order_Type === "takeaway") {
   await connection.query(
     `DELETE FROM pre_booked_order_tables
@@ -10941,6 +10624,7 @@ else if (Order_Type === "dine-in") {
       ]
     );
   }
+}
 }
 
 
@@ -11225,7 +10909,103 @@ await connection.query(
   [parsedPaymentLeft,  Pre_Book_Order_Id]
 );
 
+/* ---------------- FREE PRE-BOOKED TABLES ---------------- */
+
+// const [tableRows] = await connection.execute(
+//   `SELECT Table_Id
+//    FROM pre_booked_order_tables
+//    WHERE Pre_Booked_Order_Id = ?`,
+//   [Pre_Book_Order_Id]
+// );
+
+// const tableIds = tableRows
+//   .map((row) => row.Table_Id)
+//   .filter(Boolean);
+// //  const tableNames = tableRows
+// //   .map((row) => row.Table_Name)
+// //   .filter(Boolean)
+
+// if (tableIds.length > 0) {
+//   await connection.query(
+//     `UPDATE add_table
+//      SET Status = 'available',
+//          Start_Time = NULL,
+//          End_Time = NOW()
+//      WHERE Table_Id IN (?)`,
+//     [tableIds]
+//   );
+// }
+
+/* ---------------- FREE PRE-BOOKED TABLES ---------------- */
+
+const [tableRows] = await connection.execute(
+  `SELECT pbot.Table_Id, t.Table_Name
+   FROM pre_booked_order_tables pbot
+   INNER JOIN add_table t
+     ON t.Table_Id = pbot.Table_Id
+   WHERE pbot.Pre_Booked_Order_Id = ?`,
+  [Pre_Book_Order_Id]
+);
+
+const tableIds = tableRows
+  .map((row) => row.Table_Id)
+  .filter(Boolean);
+
+const tableNames = tableRows
+  .map((row) => row.Table_Name)
+  .filter(Boolean);
+
+if (tableIds.length > 0) {
+  await connection.query(
+    `UPDATE add_table
+     SET Status = 'available',
+         Start_Time = NULL,
+         End_Time = NOW()
+     WHERE Table_Id IN (?)`,
+    [tableIds]
+  );
+}
+
+
     await connection.commit();
+//     io.to("all_waiters").emit("table_ready_for_order", {
+//   Pre_Book_Order_Id,
+//   Table_Ids: tableIds,
+//   Table_Names: tableNames,
+//   message: `Table ${tableNames.join(", ")} is now available for a new order.`,
+// });
+// // Notify the dashboard to refresh orders and table status.
+// io.emit("prebooking_updated", {
+//   Pre_Book_Order_Id,
+//   Table_Ids: tableIds,
+//   Status: "completed",
+//   message: `Pre-book bill paid. Table ${tableNames.join(", ")} released.`,
+// });
+
+const tableLabel = tableNames.length
+  ? tableNames.join(", ")
+  : "the table";
+
+const tableReadyMessage =
+  tableNames.length === 1
+    ? `Table ${tableLabel} is now ready for a new order.`
+    : `Tables ${tableLabel} are now ready for new orders.`;
+
+io.to("all_waiters").emit("table_ready_for_order", {
+  Pre_Book_Order_Id,
+  Table_Ids: tableIds,
+  Table_Names: tableNames,
+  message: tableReadyMessage,
+});
+
+io.emit("prebooking_updated", {
+  Pre_Book_Order_Id,
+  Table_Ids: tableIds,
+  Table_Names: tableNames,
+  Status: "completed",
+  message: `Pre-book bill paid. ${tableReadyMessage}`,
+});
+
 
     return res.status(200).json({
       success: true,
@@ -11614,8 +11394,8 @@ const updateAndPrintPreBookKOT = async (req, res, next) => {
            Amount = ?,
            Advance_Payment = ?,
            Payment_Left = ?,
-           Payment_Status = 'pending',
-           Status = 'pending'
+           Payment_Status = 'pending'
+          
        WHERE Pre_Booked_Order_Id = ?`,
       [
         Customer_Id,
@@ -11987,7 +11767,9 @@ export {addNewCustomer,getAllCustomers,addOrder,getUpcomingPreBookings, getTable
     getAllInvoicesOfOrdersAndTakeawaysInDateRange
 ,nextInvoiceNumber,cancelTakeawayOrder,completeTakeawayOrder,checkItemElligibleForKOTPrint,
 deleteInvoice,
-addPreBookOrder,getAllPreBookingOrders,getPreBookOrderItemsForKOT,updatePreBookOrder,cancelPreBookOrder,
+addPreBookOrder,getAllPreBookingOrders,getPreBookOrderItemsForKOT,updatePreBookOrder,
+startPreBookOrder,
+cancelPreBookOrder,
 getPreBookOrderDetails,
 confirmPreOrderBillPaidAndInvoiceGenerated,updateAndPrintPreBookKOT,KOTOfOrdersTakenByWaiter};
 
