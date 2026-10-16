@@ -854,20 +854,50 @@ await connection.execute(
     });
 
     await connection.commit();
-    io.to("all_waiters").emit("tables_occupied", {
+//     io.to("all_waiters").emit("tables_occupied", {
+//   Order_Id,
+//   Table_Ids: tableIds, // better to send actual Table_Ids if available
+//   Table_Names,
+// });
+//     // 🔔 CASHIER / FRONTDESK
+// io.to("staff").emit("waiter_order", {
+//   Order_Id,
+//   KOT_Id,
+//   Table_Names,
+//   User_Id: userId,
+//   Source: "waiter",
+//   at: new Date().toISOString(),
+// });
+await connection.commit();
+
+io.to("all_waiters").emit("tables_occupied", {
   Order_Id,
-  Table_Ids: tableIds, // better to send actual Table_Ids if available
+  Table_Ids: tableIds,
   Table_Names,
 });
-    // 🔔 CASHIER / FRONTDESK
-io.to("staff").emit("waiter_order", {
+
+// Identify who created the order.
+const actorRole = String(
+  req.user?.role ?? req.user?.Role ?? ""
+)
+  .trim()
+  .toLowerCase();
+
+const eventPayload = {
   Order_Id,
   KOT_Id,
   Table_Names,
   User_Id: userId,
-  Source: "waiter",
+  Source: actorRole || "staff",
   at: new Date().toISOString(),
-});
+};
+
+// Notify all connected cashier/staff screens.
+if (actorRole === "waiter") {
+  io.to("staff").emit("waiter_order", eventPayload);
+} else {
+  io.to("staff").emit("staff_order", eventPayload);
+}
 
     /* ---------------- SOCKET EMIT ---------------- */
     Object.entries(byCategory).forEach(([category, items]) => {
@@ -2089,91 +2119,7 @@ const eligibilityResult = addedItemsForKOT.length
    🔥 D️⃣ UPDATE STOCK FOR NEWLY ADDED ITEMS (DELTA)
 ===================================================== */
 
-// for (const deltaItem of newlyAddedItems) {
-//   const [[dbItem]] = await connection.execute(
-//     `SELECT Item_Id FROM add_food_item WHERE Item_Name = ? LIMIT 1`,
-//     [deltaItem.Item_Name]
-//   );
 
-//   if (!dbItem) continue;
-
-//   const Item_Id = dbItem.Item_Id;
-//   const deltaQty = deltaItem.Item_Quantity;
-
-//   // 1️⃣ Ensure today's stock row exists
-//   await connection.execute(
-//     `
-//     INSERT IGNORE INTO daily_food_stock
-//       (Item_Id, Stock_Date, Opening_Quantity, Added_Quantity, Sold_Quantity, Closing_Quantity)
-//     VALUES (?, ?, 0, 0, 0, 0)
-//     `,
-//     [Item_Id, stockDate]
-//   );
-
-//   // 2️⃣ Lock stock row
-//   const [[stock]] = await connection.execute(
-//     `
-//     SELECT id
-//     FROM daily_food_stock
-//     WHERE Item_Id = ?
-//       AND Stock_Date = ?
-//     FOR UPDATE
-//     `,
-//     [Item_Id, stockDate]
-//   );
-
-//   if (!stock) {
-//     await connection.rollback();
-//     return res.status(400).json({
-//       success: false,
-//       message: `Stock row missing for item ${deltaItem.Item_Name}`,
-//     });
-//   }
-
-//   // 3️⃣ Reduce stock by DELTA
-//   await connection.execute(
-//     `
-//     UPDATE daily_food_stock
-//     SET
-//       Sold_Quantity = Sold_Quantity + ?,
-//       Closing_Quantity = Closing_Quantity - ?
-//     WHERE id = ?
-//     `,
-//     [deltaQty, deltaQty, stock.id]
-//   );
-
-//   // 4️⃣ Insert stock history (DELTA SALE)
-//   await connection.execute(
-//   `
-//   INSERT INTO food_stock_movements
-//     (Item_Id,  Stock_Date, Movement_Type, Quantity, Ref_Id, User_Id)
-//   VALUES (?,  ?, 'DINE_IN', ?, ?, ?)
-//   `,
-//   [
-//     Item_Id,
-    
-//     stockDate,
-//     deltaQty, // sold qty
-//     Order_Id,
-//     userId,
-//   ]
-// );
-
-// // await connection.execute(
-// //   `
-// //   INSERT INTO food_stock_movements
-// //     (Item_Id, Item_Name, Stock_Date, Quantity, User_Id)
-// //   VALUES (?, ?,?, ?, ?)
-// //   `,
-// //   [
-// //     Item_Id,
-// //     deltaItem.Item_Name.Item_Name,
-// //     stockDate,
-// //     deltaItem.Item_Name.Item_Quantity, // sold qty
-// //     userId,             // waiter / cashier
-// //   ]
-// // );
-// }
 for (const d of deltaItems) {
   const [[dbItem]] = await connection.execute(
     `SELECT Item_Id FROM add_food_item WHERE Item_Name = ? LIMIT 1`,
@@ -2286,7 +2232,7 @@ if (actorRole === "waiter") {
     );
 
     console.log(
-      `🔔 Order ${Order_Id} update sent to waiter ${waiterUserId}`
+      ` Order ${Order_Id} update sent to waiter ${waiterUserId}`
     );
   }
 }
@@ -3126,7 +3072,22 @@ if (tableIds.length > 0) {
     }
 
     await connection.commit();
+// Notify all cashier/staff screens that payment is completed.
+const actorRole = String(
+  req.user?.role ?? req.user?.Role ?? ""
+)
+  .trim()
+  .toLowerCase();
 
+io.to("staff").emit("order_payment_completed", {
+  Order_Id,
+  Invoice_Id: InvoiceNum,
+  Table_Ids: tableIds,
+  Table_Names: tableNames,
+  Source: actorRole || "staff",
+  message: `Order ${Order_Id} paid and completed.`,
+  at: new Date().toISOString(),
+});
     /* ---------------------------------------
      SOCKET
     --------------------------------------- */
@@ -3782,44 +3743,8 @@ if (!fy.length) {
 
 const activeFY = fy[0].Financial_Year;
 
-// 🔁 NOW RETRY LOOP
-// let Invoice_Id;
 
-// for (let i = 0; i < 3; i++) {
-//   try {
-//     Invoice_Id = await generateNextId(
-//       connection,
-//       "TKINV",
-//       "Invoice_Id",
-//       "takeaway_invoices"
-//     );
 
-//     await connection.execute(
-//       `INSERT INTO takeaway_invoices
-//        (Invoice_Id, Takeaway_Order_Id, Invoice_Date, Financial_Year, Amount,
-//         Customer_Name, Customer_Phone, Customer_Id, Discount_Type, Discount, Payment_Type)
-//        VALUES (?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?)`,
-//       [
-//         Invoice_Id,
-//         Takeaway_Order_Id,
-//         activeFY, // ✅ NOW DEFINED
-//         finalAmount,
-//         normalizedCustomerName,
-//         Customer_Phone || null,
-//         Customer_Id,
-//         Discount_Type ?? "percentage",
-//         discountValue,
-//         Payment_Type ?? "Cash",
-//       ]
-//     );
-
-//     break;
-
-//   } catch (err) {
-//     if (err.code === "ER_DUP_ENTRY" && i < 2) continue;
-//     throw err;
-//   }
-// }
 //  INSERT FIRST
 const [invoiceRes] = await connection.execute(
   `INSERT INTO takeaway_invoices
@@ -3868,33 +3793,7 @@ const [invoiceRes] = await connection.execute(
     couponDiscountValue
   ]
 );
-// const [invoiceRes] = await connection.execute(
-//   `INSERT INTO takeaway_invoices
-//    (Takeaway_Order_Id, Invoice_Date, Financial_Year, Amount,
-//     Customer_Name, Customer_Phone, Customer_Id,
-//     Discount_Type, Discount, Payment_Type,Coupon_Id,Coupon_Code,Coupon_Discount_Type,Coupon_Discount_Value)
-//    VALUES (?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?,?,?,?,?)`,
-//   [
-//     Takeaway_Order_Id,
-//     activeFY,
-//     finalAmount,
-//     normalizedCustomerName,
-//     Customer_Phone || null,
-//     Customer_Id,
-//     Discount_Type ?? "percentage",
-//     discountValue,
-//     Payment_Type ?? "Cash",
-//     Coupon_Id ?? null,
 
-//     Coupon_Code ?? null,
-
-//     Coupon_Discount_Type ?? null,
-
-//     Coupon_Discount_Value ?? null
-
-
-//   ]
-// );
 
 // ✅ generate ID
 const invoiceNum = invoiceRes.insertId;
@@ -3906,6 +3805,24 @@ await connection.execute(
   [Invoice_Id, invoiceNum]
 );
     await connection.commit();
+    // Notify all connected cashier/staff screens.
+const eventPayload = {
+  Takeaway_Order_Id,
+  Invoice_Id,
+  Source: "staff",
+  message: `Takeaway order ${Takeaway_Order_Id} completed and paid.`,
+  at: new Date().toISOString(),
+};
+
+io.to("staff").emit(
+  "takeaway_order_completed",
+  eventPayload
+);
+
+console.log(
+  "🔔 Takeaway completion notification sent:",
+  eventPayload
+);
 
     // ---------------- RESPONSE ----------------
     return res.status(200).json({

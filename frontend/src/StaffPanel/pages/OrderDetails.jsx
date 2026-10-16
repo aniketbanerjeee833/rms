@@ -152,32 +152,83 @@ const {
       );
     };
 
-    // const handleWaiterOrder = (data) => {
-    //   console.log("Waiter order received:", data);
+    
+// const handleWaiterOrder = (data) => {
+//   console.log("Waiter order received:", data);
 
-    //   dispatch(orderApi.util.invalidateTags(["Order"]));
+//   refetchTablesHavingOrders();
+//   refetchTables();
 
-    //   toast.success(
-    //     `New waiter order received for ${data.Table_Names?.join(", ")}`
-    //   );
-    // };
-const handleWaiterOrder = (data) => {
-  console.log("Waiter order received:", data);
+//   toast.success(
+//     `New waiter order received for ${data.Table_Names?.join(", ")}`
+//   );
+// };
+const handleNewOrder = (data) => {
+  console.log("New order received:", data);
 
   refetchTablesHavingOrders();
   refetchTables();
 
+  const source = String(data.Source || "staff")
+    .trim()
+    .toLowerCase();
+
+  const sourceLabel =
+    source === "waiter"
+      ? "waiter"
+      : source === "cashier"
+        ? "cashier"
+        : source;
+
   toast.success(
-    `New waiter order received for ${data.Table_Names?.join(", ")}`
+    `New ${sourceLabel} order received for ${
+      data.Table_Names?.join(", ") || "a table"
+    }`
   );
 };
-    const handleWaiterOrderUpdate = (data) => {
-      console.log("Waiter order updated:", data);
+    // const handleWaiterOrderUpdate = (data) => {
+    //   console.log("Waiter order updated:", data);
 
-      dispatch(orderApi.util.invalidateTags(["Order"]));
+    //   dispatch(orderApi.util.invalidateTags(["Order"]));
 
-      toast.info(`Order ${data.Order_Id} was updated by waiter`);
-    };
+    //   toast.info(`Order ${data.Order_Id} was updated by waiter`);
+    // };
+  const showOrderUpdateNotification = (data, fallbackSource) => {
+  console.log("Order updated:", data);
+
+  refetchTablesHavingOrders();
+  refetchTables();
+
+  const source = String(data.Source || fallbackSource)
+    .trim()
+    .toLowerCase();
+
+  const sourceLabel = source === "waiter" ? "waiter" : "staff";
+
+  toast.info(
+    `Order ${data.Order_Id} updated by ${sourceLabel}`
+  );
+};
+
+const handleWaiterOrderUpdate = (data) => {
+  showOrderUpdateNotification(data, "waiter");
+};
+
+const handleStaffOrderUpdate = (data) => {
+  showOrderUpdateNotification(data, "staff");
+};
+const handleOrderPaymentCompleted = (data) => {
+  console.log("Payment completed on another screen:", data);
+
+  refetchTablesHavingOrders();
+  refetchTables();
+
+  dispatch(orderApi.util.invalidateTags(["Order"]));
+
+  toast.success(
+    data.message || `Order ${data.Order_Id} paid and completed.`
+  );
+};
 
     const handleKotUpdate = (data) => {
       if (data.orderType !== "takeaway") return;
@@ -224,6 +275,21 @@ const handleWaiterOrder = (data) => {
 
       toast.info(`${data.itemName} → ${data.status}`);
     };
+    const handleTakeawayOrderCompleted = (data) => {
+  console.log(
+    "Takeaway order completed:",
+    data
+  );
+
+  dispatch(
+    orderApi.util.invalidateTags(["Order"])
+  );
+
+  toast.success(
+    data.message ||
+      `Takeaway order ${data.Takeaway_Order_Id} completed and paid.`
+  );
+};
 
     // Register listeners.
     socket.on("connect", joinRooms);
@@ -231,10 +297,15 @@ const handleWaiterOrder = (data) => {
     socket.on("frontdesk_order_update", handleFrontdeskOrderUpdate);
     socket.on("customer_order_rejected", handleCustomerOrderRejected);
     socket.on("customer_order", handleCustomerOrder);
-    socket.on("waiter_order", handleWaiterOrder);
-    socket.on("waiter_order_update", handleWaiterOrderUpdate);
+    //socket.on("waiter_order", handleWaiterOrder);
+    socket.on("waiter_order", handleNewOrder);
+socket.on("staff_order", handleNewOrder);
+socket.on("waiter_order_update", handleWaiterOrderUpdate);
+socket.on("order_updated", handleStaffOrderUpdate);
+    //socket.on("waiter_order_update", handleWaiterOrderUpdate);
+    socket.on("order_payment_completed",handleOrderPaymentCompleted);
     socket.on("frontend_kot_update", handleKotUpdate);
-
+socket.on("takeaway_order_completed",handleTakeawayOrderCompleted);
     // Handle the case where the connection is already established.
     if (socket.connected) {
       joinRooms();
@@ -246,10 +317,21 @@ const handleWaiterOrder = (data) => {
       socket.off("frontdesk_order_update", handleFrontdeskOrderUpdate);
       socket.off("customer_order_rejected", handleCustomerOrderRejected);
       socket.off("customer_order", handleCustomerOrder);
-      socket.off("waiter_order", handleWaiterOrder);
-      socket.off("waiter_order_update", handleWaiterOrderUpdate);
+      socket.off("waiter_order", handleNewOrder);
+socket.off("staff_order", handleNewOrder);
+      //socket.off("waiter_order", handleWaiterOrder);
+      socket.on("waiter_order_update", handleWaiterOrderUpdate);
+socket.on("order_updated", handleStaffOrderUpdate);
+      //socket.off("waiter_order_update", handleWaiterOrderUpdate);
       socket.off("frontend_kot_update", handleKotUpdate);
-
+socket.off(
+  "order_payment_completed",
+  handleOrderPaymentCompleted
+);
+socket.off(
+  "takeaway_order_completed",
+  handleTakeawayOrderCompleted
+);
       if (socket.connected) {
         socket.emit("leave_staff_room");
 

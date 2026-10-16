@@ -442,7 +442,7 @@ if (
          
           ])} */}
 
-          {userMe?.user?.role==="staff" && <NavLink
+          {/* {userMe?.user?.role==="staff" && <NavLink
               to="/staff/orders/all-tables"
               className={({ isActive }) => (isActive ? "menu-active" : "")}
               style={{ display: 'block', padding: '10px 16px',
@@ -453,14 +453,11 @@ if (
                   }} 
             >
               
-              {/* <i className="fa fa-bar-chart" aria-hidden="true"></i> Dashboard */}
-                 {/* <span className="flex items-center gap-2">  <Armchair  size={20}/> 
-                Tables
-                 </span> */}
+            
                  <span className="flex items-center gap-2">  <Armchair  size={20}/> 
                 Dine-In
                  </span>
-            </NavLink>}
+            </NavLink>} */}
 {/* 
            {userMe?.user?.role==="staff" && renderMenu("Orders", <ListOrdered size={20} />, [
           //  { to: "/staff/orders/all-orders", text: "Table Details" },

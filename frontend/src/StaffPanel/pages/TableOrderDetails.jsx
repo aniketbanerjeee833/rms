@@ -279,11 +279,32 @@ useEffect(() => {
     refetchTableOrderDetails();
   };
 
-  const handleOrderUpdated = (data) => {
-    if (String(data.Order_Id) !== String(Order_Id)) return;
+  // const handleOrderUpdated = (data) => {
+  //   if (String(data.Order_Id) !== String(Order_Id)) return;
 
-    refetchTableOrderDetails();
-  };
+  //   refetchTableOrderDetails();
+  // };
+  // Another staff member updated this order
+const handleOrderUpdated = (data) => {
+  if (String(data.Order_Id) !== String(Order_Id)) return;
+
+  console.log("Order updated by staff:", data);
+
+  refetchTableOrderDetails();
+
+  toast.info(`Order ${data.Order_Id} updated by staff.`);
+};
+
+// A waiter updated this order
+const handleWaiterOrderUpdate = (data) => {
+  if (String(data.Order_Id) !== String(Order_Id)) return;
+
+  console.log("Order updated by waiter:", data);
+
+  refetchTableOrderDetails();
+
+  toast.info(`Order ${data.Order_Id} updated by waiter.`);
+};
 
   const handleKotUpdate = (data) => {
     console.log("📢 Frontend received KOT update:", data);
@@ -325,15 +346,21 @@ useEffect(() => {
   socket.on("connect", joinRooms);
   socket.on("food_item_availability_changed", handleAvailabilityChange);
   socket.on("customer_order", handleCustomerOrder);
-  socket.on("order_updated", handleOrderUpdated);
-  socket.on("frontend_kot_update", handleKotUpdate);
+socket.on("order_updated", handleOrderUpdated);
+socket.on("waiter_order_update", handleWaiterOrderUpdate);
+socket.on("frontend_kot_update", handleKotUpdate);
+ 
 
   return () => {
     socket.off("connect", joinRooms);
     socket.off("food_item_availability_changed", handleAvailabilityChange);
     socket.off("customer_order", handleCustomerOrder);
-    socket.off("order_updated", handleOrderUpdated);
-    socket.off("frontend_kot_update", handleKotUpdate);
+socket.off("order_updated", handleOrderUpdated);
+socket.off("waiter_order_update", handleWaiterOrderUpdate);
+socket.off("frontend_kot_update", handleKotUpdate);
+    // socket.off("customer_order", handleCustomerOrder);
+    // socket.off("order_updated", handleOrderUpdated);
+    // socket.off("frontend_kot_update", handleKotUpdate);
 
     socket.disconnect();
     socketRef.current = null;
