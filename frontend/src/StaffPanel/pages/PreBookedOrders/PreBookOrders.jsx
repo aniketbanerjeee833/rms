@@ -640,6 +640,10 @@ export default function PreBookOrders() {
       <div style="font-size:9px">
         Address:Shakuntala Park, Kolkata 700061
       </div>
+      
+      <div style="font-size:9px">
+        FSSAI No: 12826019000014
+      </div>
      
     </div>
 

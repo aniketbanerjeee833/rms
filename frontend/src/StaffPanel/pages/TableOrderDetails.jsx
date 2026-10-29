@@ -1,7 +1,7 @@
-
-import { foodItemApi, useGetAllFoodItemsQuery } from "../../redux/api/foodItemApi";
-
-
+import {
+  foodItemApi,
+  useGetAllFoodItemsQuery,
+} from "../../redux/api/foodItemApi";
 
 import { useState } from "react";
 import { NavLink, useNavigate, useParams } from "react-router-dom";
@@ -15,10 +15,18 @@ import { useEffect } from "react";
 
 import { toast } from "react-toastify";
 
-
-
-import { LayoutDashboard, Minus, Plus, ShoppingCart, Table } from "lucide-react";
-import { orderApi, useGetTableOrderDetailsQuery, useUpdateOrderMutation } from "../../redux/api/Staff/orderApi";
+import {
+  LayoutDashboard,
+  Minus,
+  Plus,
+  ShoppingCart,
+  Table,
+} from "lucide-react";
+import {
+  orderApi,
+  useGetTableOrderDetailsQuery,
+  useUpdateOrderMutation,
+} from "../../redux/api/Staff/orderApi";
 import OrderDetailsModal from "../../components/Modal/OrderDetailsModal";
 
 import { useDispatch } from "react-redux";
@@ -26,231 +34,224 @@ import { kitchenStaffApi } from "../../redux/api/KitchenStaff/kitchenStaffApi";
 import { useMemo } from "react";
 import { useGetAllCategoriesQuery } from "../../redux/api/itemApi";
 
+import {
+  checkCleanterReady,
+  printViaCleanter,
+  isMobileDevice,
+} from "../../utils/cleanter";
 
-// const socket = io("http://192.168.0.111:4000", {
-//   transports: ["websocket"],
-// });
-
-
-
-
+// const socket = io("https://helloguys.co.in/billmeal", {
+//     path: "/billmeal/socket.io",
+//     transports: ["polling", "websocket"], // fallback
+//     withCredentials: true,
+//   });
 
 export default function TableOrderDetails() {
- 
   const { Order_Id } = useParams();
   const dispatch = useDispatch();
   const [orderDetailsModalOpen, setOrderDetailsModalOpen] = useState(false);
   //console.log(Order_Id);
-  // const { data: tableOrderDetails } = useGetTableOrderDetailsQuery(Order_Id);
-  const {
-  data: tableOrderDetails,
-  refetch: refetchTableOrderDetails,
-} = useGetTableOrderDetailsQuery(Order_Id);
-//   const {
-//   data: tableOrderDetails,
-//   refetch: refetchTableOrderDetails,
-// } = useGetTableOrderDetailsQuery(Order_Id);
+  const { data: tableOrderDetails, refetch: refetchTableOrderDetails } =
+    useGetTableOrderDetailsQuery(Order_Id);
   //console.log(tableOrderDetails, "tableOrderDetails");
   const TAX_RATES = {
-    "None": 0,
-    "GST0": 0,
+    None: 0,
+    GST0: 0,
     "GST0.25": 0.25,
-    "GST3": 3,
-    "GST5": 5,
-    "GST12": 12,
-    "GST18": 18,
-    "GST28": 28,
-    "GST40": 40,
+    GST3: 3,
+    GST5: 5,
+    GST12: 12,
+    GST18: 18,
+    GST28: 28,
+    GST40: 40,
 
-    "IGST0": 0,
+    IGST0: 0,
     "IGST0.25": 0.25,
-    "IGST3": 3,
-    "IGST5": 5,
-    "IGST12": 12,
-    "IGST18": 18,
-    "IGST28": 28,
-    "IGST40": 40,
+    IGST3: 3,
+    IGST5: 5,
+    IGST12: 12,
+    IGST18: 18,
+    IGST28: 28,
+    IGST40: 40,
   };
   const [showCategoryDrawer, setShowCategoryDrawer] = useState(false);
   const [showOrderDrawer, setShowOrderDrawer] = useState(false);
-  //const categoryRefs = useRef([]); // store refs for category dropdowns
-  //const itemRefs = useRef([]);     // store refs for item dropdowns
-  // const [activeCategory, setActiveCategory] = useState('All');
-  // const lastCategoryRef = useRef(activeCategory);
   const [searchTerm, setSearchTerm] = useState("");
   const navigate = useNavigate();
 
-
   const [selectedTables, setSelectedTables] = useState([]);
 
-  //const [categoryOpen, setCategoryOpen] = useState(false);
-  // const [categorySearch, setCategorySearch] = useState("");
-  // const dropdownRef = useRef(null);
-  //const categoryOpenRef = useRef(null);
-  // Close on outside click
-  // useEffect(() => {
-  //   const handleClickOutside = (e) => {
-  //     if (categoryOpenRef.current && !categoryOpenRef.current.contains(e.target)) {
-  //       setCategoryOpen(false);
-  //     }
-  //   };
-
-  //   document.addEventListener("mousedown", handleClickOutside);
-  //   return () => document.removeEventListener("mousedown", handleClickOutside);
-  // }, []);
-  const { data: menuItems, refetch: refetchMenuItems, isLoading: isMenuItemsLoading,
-    isFetching
-  } = useGetAllFoodItemsQuery({orderType: "DINE_IN"});
+  const {
+    data: menuItems,
+    refetch: refetchMenuItems,
+    isLoading: isMenuItemsLoading,
+    isFetching,
+  } = useGetAllFoodItemsQuery({ orderType: "DINE_IN" });
   //console.log(tables, isLoading, "tables", menuItems, isMenuItemsLoading);
-  const items = menuItems?.foodItems
-  const [updateOrder, { isLoading: isUpdateOrderLoading }] = useUpdateOrderMutation();
- 
+  const items = menuItems?.foodItems;
+  const [updateOrder, { isLoading: isUpdateOrderLoading }] =
+    useUpdateOrderMutation();
+
   const [cart, setCart] = useState({});
 
-  const { data: categories } = useGetAllCategoriesQuery()
+  const { data: categories } = useGetAllCategoriesQuery();
   console.log(categories, "categories");
 
-  const existingCategories = [...new Set(categories?.map(c => c.Item_Category))];
+  const existingCategories = [
+    ...new Set(categories?.map((c) => c.Item_Category)),
+  ];
   const newCategories = ["All", ...existingCategories];
 
-  const [activeCategory, setActiveCategory] = useState('All');
+  const [activeCategory, setActiveCategory] = useState("All");
   const lastCategoryRef = useRef(activeCategory);
 
   const [kotNotifications, setKotNotifications] = useState([]);
-  const socketRef = useRef(null);
+    const socketRef = useRef(null);
 const currentKotIdRef = useRef(null);
 
 currentKotIdRef.current = tableOrderDetails?.KOT_Id;
-//   useEffect(() => {
-//   socket.emit("join_staff_room");
+  // useEffect(() => {
+  //   socket.emit("join_staff_room");
 
-//   return () => {
-//     socket.emit("leave_staff_room");
-//   };
-// }, []);
-//   useEffect(() => {
-//     const handleAvailabilityChange = (data) => {
-//       console.log("📢 Food status changed:", data);
+  //   return () => {
+  //     socket.emit("leave_staff_room");
+  //   };
+  // }, []);
+  // useEffect(() => {
+  //   const handleAvailabilityChange = (data) => {
+  //     console.log("📢 Food status changed:", data);
 
-//       // Force RTK Query to refetch
-//       dispatch(foodItemApi.util.invalidateTags([{ type: "Food-Item", id: "LIST" }]));
-//     };
+  //     // Force RTK Query to refetch
+  //     dispatch(
+  //       foodItemApi.util.invalidateTags([{ type: "Food-Item", id: "LIST" }]),
+  //     );
+  //   };
 
-//     socket.on("food_item_availability_changed", handleAvailabilityChange);
+  //   socket.on("food_item_availability_changed", handleAvailabilityChange);
 
-//     return () => {
-//       socket.off("food_item_availability_changed", handleAvailabilityChange);
-//     };
-//   }, []);
+  //   return () => {
+  //     socket.off("food_item_availability_changed", handleAvailabilityChange);
+  //   };
+  // }, []);
 
+  // // Join the Socket.IO room for this order
+  // useEffect(() => {
+  //   if (!tableOrderDetails?.KOT_Id) return;
 
+  //   const room = `order_${tableOrderDetails.KOT_Id}`;
 
-//   // Join the Socket.IO room for this order
-//   useEffect(() => {
-//     if (!tableOrderDetails?.KOT_Id) return;
+  //   console.log("Joining room:", room);
+  //   socket.emit("join_order_room", tableOrderDetails.KOT_Id);
 
-//     const room = `order_${tableOrderDetails.KOT_Id}`;
+  //   return () => {
+  //     console.log("Leaving room:", room);
+  //     socket.emit("leave_order_room", tableOrderDetails.KOT_Id);
+  //   };
+  // }, [tableOrderDetails?.KOT_Id]);
 
-//     console.log("Joining room:", room);
-//     socket.emit("join_order_room", tableOrderDetails.KOT_Id);
+  // useEffect(() => {
+  //   if (!tableOrderDetails?.kitchenItems) return;
 
-//     return () => {
-//       console.log("Leaving room:", room);
-//       socket.emit("leave_order_room", tableOrderDetails.KOT_Id);
-//     };
-//   }, [tableOrderDetails?.KOT_Id]);
+  //   // full reset when refreshing page
+  //   const fresh = tableOrderDetails.kitchenItems.map((it) => ({
+  //     KOT_Id: tableOrderDetails.KOT_Id,
+  //     KOT_Item_Id: it.KOT_Item_Id,
+  //     itemName: it.Item_Name,
+  //     status: it.Item_Status,
+  //     time: it.updated_at,
+  //     quantity: it.Quantity,
+  //     // time: null,
+  //   }));
 
+  //   setKotNotifications(fresh);
+  // }, [tableOrderDetails]);
+  // useEffect(() => {
+  //   const handleCustomerOrder = (data) => {
+  //     console.log("📢 Customer order received:", data);
 
-// useEffect(() => {
-//   const handleCustomerOrder = (data) => {
-//     console.log("📢 Customer order received:", data);
+  //     // Only handle this if it is the order currently open
+  //     if (String(data.Order_Id) !== String(Order_Id)) {
+  //       return;
+  //     }
 
-//     // Only handle this if it is the order currently open
-//     if (String(data.Order_Id) !== String(Order_Id)) {
-//       return;
-//     }
+  //     toast.info(`New items added to ${data.Table_Name} by customer`);
 
-//     toast.info(`New items added to ${data.Table_Name} by customer`);
+  //     // Get latest order data
+  //     refetchTableOrderDetails();
+  //   };
 
-//     // Get latest order data
-//     refetchTableOrderDetails();
-//   };
+  //   socket.on("customer_order", handleCustomerOrder);
 
-//   socket.on("customer_order", handleCustomerOrder);
+  //   return () => {
+  //     socket.off("customer_order", handleCustomerOrder);
+  //   };
+  // }, [Order_Id, refetchTableOrderDetails]);
 
-//   return () => {
-//     socket.off("customer_order", handleCustomerOrder);
-//   };
-// }, [Order_Id, refetchTableOrderDetails]);
+  // useEffect(() => {
+  //   const handleOrderUpdated = (data) => {
+  //     if (String(data.Order_Id) !== String(Order_Id)) {
+  //       return;
+  //     }
 
-// useEffect(() => {
-//   const handleOrderUpdated = (data) => {
-//     if (String(data.Order_Id) !== String(Order_Id)) {
-//       return;
-//     }
+  //     refetchTableOrderDetails();
+  //   };
 
-//     refetchTableOrderDetails();
-//   };
+  //   socket.on("order_updated", handleOrderUpdated);
 
-//   socket.on("order_updated", handleOrderUpdated);
+  //   return () => {
+  //     socket.off("order_updated", handleOrderUpdated);
+  //   };
+  // }, [Order_Id, refetchTableOrderDetails]);
+  // useEffect(() => {
+  //   const handleKotUpdate = (data) => {
+  //     console.log("📢 Frontend received KOT update:", data);
+  //     toast.info(`${data.itemName} → ${data.status}`);
 
-//   return () => {
-//     socket.off("order_updated", handleOrderUpdated);
-//   };
-// }, [Order_Id, refetchTableOrderDetails]);
-//   useEffect(() => {
-//     const handleKotUpdate = (data) => {
+  //     setKotNotifications((prev) => {
+  //       const index = prev.findIndex(
+  //         (n) => String(n.KOT_Item_Id) === String(data.KOT_Item_Id),
+  //       );
 
-//       console.log("📢 Frontend received KOT update:", data);
-//       toast.info(`${data.itemName} → ${data.status}`);
+  //       // 🟢 1. If item already exists → update status/time
+  //       if (index !== -1) {
+  //         const updated = [...prev];
+  //         updated[index] = {
+  //           ...updated[index],
+  //           status: data.status,
+  //           time: data.updated_at, // ✅ FIXED
 
-//       // setKotNotifications((prev) => {
-//       //   const index = prev.findIndex(n => n.KOT_Item_Id === data.KOT_Item_Id);
-//       setKotNotifications((prev) => {
-//         const index = prev.findIndex(
-//           (n) => String(n.KOT_Item_Id) === String(data.KOT_Item_Id)
-//         );
+  //           // time: data.time,
+  //         };
+  //         return updated;
+  //       }
 
-//         // 🟢 1. If item already exists → update status/time
-//         if (index !== -1) {
-//           const updated = [...prev];
-//           updated[index] = {
-//             ...updated[index],
-//             status: data.status,
-//             time: data.updated_at, // ✅ FIXED
+  //       // 🟢 2. If the row is NEW (e.g., new biriyani added), append it
+  //       return [
+  //         ...prev,
+  //         {
+  //           KOT_Id: data.KOT_Id,
+  //           KOT_Item_Id: data.KOT_Item_Id,
+  //           itemName: data.itemName,
+  //           status: data.status,
+  //           time: data.updated_at,
 
-//             // time: data.time,
-//           };
-//           return updated;
-//         }
+  //           // time: data.time,
+  //         },
+  //       ];
+  //     });
+  //   };
+  //   dispatch(orderApi.util.invalidateTags(["Order"]));
 
-//         // 🟢 2. If the row is NEW (e.g., new biriyani added), append it
-//         return [
-//           ...prev,
-//           {
-//             KOT_Id: data.KOT_Id,
-//             KOT_Item_Id: data.KOT_Item_Id,
-//             itemName: data.itemName,
-//             status: data.status,
-//             time: data.updated_at,
+  //   socket.on("frontend_kot_update", handleKotUpdate);
 
-//             // time: data.time,
-//           }
-//         ];
-//       });
-//     };
-//     dispatch(orderApi.util.invalidateTags(["Order"]));
-
-//     socket.on("frontend_kot_update", handleKotUpdate);
-
-//     return () => {
-//       socket.off("frontend_kot_update", handleKotUpdate);
-//     };
-//   }, []);
+  //   return () => {
+  //     socket.off("frontend_kot_update", handleKotUpdate);
+  //   };
+  // }, []);
 useEffect(() => {
   const socket = io("http://192.168.0.111:4000", {
-    transports: ["websocket"],
-  });
+      transports: ["websocket"],
+    });
 
   socketRef.current = socket;
 
@@ -397,29 +398,21 @@ useEffect(() => {
   };
 }, [tableOrderDetails?.KOT_Id]);
   const {
-
     control,
     handleSubmit,
     setValue,
     watch,
 
     reset,
-
   } = useForm({
     defaultValues: {
-      //   Tax_Type: "None",
-      //   Tax_Amount: "0.00",
       Amount: "0.00",
       Sub_Total: "0.00",
-      items: []   // No pre-created empty row
-    }
+      items: [], // No pre-created empty row
+    },
   });
 
-
   const [showSummary, setShowSummary] = useState(false);
-
-
-
 
   useEffect(() => {
     if (!tableOrderDetails) return;
@@ -429,7 +422,7 @@ useEffect(() => {
       Item_Price: item?.Price,
       Item_Quantity: item?.Quantity,
       Amount: item?.Amount,
-      id: item?.Item_Id   // ✅ USE Item_Id
+      id: item?.Item_Id, // ✅ USE Item_Id
     }));
 
     setSelectedTables(tableOrderDetails?.tables.map((t) => t));
@@ -445,29 +438,22 @@ useEffect(() => {
     // 🔥 Build mapping: Item_Id → rowIndex
     const map = {};
     tableOrderDetails?.orderItems.forEach((it, idx) => {
-      map[it.Item_Id] = idx;   // ✅ FIXED
+      map[it.Item_Id] = idx; // ✅ FIXED
     });
     itemRowMap.current = map;
 
     // 🔥 Also sync cart quantities with Item_Id
     const initialCart = {};
     tableOrderDetails?.orderItems.forEach((it) => {
-      initialCart[it.Item_Id] = it.Quantity;  // ✅ FIXED
+      initialCart[it.Item_Id] = it.Quantity; // ✅ FIXED
     });
     setCart(initialCart);
-
   }, [tableOrderDetails, reset]);
-
-
 
   const { fields, append, remove } = useFieldArray({
     control,
     name: "items",
   });
-
-
- 
-
 
   const totalItems = Object.values(cart).reduce((sum, qty) => sum + qty, 0);
   const itemRowMap = useRef({});
@@ -476,128 +462,30 @@ useEffect(() => {
 
     let subTotal = 0;
 
-
-    itemsValues.forEach(item => {
+    itemsValues.forEach((item) => {
       const price = parseFloat(item.Item_Price) || 0;
       const qty = parseInt(item.Item_Quantity) || 0;
 
-
       subTotal += price * qty;
-
     });
-
-
 
     setValue("Sub_Total", subTotal.toFixed(2));
 
     setValue("Amount", subTotal.toFixed(2));
   };
 
-  // const minQuantityOfItems=tableOrderDetails?.kitchenItems?.reduce((acc, item) => {
-  //     acc[item.Item_Id] = item.Quantity;
-  //     return acc;
-  // })
   const minQuantityOfItems = new Map();
 
   tableOrderDetails?.kitchenItems?.forEach((item) => {
     if (!minQuantityOfItems.has(item.Item_Id))
       minQuantityOfItems.set(item.Item_Id, item.Quantity);
     else {
-      minQuantityOfItems.set(item.Item_Id, minQuantityOfItems.get(item.Item_Id) + item.Quantity);
+      minQuantityOfItems.set(
+        item.Item_Id,
+        minQuantityOfItems.get(item.Item_Id) + item.Quantity,
+      );
     }
-  })
-
-  // const minQty = minQuantityOfItems.get(Item_Id) || 0;
-  // const currentQty = Number(cart[Item_Id] || 0);
-  // const disableMinus =
-  //   unavailable || currentQty <= minQty;
-
-  // console.log(minQuantityOfItems, "minQuantityOfItems")
-  // const updateCart = (itemId, delta, index, itemName, itemAmount) => {
-  //   const amount = parseFloat(itemAmount || 0);
-
-  //   setCart(prev => {
-  //     const newQty = Math.max(0, (prev[itemId] || 0) + delta);
-
-  //     // Does this menu item already exist inside RHF form?
-  //     let rowIndex = itemRowMap.current[itemId];
-
-  //     // ⭐ NEW menu item → create a new row
-  //     if (rowIndex === undefined) {
-  //       rowIndex = fields.length;
-  //       itemRowMap.current[itemId] = rowIndex;
-
-  //       append({
-  //         Item_Name: itemName,
-  //         Item_Price: amount,
-  //         Item_Quantity: newQty,
-  //         Amount: (amount * newQty).toFixed(2),
-  //         id: itemId
-  //       });
-  //     }
-
-  //     // ⭐ Update existing row
-  //     setValue(`items.${rowIndex}.Item_Name`, itemName);
-  //     setValue(`items.${rowIndex}.Item_Price`, amount);
-  //     setValue(`items.${rowIndex}.Item_Quantity`, newQty);
-  //     setValue(`items.${rowIndex}.Amount`, (amount * newQty).toFixed(2));
-
-  //     // Recalculate totals
-  //     setTimeout(updateTotals, 0);
-
-  //     return { ...prev, [itemId]: newQty };
-  //   });
-  // };
-  // const updateCart = (itemId, delta, index, itemName, itemAmount) => {
-  //   const price = Number(itemAmount || 0);
-
-  //   setCart((prev) => {
-  //     const currentQty = Number(prev[itemId] || 0);
-  //     const newQty = currentQty + delta;
-
-  //     const rowIndex = itemRowMap.current[itemId];
-
-  //     // ❌ REMOVE ITEM COMPLETELY WHEN QTY = 0
-  //     if (newQty <= 0) {
-  //       if (rowIndex !== undefined) {
-  //         remove(rowIndex); // 🔥 remove from RHF form
-  //         delete itemRowMap.current[itemId]; // 🔥 clean mapping
-  //       }
-
-  //       const updatedCart = { ...prev };
-  //       delete updatedCart[itemId]; // 🔥 remove from cart
-
-  //       setTimeout(updateTotals, 0);
-  //       return updatedCart;
-  //     }
-
-  //     // ✅ ADD NEW ROW IF NOT EXISTS
-  //     let finalRowIndex = rowIndex;
-  //     if (finalRowIndex === undefined) {
-  //       finalRowIndex = fields.length;
-  //       itemRowMap.current[itemId] = finalRowIndex;
-
-  //       append({
-  //         Item_Name: itemName,
-  //         Item_Price: price,
-  //         Item_Quantity: newQty,
-  //         Amount: (price * newQty).toFixed(2),
-  //         id: itemId,
-  //       });
-  //     } else {
-  //       // ✅ UPDATE EXISTING ROW
-  //       setValue(`items.${finalRowIndex}.Item_Quantity`, newQty);
-  //       setValue(
-  //         `items.${finalRowIndex}.Amount`,
-  //         (price * newQty).toFixed(2)
-  //       );
-  //     }
-
-  //     setTimeout(updateTotals, 0);
-
-  //     return { ...prev, [itemId]: newQty };
-  //   });
-  // };
+  });
 
   const updateCart = (itemId, delta, _index, itemName, itemPrice) => {
     const price = Number(itemPrice); // ✅ UNIT PRICE ONLY
@@ -642,17 +530,14 @@ useEffect(() => {
 
         append({
           id: itemId,
-          Item_Name: itemName,      // ✅ name from param
-          Item_Price: price,        // ✅ unit price stored once
+          Item_Name: itemName, // ✅ name from param
+          Item_Price: price, // ✅ unit price stored once
           Item_Quantity: newQty,
           Amount: (price * newQty).toFixed(2),
         });
       } else {
         setValue(`items.${rowIndex}.Item_Quantity`, newQty);
-        setValue(
-          `items.${rowIndex}.Amount`,
-          (price * newQty).toFixed(2)
-        );
+        setValue(`items.${rowIndex}.Amount`, (price * newQty).toFixed(2));
       }
 
       setTimeout(updateTotals, 0);
@@ -672,8 +557,7 @@ useEffect(() => {
     // 1️⃣ FILTER: category + smart search
     const filtered = items.filter((item) => {
       const matchesCategory =
-        activeCategory === "All" ||
-        item.Item_Category === activeCategory;
+        activeCategory === "All" || item.Item_Category === activeCategory;
 
       const matchesSearch =
         categoryChanged ||
@@ -683,43 +567,10 @@ useEffect(() => {
       return matchesCategory && matchesSearch;
     });
 
-    // update category ref AFTER filtering
-    //lastCategoryRef.current = activeCategory;
     return filtered;
-    // // 2️⃣ SPLIT: cart vs non-cart (preserve order)
-    // const addedItems = [];
-    // const newItems = [];
-
-    // filtered.forEach((item) => {
-    //   if (cart?.[item.Item_Id]) {
-    //     addedItems.push(item);
-    //   } else {
-    //     newItems.push(item);
-    //   }
-    // });
-
-    // // 3️⃣ MOST RECENT UPDATE → move to top of its group ONLY
-    // const lastId = lastUpdatedItemRef.current;
-
-    // if (lastId) {
-    //   const idx = addedItems.findIndex(
-    //     (item) => item.Item_Id === lastId
-    //   );
-
-    //   if (idx > 0) {
-    //     const [recent] = addedItems.splice(idx, 1);
-    //     addedItems.unshift(recent);
-    //   }
-    // }
-
-    // // 4️⃣ MERGE: cart items first, then others
-    // return [...addedItems, ...newItems];
   }, [items, activeCategory, searchTerm, cart]);
   useEffect(() => {
-    if (
-      activeCategory !== "All" &&
-      filteredItems.length === 0
-    ) {
+    if (activeCategory !== "All" && filteredItems.length === 0) {
       setTimeout(() => {
         setActiveCategory("All");
       }, 1000);
@@ -730,9 +581,6 @@ useEffect(() => {
   const summaryItems = watch("items") || [];
 
   const formValues = watch();
-  //const itemsValues = watch("items");   // watch all item rows
-  //const totalPaid = watch("Total_Paid"); // watch Total_Paid
-  // const num = (v) => (v === undefined || v === null || v === "" ? 0 : Number(v));
   const subTotal = Number(watch("Sub_Total") || 0);
   const discountType = watch("Discount_Type");
   const discountValue = Number(watch("Discount") || 0);
@@ -752,17 +600,14 @@ useEffect(() => {
   // round
   discountAmount = Number(discountAmount.toFixed(2));
 
-  // 2️⃣ Calculate final amount
-  // const finalAmount = Number((subTotal - discountAmount).toFixed(2));
-
   useEffect(() => {
     updateTotals();
   }, [watch("items")]);
-  console.log(selectedTables, "selectedTables")
+  console.log(selectedTables, "selectedTables");
+
   const printKOTInvoice = (kitchens) => {
     console.log("Preparing to print KOT invoice for kitchens:", kitchens);
-    const getCurrentDate = () =>
-      new Date().toLocaleDateString("en-GB");
+    const getCurrentDate = () => new Date().toLocaleDateString("en-GB");
 
     const getCurrentTime = () =>
       new Date().toLocaleTimeString("en-US", {
@@ -772,7 +617,8 @@ useEffect(() => {
       });
 
     const kitchenSections = Object.entries(kitchens)
-      .map(([kitchenName, items], index) => `
+      .map(
+        ([kitchenName, items], index) => `
       ${index > 0 ? `<div class="line"></div>` : ``}
 
       <div class="invoice-kitchen">
@@ -796,15 +642,20 @@ useEffect(() => {
           <div class="item-qty">QTY</div>
         </div>
 
-        ${items.map((it, i) => `
+        ${items
+          .map(
+            (it, i) => `
           <div class="item-row">
             <div class="col-no">${i + 1}</div>
             <div class="item-name">${it.Item_Name}</div>
             <div class="item-qty">${it.Item_Quantity}</div>
           </div>
-        `).join("")}
+        `,
+          )
+          .join("")}
       </div>
-    `)
+    `,
+      )
       .join("");
 
     const html = `<!DOCTYPE html>
@@ -869,10 +720,6 @@ useEffect(() => {
     iframe.style.display = "none";
     document.body.appendChild(iframe);
 
-    // iframe.contentDocument.open();
-    // iframe.contentDocument.write(html);
-    // iframe.contentDocument.close();
-
     iframe.onload = () => {
       iframe.contentWindow.print();
     };
@@ -885,25 +732,78 @@ useEffect(() => {
     iframe.contentDocument.write(html);
     iframe.contentDocument.close();
 
-
     setTimeout(() => document.body.removeChild(iframe), 1000);
-    //  const w = window.open("", "_blank");
-    //   if (!w) {
-    //     alert("Please allow pop-ups to print the invoice.");
-    //     return;
-    //   }
-
-    //   w.document.write(html);
-    //   w.document.write(`
-    //   <button onclick="window.print()" 
-    //     class="no-print"
-    //     style="position:fixed;top:10px;right:10px;padding:8px 12px;
-    //            background:#ff0000;color:white;border:none;border-radius:4px;
-    //            font-size:14px;cursor:pointer;z-index:9999;">
-    //       Print
-    //   </button>
-    // `);
   };
+
+  // Print KOT using Cleanter on mobile
+  const printKOTViaCleanter = async (kitchens, tableNames = []) => {
+    const getCurrentDate = () => new Date().toLocaleDateString("en-GB");
+
+    const getCurrentTime = () =>
+      new Date().toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
+
+    const content = [];
+
+    Object.entries(kitchens).forEach(([kitchenName, items], kitchenIndex) => {
+      if (kitchenIndex > 0) content.push({ type: "divider" });
+
+      content.push({
+        type: "text",
+        text: "DINE-IN",
+        align: "center",
+        bold: true,
+      });
+
+      content.push({
+        type: "text",
+        text: `TABLE: ${tableNames.join(", ")}`,
+        align: "center",
+        bold: true,
+      });
+
+      content.push({
+        type: "text",
+        text: kitchenName,
+        align: "center",
+        bold: true,
+        size: "large",
+      });
+
+      content.push({ type: "divider" });
+
+      content.push({
+        type: "row",
+        left: `Date: ${getCurrentDate()}`,
+        right: getCurrentTime(),
+      });
+
+      content.push({ type: "divider" });
+
+      content.push({
+        type: "row",
+        left: "NO.  ITEM",
+        right: "QTY",
+        bold: true,
+      });
+
+      items.forEach((item, index) => {
+        content.push({
+          type: "row",
+          left: `${index + 1}. ${item?.Item_Name || ""}`,
+          right: `${item?.Item_Quantity || 0}`,
+        });
+      });
+    });
+
+    content.push({ type: "feed", lines: 3 });
+
+    await printViaCleanter(content);
+  };
+
   const onSubmit = async (data) => {
     console.log("Form Data:", data);
 
@@ -918,11 +818,13 @@ useEffect(() => {
 
     // Remove empty rows
     const cleanedItems = data.items.filter(
-      (it) => it.Item_Name && it.Item_Name.trim() !== ""
+      (it) => it.Item_Name && it.Item_Name.trim() !== "",
     );
     for (const item of cleanedItems) {
       if (!item.Item_Quantity || Number(item.Item_Quantity) <= 0) {
-        toast.error(`Quantity for "${item.Item_Name}" must be greater than zero`);
+        toast.error(
+          `Quantity for "${item.Item_Name}" must be greater than zero`,
+        );
         return;
       }
     }
@@ -930,17 +832,6 @@ useEffect(() => {
       toast.error("Please add at least one valid item with a name.");
       return;
     }
-
-    // Check duplicate item names
-    //const seen = new Set();
-    // for (const item of cleanedItems) {
-    //     const name = item.Item_Name.trim().toLowerCase();
-    //     if (seen.has(name)) {
-    //         toast.error(`Duplicate item: ${item.Item_Name}`);
-    //         return;
-    //     }
-    //     seen.add(name);
-    // }
 
     // Prepare items safely
     const itemsSafe = cleanedItems.map((item) => ({
@@ -965,416 +856,65 @@ useEffect(() => {
 
     console.log("📦 Final JSON to send:", payload);
 
+    const useCleanter = isMobileDevice();
+
+    if (useCleanter) {
+      try {
+        await checkCleanterReady();
+      } catch (e) {
+        toast.error(`${e.message} No order was submitted.`);
+        return;
+      }
+    }
+
     try {
       const res = await updateOrder({ Order_Id, payload }).unwrap();
       console.log("✅ Order update response:", res);
+
       if (!res?.success) {
         toast.error(res.message || "Failed to update order.");
         return;
       }
-      if (res?.elligibleItems && res?.elligibleItems && Object.keys(res.elligibleItems).length > 0) {
-        printKOTInvoice(res.elligibleItems);
+
+      let printFailed = false;
+
+      if (res?.elligibleItems && Object.keys(res.elligibleItems).length > 0) {
+        if (useCleanter) {
+          try {
+            await printKOTViaCleanter(res.elligibleItems, data.Table_Names);
+          } catch (printError) {
+            printFailed = true;
+
+            toast.error(
+              `Order updated, but the KOT did not print (${printError.message}). Do not submit the order again.`,
+              { autoClose: 8000 },
+            );
+          }
+        } else {
+          printKOTInvoice(res.elligibleItems);
+        }
       }
 
-      toast.success("Order updated Successfully!");
+      if (!printFailed) {
+        toast.success("Order updated Successfully!");
+      }
+
       dispatch(kitchenStaffApi.util.invalidateTags(["Kitchen-Staff"]));
       //dispatch(tableApi.util.invalidateTags(["Table"]));
       dispatch(
         foodItemApi.util.invalidateTags([
           { type: "Daily-Food-Item-Stock", id: "LIST" },
-        ]))
+        ]),
+      );
       refetchMenuItems();
       // navigate("/staff/orders/all-orders");
       navigate("/staff/orders/all-tables");
-
     } catch (error) {
       console.error("❌ Order update Error:", error);
       toast.error(error?.data?.message ?? "Failed to update order.");
     }
   };
 
-  //   const handleConfirmBillAndGenerateInvoice = async (data) => {
-  //     try {
-  //       const payload = {
-  //         Customer_Name: data?.Customer_Name,
-  //         Customer_Phone: data?.Customer_Phone,
-  //         Discount: data?.Discount,
-  //         Discount_Type: data?.Discount_Type ?? "amount",
-  //         Service_Charge: data.Service_Charge,
-  //         Payment_Type: data?.Payment_Type,
-  //         Final_Amount: data?.Final_Amount,
-  //       };
-
-  //       // 🔥 API CALL
-  //       const response = await confirmBillAndInvoiceGenerated({
-  //         // orderId,
-  //         payload
-  //       }).unwrap();
-
-  //       toast.success("Invoice Generated & Bill Paid!");
-  //       console.log(response, "response");
-  //       //     setInvoiceDetails(prev => ({
-  //       //   ...prev,
-  //       //   Invoice_Number: response.Invoice_Id, // 🔥 map backend Invoice_Id
-  //       // }));
-  //       // const invoiceId = response.Invoice_Id;
-  //       //  setInvoiceNumber(invoiceId);
-  // printInvoiceWindow(
-  //   response.Invoice_Id,        // invoiceId
-  //   response.invoiceDetails,    // invoiceDetails
-  //   response.items,             // items (array)
-  //   response.Table_Names        // Table_Names (array)
-  // );
-
-  //       // RESPONSE MUST INCLUDE invoice number
-  //       //const newInvoiceNumber = response.invoiceNumber; 
-
-  //       // 🔥 NOW PRINT THE INVOICE
-  //       // printInvoiceWindow();
-
-  //       // Refresh UI & close modal
-  //       dispatch(tableApi.util.invalidateTags(["Table"]));
-  //       dispatch(kitchenStaffApi.util.invalidateTags(["Kitchen-Staff"]));
-  //       dispatch(orderApi.util.invalidateTags(["Order"]));
-
-  //       navigate("/staff/orders/all-orders");
-
-  //     } catch (error) {
-  //       console.error("❌ Error confirming bill and generating invoice:", error);
-  //       toast.error(error?.data?.message || "Failed to generate invoice");
-  //     }
-  //   };
-
-  //   const handleShareSMS = async (data) => {
-  //     try {
-  //       const payload = {
-  //         Customer_Name: data?.Customer_Name,
-  //         Customer_Phone: data?.Customer_Phone,
-  //         Discount_Type: data?.Discount_Type,
-  //         Discount: data?.Discount,
-  //         Service_Charge: data?.Service_Charge,
-  //         Payment_Type: data?.Payment_Type,
-  //         Final_Amount: data?.Final_Amount,
-  //       };
-  //       console.log(payload, "payload");
-
-  //       const response = await generateSms({
-  //         // Order_Id: orderId,
-  //         payload,
-  //       }).unwrap();
-
-  //       toast.success("📩 Bill sent via SMS successfully");
-  //       console.log(response, "response");
-  //       dispatch(tableApi.util.invalidateTags(["Table"]));
-  //       dispatch(kitchenStaffApi.util.invalidateTags(["Kitchen-Staff"]));
-
-  //       navigate("/staff/orders/all-orders");
-  //     } catch (err) {
-  //       console.error(err);
-  //       toast.error(err?.data?.message || "Failed to send SMS");
-  //     }
-  //   };
-  //   // console.log(customerDetails,"customerDetails");
-  //   //  console.log(invoiceDetails,"invoiceDetails");
-
-  //   const printInvoiceWindow = (invoiceId,invoiceDetails,items,Table_Names) => {
-  //     const getCurrentDate = () =>
-  //       new Date().toLocaleDateString("en-GB");
-
-  //     const getCurrentTime = () =>
-  //       new Date().toLocaleTimeString("en-US", {
-  //         hour: "2-digit",
-  //         minute: "2-digit",
-  //         hour12: true,
-  //       });
-  //     const total = invoiceDetails?.Final_Amount ?? 0;
-
-
-  //     const html = `<!DOCTYPE html>
-  // <html>
-  // <head>
-  //   <title>Invoice - ${invoiceDetails?.Invoice_Number ?? ""}</title>
-  //   <meta charset="UTF-8">
-  //   <style>
-  //     * {
-  //       margin: 0;
-  //       padding: 0;
-  //       box-sizing: border-box;
-  //     }
-
-  //     body {
-  //       font-family: 'Courier New', Courier, monospace;
-  //       font-size: 11px;
-  //       line-height: 1.3;
-  //       font-weight: 700;
-  //       color: #000;
-  //       width: 58mm;
-  //       margin: 0;
-  //       padding: 0;
-  //       -webkit-print-color-adjust: exact;
-  //       print-color-adjust: exact;
-  //     }
-
-  //     /* 🔥 SAFE PRINTABLE WIDTH */
-  //     .invoice {
-  //       width: 48mm;
-  //       margin: 0 auto;
-  //       padding: 2mm;
-  //     }
-
-  //     .header-center,
-  //     .header-middle {
-  //       text-align: center;
-  //       margin-bottom: 6px;
-  //       border-bottom: 1px dashed #000;
-  //       padding-bottom: 6px;
-  //     }
-
-  //     .brand {
-  //       font-size: 15px;
-  //       font-weight: 800;
-  //       letter-spacing: 1px;
-  //     }
-
-  //     .line {
-  //       border-top: 1px dashed #000;
-  //       margin: 5px 0;
-  //     }
-
-  //     .line-solid {
-  //       border-top: 1px solid #000;
-  //       margin: 5px 0;
-  //     }
-
-  //    .info-row.date-time {
-  //   display: flex;
-  //   justify-content: space-between;
-  //   font-size: 9px;
-  //   font-weight: 700;
-  //   width: 100%;
-  // }
-
-  // .info-row.date-time span {
-  //   white-space: nowrap;   /* 🔥 prevents wrapping */
-  // }
-
-  //     .info-label {
-  //       font-weight: 800;
-  //     }
-
-  //     /* ITEMS */
-  //     .items-header,
-  //     .item-row {
-  //       display: flex;
-  //       justify-content: space-between;
-  //       font-size: 10px;
-  //       width: 100%;
-  //     }
-
-  //     .items-header {
-  //       border-bottom: 1px solid #000;
-  //       padding-bottom: 3px;
-  //       font-weight: 800;
-  //     }
-
-  //     .item-row {
-  //       border-bottom: 1px dashed #ccc;
-  //       padding: 2px 0;
-  //     }
-
-  //     .col-no {
-  //       width: 5mm;
-  //     }
-
-  //     .item-name {
-  //       flex: 1;
-  //       padding-right: 2mm;
-  //       word-break: break-word;
-  //     }
-
-  //     .item-qty {
-  //       width: 6mm;
-  //       text-align: center;
-  //     }
-
-  //     .item-amount {
-  //       width: 10mm;
-  //       text-align: right;
-  //     }
-
-  //     /* SUMMARY */
-  //     .summary {
-  //       margin-top: 6px;
-  //       font-size: 11px;
-  //       width: 100%;
-  //     }
-
-  //     .summary-row {
-  //       display: flex;
-  //       justify-content: space-between;
-  //       margin: 2px 0;
-  //     }
-
-  //     .summary-row.total {
-  //       font-size: 13px;
-  //       font-weight: 900;
-  //       border-top: 1px solid #000;
-  //       border-bottom: 2px solid #000;
-  //       padding: 4px 0;
-  //       margin-top: 4px;
-  //     }
-
-  //     .footer {
-  //       text-align: center;
-  //       margin-top: 8px;
-  //       padding-top: 6px;
-  //       border-top: 1px dashed #000;
-  //       font-size: 10px;
-  //       font-weight: 700;
-  //     }
-
-  //     @media print {
-  //       @page {
-  //         size: 58mm auto;
-  //         margin: 0;
-  //       }
-  //     }
-  //   </style>
-  // </head>
-
-  // <body>
-  //   <div class="invoice">
-
-  //     <div class="header-center">
-  //       <div class="brand">HELLO GUYS</div>
-  //       <div>Phone: +91 9903106989</div>
-  //       <div>Mail: sparkhelloguys@gmail.com</div>
-  //       <div style="font-size:9px">
-  //         Address: 021D, Ho-Chi-Minh Sarani,
-  //         Shakuntala Park, Kolkata 700061
-  //       </div>
-  //       <div>www.helloguys.co.in</div>
-  //     </div>
-
-  //     ${invoiceDetails?.Customer_Name ? `
-  //     <div class="info-row">
-  //       <span class="info-label">Customer:</span>
-  //       <span>${invoiceDetails.Customer_Name}</span>
-  //     </div>` : ``}
-
-  //     ${invoiceDetails?.Customer_Phone ? `
-  //     <div class="info-row">
-  //       <span class="info-label">Phone:</span>
-  //       <span>${invoiceDetails.Customer_Phone}</span>
-  //     </div>` : ``}
-
-  //     <div class="line"></div>
-
-  // <div class="header-middle">
-  //   <b>TABLE: ${
-  //   Array.isArray(Table_Names) && Table_Names.length
-  //     ? Table_Names.join(", ")
-  //     : "-"
-  // }</b>
-
-  // </div>
-
-
-  //  <div class="info-row date-time">
-  //   <span><b>Date:</b> ${getCurrentDate()}</span>
-  //   <span><b>Time:</b> ${getCurrentTime()}</span>
-  // </div>
-
-
-  //     <div class="info-row">
-  //       <span><b>Invoice:</b> ${invoiceId || "-"}</span>
-  //     </div>
-
-  //     <div class="line-solid"></div>
-
-  //     <div class="items-header">
-  //       <div class="col-no">No</div>
-  //       <div class="item-name">ITEM</div>
-  //       <div class="item-qty">QTY</div>
-  //       <div class="item-amount">AMT</div>
-  //     </div>
-
-  //     ${(items || []).map((it, i) => `
-  //       <div class="item-row">
-  //         <div class="col-no">${i + 1}</div>
-  //         <div class="item-name">${it.Item_Name}</div>
-  //         <div class="item-qty">${it.Item_Quantity}</div>
-  //         <div class="item-amount">₹${Number(it.Amount).toFixed(2)}</div>
-  //       </div>
-  //     `).join("")}
-
-  //     <div class="line-solid"></div>
-
-  //     <div class="summary">
-  //       <div class="summary-row">
-  //         <span>Subtotal</span>
-  //         <span>₹${Number(invoiceDetails?.Sub_Total).toFixed(2)}</span>
-  //       </div>
-
-  //       ${invoiceDetails?.Discount ? `
-  //       <div class="summary-row">
-  //         <span>Discount</span>
-  //         <span>
-  //           ${invoiceDetails.Discount_Type === "percentage"
-  //           ? invoiceDetails.Discount + "%"
-  //           : "₹" + invoiceDetails.Discount}
-  //         </span>
-  //       </div>` : ``}
-
-  //       <div class="summary-row total">
-  //         <span>TOTAL</span>
-  //         <span>₹${Number(total).toFixed(2)}</span>
-  //       </div>
-  //     </div>
-
-  //     <div class="footer">
-  //       <b>THANK YOU!</b><br>
-  //       Please Visit Again
-  //     </div>
-
-  //   </div>
-  // </body>
-  // </html>
-  // `
-
-  //     // 🔥 CREATE HIDDEN IFRAME
-
-  //     const iframe = document.createElement("iframe");
-  //     iframe.style.position = "fixed";
-  //     iframe.style.right = "0";
-  //     iframe.style.bottom = "0";
-  //     iframe.style.width = "0";
-  //     iframe.style.height = "0";
-  //     iframe.style.border = "0";
-
-  //     document.body.appendChild(iframe);
-
-  //     const doc = iframe.contentWindow.document;
-  //     doc.open();
-  //     doc.write(html);
-  //     doc.close();
-
-  //     // ✅ THIS WAS MISSING
-  //     iframe.onload = () => {
-  //       iframe.contentWindow.focus();
-  //       iframe.contentWindow.print();
-  //     };
-
-  //     // 🧹 CLEANUP AFTER PRINT
-  //     setTimeout(() => {
-  //       document.body.removeChild(iframe);
-  //     }, 1000);
-
-  //   };
-
-
-
-  //console.log(summaryItems);
   console.log("Current form values:", formValues);
   //console.log("Form errors:", errors);
 
@@ -1382,74 +922,51 @@ useEffect(() => {
 
   return (
     <>
-
-
       <div className="sb2-2-2">
         <ul>
           <li>
-
-            <NavLink style={{ display: "flex", flexDirection: "row" }}
+            <NavLink
+              style={{ display: "flex", flexDirection: "row" }}
               to="/home"
-
             >
-              <LayoutDashboard size={20} style={{ marginRight: '8px' }} />
-              {/* <i className="fa fa-home mr-2" aria-hidden="true"></i> */}
+              <LayoutDashboard size={20} style={{ marginRight: "8px" }} />
               Dashboard
             </NavLink>
           </li>
-
         </ul>
       </div>
 
       {/* Main Content */}
-      <div className="sb2-2-3" >
+      <div className="sb2-2-3">
         <div className="row" style={{ margin: "0px" }}>
           <div className="col-md-12">
-            <div style={{ padding: "20px", marginBottom: "20px" }}
-              className="box-inn-sp">
-
+            <div
+              style={{ padding: "20px", marginBottom: "20px" }}
+              className="box-inn-sp"
+            >
               <div className="inn-title w-full px-2 py-3">
-
-                <div className="flex flex-col mt-10 
+                <div
+                  className="flex flex-col mt-10 
                                 sm:flex-row justify-between items-start 
-                                sm:items-center w-full sm:mt-0">
-
+                                sm:items-center w-full sm:mt-0"
+                >
                   {/* LEFT HEADER */}
                   <div className="w-full flex justify-center items-center sm:w-auto">
                     <h4 className="text-xl sm:text-2xl font-bold mb-1 sm:mb-2">
                       Update Order
                     </h4>
-                    {/* <p className="text-gray-500 mb-2 sm:mb-4">
-        Add new sale details
-      </p> */}
                   </div>
 
                   {/* RIGHT BUTTON SECTION */}
 
-                  <div className="
+                  <div
+                    className="
        w-full flex justify-center items-center sm:w-auto 
        flex flex-wrap sm:flex-nowrap 
         sm:justify-end 
        gap-3
-     ">
-                    {/* <button
-                      type="button"
-                      onClick={() => navigate("/staff/orders/all-orders")}
-                      className="text-white font-bold py-2 px-4 rounded"
-                      style={{ backgroundColor: "black" }}
-                    >
-                      Back
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => navigate("/staff/orders/all-orders")}
-                      className="text-white py-2 px-4 rounded"
-                      style={{ backgroundColor: "#ff0000" }}
-                    >
-                      All Orders
-                    </button> */}
-
+     "
+                  >
                     <button
                       type="button"
                       onClick={() => navigate("/staff/orders/all-tables")}
@@ -1468,21 +985,22 @@ useEffect(() => {
                       All Orders
                     </button>
                   </div>
-
                 </div>
               </div>
-              <div style={{ padding: "0", backgroundColor: "#f1f1f19d" }}
-                className="tab-inn">
+              <div
+                style={{ padding: "0", backgroundColor: "#f1f1f19d" }}
+                className="tab-inn"
+              >
                 <form onSubmit={handleSubmit(onSubmit)}>
-
-
                   <div className="w-full mt-2 mb-2">
                     {/* ⭐ SELECTED TABLES — Centered on large screens, stacked on mobile */}
-                    <div className=" grid
+                    <div
+                      className=" grid
   grid-rows-2 grid-cols-1
   md:grid-rows-1 md:grid-cols-3
   p-2 mt-0 gap-2 w-full heading-wrapper
- mb-4">
+ mb-4"
+                    >
                       <div className="flex flex-col lg:flex-row gap-2">
                         {selectedTables?.length > 0 ? (
                           <>
@@ -1511,7 +1029,9 @@ useEffect(() => {
                             </div>
                           </>
                         ) : (
-                          <p className="text-gray-500 text-center w-full py-4">No tables selected</p>
+                          <p className="text-gray-500 text-center w-full py-4">
+                            No tables selected
+                          </p>
                         )}
                       </div>
                       <div className="sm:visible"></div>
@@ -1544,21 +1064,6 @@ useEffect(() => {
                               <span className="font-semibold text-gray-800 text-base leading-tight flex-1">
                                 {n?.itemName} X{n?.quantity}
                               </span>
-
-                              {/* <span
-                                className={`text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap ${n.status === "ready"
-                                    ? "bg-green-100 text-green-700 border border-green-300"
-                                    : n.status === "preparing"
-                                      ? "bg-yellow-100 text-yellow-700 border border-yellow-300"
-                                      : "bg-gray-100 text-gray-500 border border-gray-300"
-                                  }`}
-                              >
-                                {n?.status}
-                              </span>
-                              <span className="text-xs px-3 py-1 text-gray-500">
-                                {formatTime(n?.time)}
-                              </span> */}
-
                             </div>
                           </div>
                         ))
@@ -1566,14 +1071,14 @@ useEffect(() => {
                     </div>
                   </div>
 
-
                   {/* ══════════════════════════════════════════════════════════
           MOBILE FAB BUTTONS — visible only on small screens
           Category drawer trigger (left) + Order summary (right)
       ══════════════════════════════════════════════════════════ */}
-                  <div className="flex lg:hidden fixed bottom-4 left-0 right-0 z-40
-       justify-between px-4 pointer-events-none">
-
+                  <div
+                    className="flex lg:hidden fixed bottom-4 left-0 right-0 z-40
+       justify-between px-4 pointer-events-none"
+                  >
                     {/* Category FAB */}
                     <button
                       type="button"
@@ -1612,22 +1117,33 @@ useEffect(() => {
                       />
                       {/* Drawer */}
                       <div className="relative w-64 bg-white h-[calc(100%-6rem)] mt-24 flex flex-col shadow-2xl z-10">
-                      {/* <div className="relative w-64 bg-white h-full flex flex-col shadow-2xl z-10"> */}
+                        {/* <div className="relative w-64 bg-white h-full flex flex-col shadow-2xl z-10"> */}
                         <div className="px-4 py-3 bg-[#ff0000] flex justify-between items-center">
-                          <h4 className="text-white font-bold text-sm uppercase tracking-wide">Categories</h4>
-                          <button type="button"
-                            onClick={() => setShowCategoryDrawer(false)} className="text-white text-xl font-bold">✖</button>
+                          <h4 className="text-white font-bold text-sm uppercase tracking-wide">
+                            Categories
+                          </h4>
+                          <button
+                            type="button"
+                            onClick={() => setShowCategoryDrawer(false)}
+                            className="text-white text-xl font-bold"
+                          >
+                            ✖
+                          </button>
                         </div>
                         <div className="flex-1 overflow-y-auto py-2 px-2 space-y-1">
                           {newCategories.map((cat, index) => (
                             <button
                               type="button"
                               key={index}
-                              onClick={() => { setActiveCategory(cat); setShowCategoryDrawer(false); }}
-                              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all ${activeCategory === cat
+                              onClick={() => {
+                                setActiveCategory(cat);
+                                setShowCategoryDrawer(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                activeCategory === cat
                                   ? "bg-[#ff0000] text-white shadow-sm"
                                   : "bg-gray-50 hover:bg-red-50 text-gray-700 border border-gray-100"
-                                }`}
+                              }`}
                             >
                               {cat}
                             </button>
@@ -1649,14 +1165,19 @@ useEffect(() => {
                         onClick={() => setShowOrderDrawer(false)}
                       />
                       {/* Drawer */}
-                      <div className="relative bg-white rounded-t-2xl shadow-2xl z-10 flex flex-col" style={{ maxHeight: "80vh" }}>
+                      <div
+                        className="relative bg-white rounded-t-2xl shadow-2xl z-10 flex flex-col"
+                        style={{ maxHeight: "80vh" }}
+                      >
                         {/* Handle */}
                         <div className="flex justify-center pt-3 pb-1">
                           <div className="w-10 h-1 bg-gray-300 rounded-full" />
                         </div>
                         {/* Header */}
                         <div className="px-4 py-3 bg-[#ff0000] flex justify-between items-center">
-                          <h4 className="text-white font-bold text-sm uppercase tracking-wide">Order Summary</h4>
+                          <h4 className="text-white font-bold text-sm uppercase tracking-wide">
+                            Order Summary
+                          </h4>
                           <div className="flex items-center gap-3">
                             <span className="relative">
                               <ShoppingCart size={20} className="text-white" />
@@ -1666,40 +1187,70 @@ useEffect(() => {
                                 </span>
                               )}
                             </span>
-                            <button type="button" onClick={() => setShowOrderDrawer(false)} className="text-white text-xl font-bold">✖</button>
+                            <button
+                              type="button"
+                              onClick={() => setShowOrderDrawer(false)}
+                              className="text-white text-xl font-bold"
+                            >
+                              ✖
+                            </button>
                           </div>
                         </div>
                         {/* Scrollable items */}
                         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
                           {summaryItems && summaryItems.length > 0 ? (
                             summaryItems.map((item, index) => (
-                              <div key={index} className="bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
+                              <div
+                                key={index}
+                                className="bg-gray-50 rounded-lg px-3 py-2 border border-gray-100"
+                              >
                                 <div className="flex justify-between items-start">
                                   <span className="font-semibold text-sm text-gray-800 flex-1 pr-2">
-                                    {item?.Item_Name}</span>
-                                  <span className="text-xs bg-red-100 text-[#ff0000] px-2 py-0.5 rounded-full font-medium whitespace-nowrap">x {item?.Item_Quantity}</span>
+                                    {item?.Item_Name}
+                                  </span>
+                                  <span className="text-xs bg-red-100 text-[#ff0000] px-2 py-0.5 rounded-full font-medium whitespace-nowrap">
+                                    x {item?.Item_Quantity}
+                                  </span>
                                 </div>
                                 <div className="flex justify-between text-xs text-gray-500 mt-1">
                                   <span>Amount</span>
-                                  <span className="font-semibold text-gray-700">₹{item?.Amount}</span>
+                                  <span className="font-semibold text-gray-700">
+                                    ₹{item?.Amount}
+                                  </span>
                                 </div>
                                 <div className="flex items-center justify-between bg-[#4CA1AF10] rounded-md p-1.5">
                                   <button
                                     type="button"
                                     disabled={Number(cart[item.id] || 0) === 0}
-                                    onClick={() => updateCart(item.id, -1, index, item.Item_Name, item.Item_Price)}
+                                    onClick={() =>
+                                      updateCart(
+                                        item.id,
+                                        -1,
+                                        index,
+                                        item.Item_Name,
+                                        item.Item_Price,
+                                      )
+                                    }
                                     className={`w-7 h-7 flex items-center justify-center rounded-md shadow transition ${Number(cart[item.id] || 0) === 0 ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-white hover:bg-gray-100 text-[#ff0000]"}`}
                                   >
                                     <Minus className="w-3 h-3" />
                                   </button>
                                   <span className="text-base font-semibold text-gray-800 px-2">
-                                    {cart[item.id] || 0}</span>
+                                    {cart[item.id] || 0}
+                                  </span>
                                   <button
                                     style={{ backgroundColor: "#ff0000" }}
                                     type="button"
                                     // disabled={unavailable}
-                                    onClick={() => updateCart(item.id, 1, index,
-                                      item.Item_Name, item.Item_Price)}
+                                    onClick={() =>
+                                      updateCart(
+                                        item.id,
+                                        1,
+                                        index,
+                                        item.Item_Name,
+                                        item.Item_Price,
+                                      )
+                                    }
                                     className={`w-7 h-7 flex items-center 
                             justify-center rounded-md shadow transition
                              ${Number(cart[item.id] || 0) === 0 ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-[#ff0000] text-white hover:bg-[#3a8c98]"}`}
@@ -1711,7 +1262,10 @@ useEffect(() => {
                             ))
                           ) : (
                             <div className="flex flex-col items-center justify-center h-32 text-gray-400">
-                              <ShoppingCart size={32} className="mb-2 opacity-30" />
+                              <ShoppingCart
+                                size={32}
+                                className="mb-2 opacity-30"
+                              />
                               <p className="text-sm">No items added yet</p>
                             </div>
                           )}
@@ -1720,12 +1274,17 @@ useEffect(() => {
                         <div className="border-t px-4 py-3 space-y-2 bg-white">
                           <div className="flex justify-between font-bold text-gray-900">
                             <span>Total</span>
-                            <span className="text-[#ff0000] text-lg">₹{watch("Amount")}</span>
+                            <span className="text-[#ff0000] text-lg">
+                              ₹{watch("Amount")}
+                            </span>
                           </div>
                           <div className="grid grid-cols-2 gap-2">
                             <button
                               type="button"
-                              onClick={() => { setShowOrderDrawer(false); setShowSummary(true); }}
+                              onClick={() => {
+                                setShowOrderDrawer(false);
+                                setShowSummary(true);
+                              }}
                               className="py-2.5 flex items-center justify-center gap-2 rounded-lg text-white font-bold shadow text-sm"
                               style={{ backgroundColor: "black" }}
                             >
@@ -1736,7 +1295,10 @@ useEffect(() => {
                   {totalItems}
                 </span> */}
                               <span className="relative">
-                                <ShoppingCart size={20} className="text-white" />
+                                <ShoppingCart
+                                  size={20}
+                                  className="text-white"
+                                />
                                 {totalItems > 0 && (
                                   <span className="absolute -top-2 -right-2 bg-white text-[#ff0000] text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full">
                                     {totalItems}
@@ -1744,7 +1306,9 @@ useEffect(() => {
                                 )}
                               </span>
 
-                              {isUpdateOrderLoading ? "Saving..." : "Save & Hold"}
+                              {isUpdateOrderLoading
+                                ? "Saving..."
+                                : "Save & Hold"}
                               {/* Save &amp; Hold */}
                             </button>
                             <button
@@ -1764,14 +1328,19 @@ useEffect(() => {
                   {/* ══════════════════════════════════════════════════════════
           DESKTOP — 3-column layout (sm and above)
       ══════════════════════════════════════════════════════════ */}
-                  <div className="hidden lg:flex h-[calc(100vh-120px)] 
-      overflow-hidden bg-gradient-to-br from-orange-50 via-white to-red-50">
-
+                  <div
+                    className="hidden lg:flex h-[calc(100vh-120px)] 
+      overflow-hidden bg-gradient-to-br from-orange-50 via-white to-red-50"
+                  >
                     {/* LEFT — Categories */}
-                    <aside className="w-[180px] lg:w-[200px] flex-shrink-0 bg-white shadow-md
-                     flex flex-col overflow-y-auto border-r">
+                    <aside
+                      className="w-[180px] lg:w-[200px] flex-shrink-0 bg-white shadow-md
+                     flex flex-col overflow-y-auto border-r"
+                    >
                       <div className="px-3 py-3 border-b bg-[#ff0000]">
-                        <h4 className="text-white font-bold text-sm tracking-wide uppercase">Categories</h4>
+                        <h4 className="text-white font-bold text-sm tracking-wide uppercase">
+                          Categories
+                        </h4>
                       </div>
                       <div className="flex flex-col overflow-y-auto flex-1 py-2 gap-1 px-2">
                         {newCategories.map((cat, index) => (
@@ -1779,10 +1348,11 @@ useEffect(() => {
                             type="button"
                             key={index}
                             onClick={() => setActiveCategory(cat)}
-                            className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all ${activeCategory === cat
+                            className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                              activeCategory === cat
                                 ? "bg-[#ff0000] text-white shadow-sm"
                                 : "bg-gray-50 hover:bg-red-50 text-gray-700 border border-gray-100"
-                              }`}
+                            }`}
                           >
                             {cat}
                           </button>
@@ -1793,9 +1363,12 @@ useEffect(() => {
                     {/* MIDDLE — Items grid */}
                     <main className="flex-1 overflow-y-auto px-3 py-4 pb-4">
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {(isMenuItemsLoading || isFetching) ? (
+                        {isMenuItemsLoading || isFetching ? (
                           [...Array(12)].map((_, i) => (
-                            <div key={i} className="bg-white rounded-xl overflow-hidden shadow-md animate-pulse">
+                            <div
+                              key={i}
+                              className="bg-white rounded-xl overflow-hidden shadow-md animate-pulse"
+                            >
                               <div className="h-32 bg-gray-200" />
                               <div className="p-2 space-y-2">
                                 <div className="h-4 bg-gray-200 rounded w-3/4" />
@@ -1809,97 +1382,123 @@ useEffect(() => {
                             const unavailable = item.is_available === 0;
                             return (
                               <div
-
                                 key={item.id ?? index}
                                 className={`group relative 
                       bg-white rounded-xl overflow-hidden shadow-md 
-                      transition-all duration-300 ${unavailable ? "opacity-40 grayscale cursor-not-allowed" :
-                                    "cursor-pointer hover:shadow-lg hover:-translate-y-1"
-
-                                  }
-                     ${summaryItems?.some(it => it.Item_Name === item.Item_Name)
-                                    ? "border-2 border-green-500"
-                                    : ""
-                                  }
+                      transition-all duration-300 ${
+                        unavailable
+                          ? "opacity-40 grayscale cursor-not-allowed"
+                          : "cursor-pointer hover:shadow-lg hover:-translate-y-1"
+                      }
+                     ${
+                       summaryItems?.some(
+                         (it) => it.Item_Name === item.Item_Name,
+                       )
+                         ? "border-2 border-green-500"
+                         : ""
+                     }
                     
 
                     `}
                                 onClick={() => {
                                   if (unavailable) return; // 🚫 STOP HERE
-                                  updateCart(item.id, 1, index, item.Item_Name, item.Item_Price);
+                                  updateCart(
+                                    item.id,
+                                    1,
+                                    index,
+                                    item.Item_Name,
+                                    item.Item_Price,
+                                  );
                                 }}
-                              //onClick={()=> updateCart(item.id, 1, index, item.Item_Name, item.Item_Price)}
+                                //onClick={()=> updateCart(item.id, 1, index, item.Item_Name, item.Item_Price)}
                               >
                                 {unavailable && (
-                                  <div className="absolute top-2 left-2 bg-red-600 
-                      text-white text-[10px] px-2 py-1 rounded shadow">
+                                  <div
+                                    className="absolute top-2 left-2 bg-red-600 
+                      text-white text-[10px] px-2 py-1 rounded shadow"
+                                  >
                                     Unavailable
                                   </div>
                                 )}
                                 <div className="relative h-32 bg-gradient-to-br from-[#4CA1AF22] to-[#4CA1AF44]">
                                   {item?.Item_Image && (
-                                    <img loading="lazy" src={`http://192.168.0.111:4000/uploads/food-item/${item.Item_Image}`} alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
+                                    <img
+                                      loading="lazy"
+                                      src={`http://192.168.0.111:4000/uploads/food-item/${item.Item_Image}`}
+                                      alt={item?.Item_Name}
+                                      className="w-full h-full object-cover opacity-90"
+                                    />
                                   )}
                                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
                                   <div className="absolute top-2 right-2">
-                                    <span className="bg-white/90 px-2 py-0.5 rounded-full text-[10px] font-semibold text-[#ff0000] shadow">{item.Item_Category}</span>
+                                    <span className="bg-white/90 px-2 py-0.5 rounded-full text-[10px] font-semibold text-[#ff0000] shadow">
+                                      {item.Item_Category}
+                                    </span>
                                   </div>
                                 </div>
                                 <div className="p-2">
                                   <div className="flex mb-2">
-                                    <h5 style={{ color: "red" }} className="text-[20px] leading-tight">{item?.Item_Name}</h5>
+                                    <h5
+                                      style={{ color: "red" }}
+                                      className="text-[20px] leading-tight"
+                                    >
+                                      {item?.Item_Name}
+                                    </h5>
                                   </div>
                                   <div className="flex justify-between items-center mb-2">
                                     <div>
-                                      <div className="text-base font-semibold text-gray-800">₹{Number(item?.Item_Price || 0).toFixed(2)}</div>
-                                      <div className="text-[10px] text-gray-500">Tax: {TAX_RATES[item?.Tax_Type]}%</div>
+                                      <div className="text-base font-semibold text-gray-800">
+                                        ₹
+                                        {Number(item?.Item_Price || 0).toFixed(
+                                          2,
+                                        )}
+                                      </div>
+                                      <div className="text-[10px] text-gray-500">
+                                        Tax: {TAX_RATES[item?.Tax_Type]}%
+                                      </div>
                                     </div>
                                     <div className="text-right">
-                                      <div className="text-sm font-bold text-[#ff0000]">₹{Number(item?.Amount || 0).toFixed(2)}</div>
-                                      <div className="text-[10px] text-gray-500">Total</div>
+                                      <div className="text-sm font-bold text-[#ff0000]">
+                                        ₹{Number(item?.Amount || 0).toFixed(2)}
+                                      </div>
+                                      <div className="text-[10px] text-gray-500">
+                                        Total
+                                      </div>
                                     </div>
                                   </div>
-                                  {/* <div className="flex items-center justify-between bg-[#4CA1AF10] rounded-md p-1.5">
-                        <button
-                          type="button"
-                          disabled={unavailable || Number(cart[item.id] || 0) === 0}
-                          onClick={() => !unavailable && 
-                          updateCart(item.id, -1, index, item.Item_Name, item.Item_Price)}
-                          className={`w-7 h-7 flex items-center justify-center rounded-md shadow transition ${unavailable ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-white hover:bg-gray-100 text-[#ff0000]"}`}
-                        >
-                          <Minus className="w-3 h-3" />
-                        </button>
-                        <span className="text-base font-semibold text-gray-800 px-2">{cart[item.id] || 0}</span>
-                        <button
-                          style={{ backgroundColor: "#ff0000" }}
-                          type="button"
-                          disabled={unavailable}
-                          onClick={() => !unavailable && updateCart(item.id, 1, index, item.Item_Name, item.Item_Price)}
-                          className={`w-7 h-7 flex items-center justify-center rounded-md shadow transition ${unavailable ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-[#ff0000] text-white hover:bg-[#3a8c98]"}`}
-                        >
-                          <Plus className="w-3 h-3" />
-                        </button>
-                      </div> */}
                                   <div className="flex mt-2 items-center gap-2">
-                                    <span style={{ color: "#ff0000" }} className="text-base font-semibold">Quantity:</span>
-                                    <span className="text-[16px]">{item?.Current_Quantity}</span>
+                                    <span
+                                      style={{ color: "#ff0000" }}
+                                      className="text-base font-semibold"
+                                    >
+                                      Quantity:
+                                    </span>
+                                    <span className="text-[16px]">
+                                      {item?.Current_Quantity}
+                                    </span>
                                   </div>
                                 </div>
                               </div>
                             );
                           })
                         ) : (
-                          <p className="text-gray-500 text-center col-span-full">No items found</p>
+                          <p className="text-gray-500 text-center col-span-full">
+                            No items found
+                          </p>
                         )}
                       </div>
                     </main>
 
                     {/* RIGHT — Order Summary (fixed height, scrollable list) */}
-                    <aside className="w-[280px] lg:w-[300px] overflow-y-auto
-        flex-shrink-0 bg-white shadow-md flex flex-col border-l">
+                    <aside
+                      className="w-[280px] lg:w-[300px] overflow-y-auto
+        flex-shrink-0 bg-white shadow-md flex flex-col border-l"
+                    >
                       {/* Header */}
                       <div className="px-4 py-3 bg-[#ff0000] flex items-center justify-between flex-shrink-0">
-                        <h4 className="text-white font-bold text-sm tracking-wide uppercase">Order Summary</h4>
+                        <h4 className="text-white font-bold text-sm tracking-wide uppercase">
+                          Order Summary
+                        </h4>
                         <span className="relative">
                           <ShoppingCart size={20} className="text-white" />
                           {totalItems > 0 && (
@@ -1913,36 +1512,62 @@ useEffect(() => {
                       {/* ✅ Scrollable item list — grows and scrolls */}
                       <div
                         className="flex-1 overflow-y-auto px-3 py-3 space-y-2 min-h-0 
-         ">
+         "
+                      >
                         {summaryItems && summaryItems.length > 0 ? (
                           summaryItems.map((item, index) => (
-                            <div key={index} className="bg-gray-50  rounded-lg px-3 
-                py-2 border border-gray-100">
+                            <div
+                              key={index}
+                              className="bg-gray-50  rounded-lg px-3 
+                py-2 border border-gray-100"
+                            >
                               <div className="flex justify-between items-start">
-                                <span className="font-semibold text-sm text-gray-800 leading-tight flex-1 pr-2">{item?.Item_Name}</span>
-                                <span className="text-xs bg-red-100 text-[#ff0000] px-2 py-0.5 rounded-full font-medium whitespace-nowrap">x {item?.Item_Quantity}</span>
+                                <span className="font-semibold text-sm text-gray-800 leading-tight flex-1 pr-2">
+                                  {item?.Item_Name}
+                                </span>
+                                <span className="text-xs bg-red-100 text-[#ff0000] px-2 py-0.5 rounded-full font-medium whitespace-nowrap">
+                                  x {item?.Item_Quantity}
+                                </span>
                               </div>
                               <div className="flex justify-between text-xs text-gray-500 mt-1">
                                 <span>Amount</span>
-                                <span className="font-semibold text-gray-700">₹{item?.Amount}</span>
+                                <span className="font-semibold text-gray-700">
+                                  ₹{item?.Amount}
+                                </span>
                               </div>
                               <div className="flex items-center justify-between bg-[#4CA1AF10] rounded-md p-1.5">
                                 <button
                                   type="button"
                                   disabled={Number(cart[item.id] || 0) === 0}
-                                  onClick={() => updateCart(item.id, -1, index, item.Item_Name, item.Item_Price)}
+                                  onClick={() =>
+                                    updateCart(
+                                      item.id,
+                                      -1,
+                                      index,
+                                      item.Item_Name,
+                                      item.Item_Price,
+                                    )
+                                  }
                                   className={`w-7 h-7 flex items-center justify-center rounded-md shadow transition ${Number(cart[item.id] || 0) === 0 ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-white hover:bg-gray-100 text-[#ff0000]"}`}
                                 >
                                   <Minus className="w-3 h-3" />
                                 </button>
                                 <span className="text-base font-semibold text-gray-800 px-2">
-                                  {cart[item.id] || 0}</span>
+                                  {cart[item.id] || 0}
+                                </span>
                                 <button
                                   style={{ backgroundColor: "#ff0000" }}
                                   type="button"
                                   // disabled={unavailable}
-                                  onClick={() => updateCart(item.id, 1, index,
-                                    item.Item_Name, item.Item_Price)}
+                                  onClick={() =>
+                                    updateCart(
+                                      item.id,
+                                      1,
+                                      index,
+                                      item.Item_Name,
+                                      item.Item_Price,
+                                    )
+                                  }
                                   className={`w-7 h-7 flex items-center 
                             justify-center rounded-md shadow transition
                              ${Number(cart[item.id] || 0) === 0 ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-[#ff0000] text-white hover:bg-[#3a8c98]"}`}
@@ -1954,7 +1579,10 @@ useEffect(() => {
                           ))
                         ) : (
                           <div className="flex flex-col items-center justify-center h-40 text-gray-400">
-                            <ShoppingCart size={36} className="mb-2 opacity-30" />
+                            <ShoppingCart
+                              size={36}
+                              className="mb-2 opacity-30"
+                            />
                             <p className="text-sm">No items added yet</p>
                           </div>
                         )}
@@ -1964,7 +1592,9 @@ useEffect(() => {
                       <div className="border-t bg-white px-4 py-3 space-y-3 flex-shrink-0">
                         <div className="flex justify-between items-center text-base font-bold text-gray-900">
                           <span>Total</span>
-                          <span className="text-[#ff0000] text-lg">₹{watch("Amount")}</span>
+                          <span className="text-[#ff0000] text-lg">
+                            ₹{watch("Amount")}
+                          </span>
                         </div>
                         <div className="flex flex-col gap-2">
                           <button
@@ -2008,9 +1638,12 @@ useEffect(() => {
       ══════════════════════════════════════════════════════════ */}
                   <div className="lg:hidden bg-gradient-to-br from-orange-50 via-white to-red-50 pb-24">
                     <div className="px-3 py-4 grid grid-cols-2 gap-3">
-                      {(isMenuItemsLoading || isFetching) ? (
+                      {isMenuItemsLoading || isFetching ? (
                         [...Array(6)].map((_, i) => (
-                          <div key={i} className="bg-white rounded-xl overflow-hidden shadow-md animate-pulse">
+                          <div
+                            key={i}
+                            className="bg-white rounded-xl overflow-hidden shadow-md animate-pulse"
+                          >
                             <div className="h-28 bg-gray-200" />
                             <div className="p-2 space-y-2">
                               <div className="h-4 bg-gray-200 rounded w-3/4" />
@@ -2026,19 +1659,31 @@ useEffect(() => {
                             <div
                               key={item.id ?? index}
                               className={`relative bg-white rounded-xl overflow-hidden
-                     shadow-md ${unavailable ? "opacity-40 grayscale cursor-not-allowed"
-                                  : "cursor-pointer"}
-                                       ${summaryItems?.some(it => it.Item_Name === item.Item_Name)
-                                  ? "border-2 border-green-500"
-                                  : ""
-                                }
+                     shadow-md ${
+                       unavailable
+                         ? "opacity-40 grayscale cursor-not-allowed"
+                         : "cursor-pointer"
+                     }
+                                       ${
+                                         summaryItems?.some(
+                                           (it) =>
+                                             it.Item_Name === item.Item_Name,
+                                         )
+                                           ? "border-2 border-green-500"
+                                           : ""
+                                       }
                        `}
                               onClick={() => {
                                 if (unavailable) return; // 🚫 STOP HERE
-                                updateCart(item.id, 1, index, item.Item_Name, item.Item_Price);
+                                updateCart(
+                                  item.id,
+                                  1,
+                                  index,
+                                  item.Item_Name,
+                                  item.Item_Price,
+                                );
                               }}
-                            //onClick={()=> updateCart(item.id, 1, index, item.Item_Name, item.Item_Price)}
-
+                              //onClick={()=> updateCart(item.id, 1, index, item.Item_Name, item.Item_Price)}
                             >
                               {unavailable && (
                                 <div className="absolute top-2 left-2 bg-red-600 text-white text-[10px] px-2 py-1 rounded shadow z-10">
@@ -2047,36 +1692,66 @@ useEffect(() => {
                               )}
                               <div className="relative h-28 bg-gradient-to-br from-[#4CA1AF22] to-[#4CA1AF44]">
                                 {item?.Item_Image && (
-                                  <img loading="lazy" src={`http://192.168.0.111:4000/uploads/food-item/${item.Item_Image}`} alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
+                                  <img
+                                    loading="lazy"
+                                    src={`http://192.168.0.111:4000/uploads/food-item/${item.Item_Image}`}
+                                    alt={item?.Item_Name}
+                                    className="w-full h-full object-cover opacity-90"
+                                  />
                                 )}
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
                                 <div className="absolute top-1 right-1">
-                                  <span className="bg-white/90 px-1.5 py-0.5 rounded-full text-[9px] font-semibold text-[#ff0000] shadow">{item.Item_Category}</span>
+                                  <span className="bg-white/90 px-1.5 py-0.5 rounded-full text-[9px] font-semibold text-[#ff0000] shadow">
+                                    {item.Item_Category}
+                                  </span>
                                 </div>
                               </div>
                               <div className="p-2">
-                                <h5 style={{ color: "red" }} className="text-[15px] leading-tight mb-1 font-semibold">{item?.Item_Name}</h5>
+                                <h5
+                                  style={{ color: "red" }}
+                                  className="text-[15px] leading-tight mb-1 font-semibold"
+                                >
+                                  {item?.Item_Name}
+                                </h5>
                                 <div className="flex justify-between items-center mb-1.5">
                                   <div>
-                                    <div className="text-sm font-semibold text-gray-800">₹{Number(item?.Item_Price || 0).toFixed(2)}</div>
-                                    <div className="text-[9px] text-gray-500">Tax: {TAX_RATES[item?.Tax_Type]}%</div>
+                                    <div className="text-sm font-semibold text-gray-800">
+                                      ₹
+                                      {Number(item?.Item_Price || 0).toFixed(2)}
+                                    </div>
+                                    <div className="text-[9px] text-gray-500">
+                                      Tax: {TAX_RATES[item?.Tax_Type]}%
+                                    </div>
                                   </div>
                                   <div className="text-right">
-                                    <div className="text-xs font-bold text-[#ff0000]">₹{Number(item?.Amount || 0).toFixed(2)}</div>
-                                    <div className="text-[9px] text-gray-500">Total</div>
+                                    <div className="text-xs font-bold text-[#ff0000]">
+                                      ₹{Number(item?.Amount || 0).toFixed(2)}
+                                    </div>
+                                    <div className="text-[9px] text-gray-500">
+                                      Total
+                                    </div>
                                   </div>
                                 </div>
-                           
+
                                 <div className="flex mt-1.5 items-center gap-1">
-                                  <span style={{ color: "#ff0000" }} className="text-xs font-semibold">Qty:</span>
-                                  <span className="text-xs">{item.Current_Quantity}</span>
+                                  <span
+                                    style={{ color: "#ff0000" }}
+                                    className="text-xs font-semibold"
+                                  >
+                                    Qty:
+                                  </span>
+                                  <span className="text-xs">
+                                    {item.Current_Quantity}
+                                  </span>
                                 </div>
                               </div>
                             </div>
                           );
                         })
                       ) : (
-                        <p className="text-gray-500 text-center col-span-full">No items found</p>
+                        <p className="text-gray-500 text-center col-span-full">
+                          No items found
+                        </p>
                       )}
                     </div>
                   </div>
@@ -2085,27 +1760,50 @@ useEffect(() => {
           BILL SUMMARY MODAL — unchanged logic, works on all screens
       ══════════════════════════════════════════════════════════ */}
                   {showSummary && (
-                    <button type="button" onClick={() => setShowSummary(false)} className="fixed inset-0 bg-black/40 z-40" />
+                    <button
+                      type="button"
+                      onClick={() => setShowSummary(false)}
+                      className="fixed inset-0 bg-black/40 z-40"
+                    />
                   )}
-                  <div className={`fixed left-0 bottom-0 w-full bg-white shadow-2xl rounded-t-2xl z-50 transform transition-transform duration-300 p-4 ${showSummary ? "translate-y-0" : "translate-y-full"}`}>
+                  <div
+                    className={`fixed left-0 bottom-0 w-full bg-white shadow-2xl rounded-t-2xl z-50 transform transition-transform duration-300 p-4 ${showSummary ? "translate-y-0" : "translate-y-full"}`}
+                  >
                     <div className="w-full flex justify-center py-2">
                       <div className="w-12 h-1.5 bg-gray-300 rounded-full"></div>
                     </div>
                     <div className="px-4 pb-3 border-b">
                       <div className="flex justify-between items-center">
                         <div className="flex justify-center items-center mx-auto">
-                          <h2 className="text-lg font-bold text-gray-700">Bill Summary</h2>
+                          <h2 className="text-lg font-bold text-gray-700">
+                            Bill Summary
+                          </h2>
                         </div>
                         <div className="flex justify-end items-center gap-2">
-                          <button type="button" style={{ backgroundColor: "transparent", fontSize: "30px" }} className="text-gray-500 text-2xl font-bold" onClick={() => setShowSummary(false)}>✖</button>
+                          <button
+                            type="button"
+                            style={{
+                              backgroundColor: "transparent",
+                              fontSize: "30px",
+                            }}
+                            className="text-gray-500 text-2xl font-bold"
+                            onClick={() => setShowSummary(false)}
+                          >
+                            ✖
+                          </button>
                         </div>
                       </div>
                     </div>
-                    <div className="px-4 py-3 overflow-y-auto" style={{ maxHeight: "55vh" }}>
+                    <div
+                      className="px-4 py-3 overflow-y-auto"
+                      style={{ maxHeight: "55vh" }}
+                    >
                       {summaryItems?.map((item, index) => (
                         <div key={index} className="border-b pb-2 mb-2">
                           <div className="flex justify-between">
-                            <span className="font-semibold">{item?.Item_Name}</span>
+                            <span className="font-semibold">
+                              {item?.Item_Name}
+                            </span>
                             <span>x {item?.Item_Quantity}</span>
                           </div>
                           <div className="flex justify-between text-sm text-gray-500">
@@ -2121,23 +1819,25 @@ useEffect(() => {
                         <span>₹{watch("Amount")}</span>
                       </div>
                       <div className="flex justify-center mt-4">
-                        <button type="submit" style={{ backgroundColor: "#ff0000" }} className="w-16 h-10 flex items-center justify-center rounded-md text-white shadow">
+                        <button
+                          type="submit"
+                          style={{ backgroundColor: "#ff0000" }}
+                          className="w-16 h-10 flex items-center justify-center rounded-md text-white shadow"
+                        >
                           OK
                         </button>
                       </div>
                     </div>
                   </div>
-
-
-
-
                 </form>
-                {orderDetailsModalOpen &&
+                {orderDetailsModalOpen && (
                   <OrderDetailsModal
                     onClose={() => setOrderDetailsModalOpen(false)}
                     orderDetails={formValues}
                     setOpen={setOrderDetailsModalOpen}
-                    orderId={Order_Id} />}
+                    orderId={Order_Id}
+                  />
+                )}
               </div>
             </div>
           </div>

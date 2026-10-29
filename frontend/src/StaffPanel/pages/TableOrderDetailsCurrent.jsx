@@ -1,5 +1,4 @@
 
-
 import { foodItemApi, useGetAllFoodItemsQuery } from "../../redux/api/foodItemApi";
 
 
@@ -19,7 +18,7 @@ import { toast } from "react-toastify";
 
 
 import { LayoutDashboard, Minus, Plus, ShoppingCart, Table } from "lucide-react";
-import { orderApi,  useGetTableOrderDetailsQuery, useUpdateOrderMutation } from "../../redux/api/Staff/orderApi";
+import { orderApi, useGetTableOrderDetailsQuery, useUpdateOrderMutation } from "../../redux/api/Staff/orderApi";
 import OrderDetailsModal from "../../components/Modal/OrderDetailsModal";
 
 import { useDispatch } from "react-redux";
@@ -28,30 +27,29 @@ import { useMemo } from "react";
 import { useGetAllCategoriesQuery } from "../../redux/api/itemApi";
 
 
-const socket = io("http://192.168.0.111:4000", {
-  transports: ["websocket"],
-});
+// const socket = io("http://192.168.0.111:4000", {
+//   transports: ["websocket"],
+// });
 
 
 
 
 
 export default function TableOrderDetails() {
-  // const formatTime = (time) => {
-  //   if (!time) return "--";
-  //   const d = new Date(time);
-  //   d.setSeconds(0);
-  //   return d.toLocaleTimeString([], {
-  //     hour: "2-digit",
-  //     minute: "2-digit",
-  //   });
-  // };
-
+ 
   const { Order_Id } = useParams();
   const dispatch = useDispatch();
   const [orderDetailsModalOpen, setOrderDetailsModalOpen] = useState(false);
   //console.log(Order_Id);
-  const { data: tableOrderDetails } = useGetTableOrderDetailsQuery(Order_Id);
+  // const { data: tableOrderDetails } = useGetTableOrderDetailsQuery(Order_Id);
+  const {
+  data: tableOrderDetails,
+  refetch: refetchTableOrderDetails,
+} = useGetTableOrderDetailsQuery(Order_Id);
+//   const {
+//   data: tableOrderDetails,
+//   refetch: refetchTableOrderDetails,
+// } = useGetTableOrderDetailsQuery(Order_Id);
   //console.log(tableOrderDetails, "tableOrderDetails");
   const TAX_RATES = {
     "None": 0,
@@ -73,9 +71,10 @@ export default function TableOrderDetails() {
     "IGST28": 28,
     "IGST40": 40,
   };
-
-  const categoryRefs = useRef([]); // store refs for category dropdowns
-  const itemRefs = useRef([]);     // store refs for item dropdowns
+  const [showCategoryDrawer, setShowCategoryDrawer] = useState(false);
+  const [showOrderDrawer, setShowOrderDrawer] = useState(false);
+  //const categoryRefs = useRef([]); // store refs for category dropdowns
+  //const itemRefs = useRef([]);     // store refs for item dropdowns
   // const [activeCategory, setActiveCategory] = useState('All');
   // const lastCategoryRef = useRef(activeCategory);
   const [searchTerm, setSearchTerm] = useState("");
@@ -84,78 +83,289 @@ export default function TableOrderDetails() {
 
   const [selectedTables, setSelectedTables] = useState([]);
 
-  const [categoryOpen, setCategoryOpen] = useState(false);
-const [categorySearch, setCategorySearch] = useState("");
-// const dropdownRef = useRef(null);
-const categoryOpenRef = useRef(null);
-// Close on outside click
-useEffect(() => {
-  const handleClickOutside = (e) => {
-    if (categoryOpenRef.current && !categoryOpenRef.current.contains(e.target)) {
-      setCategoryOpen(false);
-    }
-  };
+  //const [categoryOpen, setCategoryOpen] = useState(false);
+  // const [categorySearch, setCategorySearch] = useState("");
+  // const dropdownRef = useRef(null);
+  //const categoryOpenRef = useRef(null);
+  // Close on outside click
+  // useEffect(() => {
+  //   const handleClickOutside = (e) => {
+  //     if (categoryOpenRef.current && !categoryOpenRef.current.contains(e.target)) {
+  //       setCategoryOpen(false);
+  //     }
+  //   };
 
-  document.addEventListener("mousedown", handleClickOutside);
-  return () => document.removeEventListener("mousedown", handleClickOutside);
-}, []);
-  const { data: menuItems,refetch:refetchMenuItems, isLoading:isMenuItemsLoading,
+  //   document.addEventListener("mousedown", handleClickOutside);
+  //   return () => document.removeEventListener("mousedown", handleClickOutside);
+  // }, []);
+  const { data: menuItems, refetch: refetchMenuItems, isLoading: isMenuItemsLoading,
     isFetching
-   } = useGetAllFoodItemsQuery({});
+  } = useGetAllFoodItemsQuery({orderType: "DINE_IN"});
   //console.log(tables, isLoading, "tables", menuItems, isMenuItemsLoading);
   const items = menuItems?.foodItems
-  const [updateOrder,{isLoading:isUpdateOrderLoading}] = useUpdateOrderMutation();
-    const lastUpdatedItemRef = useRef(null);
-  
-  const [rows, setRows] = useState([
-    {
-      CategoryOpen: false, categorySearch: "", preview: null
-    }
-  ]);
+  const [updateOrder, { isLoading: isUpdateOrderLoading }] = useUpdateOrderMutation();
+ 
   const [cart, setCart] = useState({});
 
   const { data: categories } = useGetAllCategoriesQuery()
-  console.log(categories,"categories");
-  
+  console.log(categories, "categories");
+
   const existingCategories = [...new Set(categories?.map(c => c.Item_Category))];
   const newCategories = ["All", ...existingCategories];
-  
-    const [activeCategory, setActiveCategory] = useState('All');
-const lastCategoryRef = useRef(activeCategory);
+
+  const [activeCategory, setActiveCategory] = useState('All');
+  const lastCategoryRef = useRef(activeCategory);
 
   const [kotNotifications, setKotNotifications] = useState([]);
-  useEffect(() => {
-    const handleAvailabilityChange = (data) => {
-      console.log("📢 Food status changed:", data);
+  const socketRef = useRef(null);
+const currentKotIdRef = useRef(null);
 
-      // Force RTK Query to refetch
-      dispatch(foodItemApi.util.invalidateTags([{ type: "Food-Item", id: "LIST" }]));
-    };
+currentKotIdRef.current = tableOrderDetails?.KOT_Id;
+//   useEffect(() => {
+//   socket.emit("join_staff_room");
 
-    socket.on("food_item_availability_changed", handleAvailabilityChange);
+//   return () => {
+//     socket.emit("leave_staff_room");
+//   };
+// }, []);
+//   useEffect(() => {
+//     const handleAvailabilityChange = (data) => {
+//       console.log("📢 Food status changed:", data);
 
-    return () => {
-      socket.off("food_item_availability_changed", handleAvailabilityChange);
-    };
-  }, []);
+//       // Force RTK Query to refetch
+//       dispatch(foodItemApi.util.invalidateTags([{ type: "Food-Item", id: "LIST" }]));
+//     };
+
+//     socket.on("food_item_availability_changed", handleAvailabilityChange);
+
+//     return () => {
+//       socket.off("food_item_availability_changed", handleAvailabilityChange);
+//     };
+//   }, []);
 
 
 
-  // Join the Socket.IO room for this order
-  useEffect(() => {
-    if (!tableOrderDetails?.KOT_Id) return;
+//   // Join the Socket.IO room for this order
+//   useEffect(() => {
+//     if (!tableOrderDetails?.KOT_Id) return;
 
-    const room = `order_${tableOrderDetails.KOT_Id}`;
+//     const room = `order_${tableOrderDetails.KOT_Id}`;
 
-    console.log("Joining room:", room);
-    socket.emit("join_order_room", tableOrderDetails.KOT_Id);
+//     console.log("Joining room:", room);
+//     socket.emit("join_order_room", tableOrderDetails.KOT_Id);
 
-    return () => {
-      console.log("Leaving room:", room);
-      socket.emit("leave_order_room", tableOrderDetails.KOT_Id);
-    };
-  }, [tableOrderDetails?.KOT_Id]);
+//     return () => {
+//       console.log("Leaving room:", room);
+//       socket.emit("leave_order_room", tableOrderDetails.KOT_Id);
+//     };
+//   }, [tableOrderDetails?.KOT_Id]);
 
+
+// useEffect(() => {
+//   const handleCustomerOrder = (data) => {
+//     console.log("📢 Customer order received:", data);
+
+//     // Only handle this if it is the order currently open
+//     if (String(data.Order_Id) !== String(Order_Id)) {
+//       return;
+//     }
+
+//     toast.info(`New items added to ${data.Table_Name} by customer`);
+
+//     // Get latest order data
+//     refetchTableOrderDetails();
+//   };
+
+//   socket.on("customer_order", handleCustomerOrder);
+
+//   return () => {
+//     socket.off("customer_order", handleCustomerOrder);
+//   };
+// }, [Order_Id, refetchTableOrderDetails]);
+
+// useEffect(() => {
+//   const handleOrderUpdated = (data) => {
+//     if (String(data.Order_Id) !== String(Order_Id)) {
+//       return;
+//     }
+
+//     refetchTableOrderDetails();
+//   };
+
+//   socket.on("order_updated", handleOrderUpdated);
+
+//   return () => {
+//     socket.off("order_updated", handleOrderUpdated);
+//   };
+// }, [Order_Id, refetchTableOrderDetails]);
+//   useEffect(() => {
+//     const handleKotUpdate = (data) => {
+
+//       console.log("📢 Frontend received KOT update:", data);
+//       toast.info(`${data.itemName} → ${data.status}`);
+
+//       // setKotNotifications((prev) => {
+//       //   const index = prev.findIndex(n => n.KOT_Item_Id === data.KOT_Item_Id);
+//       setKotNotifications((prev) => {
+//         const index = prev.findIndex(
+//           (n) => String(n.KOT_Item_Id) === String(data.KOT_Item_Id)
+//         );
+
+//         // 🟢 1. If item already exists → update status/time
+//         if (index !== -1) {
+//           const updated = [...prev];
+//           updated[index] = {
+//             ...updated[index],
+//             status: data.status,
+//             time: data.updated_at, // ✅ FIXED
+
+//             // time: data.time,
+//           };
+//           return updated;
+//         }
+
+//         // 🟢 2. If the row is NEW (e.g., new biriyani added), append it
+//         return [
+//           ...prev,
+//           {
+//             KOT_Id: data.KOT_Id,
+//             KOT_Item_Id: data.KOT_Item_Id,
+//             itemName: data.itemName,
+//             status: data.status,
+//             time: data.updated_at,
+
+//             // time: data.time,
+//           }
+//         ];
+//       });
+//     };
+//     dispatch(orderApi.util.invalidateTags(["Order"]));
+
+//     socket.on("frontend_kot_update", handleKotUpdate);
+
+//     return () => {
+//       socket.off("frontend_kot_update", handleKotUpdate);
+//     };
+//   }, []);
+useEffect(() => {
+  const socket = io("http://192.168.0.111:4000", {
+    transports: ["websocket"],
+  });
+
+  socketRef.current = socket;
+
+  const joinRooms = () => {
+    socket.emit("join_staff_room");
+
+    if (currentKotIdRef.current) {
+      socket.emit("join_order_room", currentKotIdRef.current);
+    }
+  };
+
+  const handleAvailabilityChange = (data) => {
+    console.log("📢 Food status changed:", data);
+
+    dispatch(
+      foodItemApi.util.invalidateTags([
+        { type: "Food-Item", id: "LIST" },
+      ])
+    );
+  };
+
+  const handleCustomerOrder = (data) => {
+    if (String(data.Order_Id) !== String(Order_Id)) return;
+
+    toast.info(`New items added to ${data.Table_Name} by customer`);
+    refetchTableOrderDetails();
+  };
+
+  // const handleOrderUpdated = (data) => {
+  //   if (String(data.Order_Id) !== String(Order_Id)) return;
+
+  //   refetchTableOrderDetails();
+  // };
+  // Another staff member updated this order
+const handleOrderUpdated = (data) => {
+  if (String(data.Order_Id) !== String(Order_Id)) return;
+
+  console.log("Order updated by staff:", data);
+
+  refetchTableOrderDetails();
+
+  toast.info(`Order ${data.Order_Id} updated by staff.`);
+};
+
+// A waiter updated this order
+const handleWaiterOrderUpdate = (data) => {
+  if (String(data.Order_Id) !== String(Order_Id)) return;
+
+  console.log("Order updated by waiter:", data);
+
+  refetchTableOrderDetails();
+
+  toast.info(`Order ${data.Order_Id} updated by waiter.`);
+};
+
+  const handleKotUpdate = (data) => {
+    console.log("📢 Frontend received KOT update:", data);
+    toast.info(`${data.itemName} → ${data.status}`);
+
+    setKotNotifications((prev) => {
+      const index = prev.findIndex(
+        (item) =>
+          String(item.KOT_Item_Id) === String(data.KOT_Item_Id)
+      );
+
+      if (index !== -1) {
+        const updated = [...prev];
+
+        updated[index] = {
+          ...updated[index],
+          status: data.status,
+          time: data.updated_at,
+        };
+
+        return updated;
+      }
+
+      return [
+        ...prev,
+        {
+          KOT_Id: data.KOT_Id,
+          KOT_Item_Id: data.KOT_Item_Id,
+          itemName: data.itemName,
+          status: data.status,
+          time: data.updated_at,
+        },
+      ];
+    });
+
+    dispatch(orderApi.util.invalidateTags(["Order"]));
+  };
+
+  socket.on("connect", joinRooms);
+  socket.on("food_item_availability_changed", handleAvailabilityChange);
+  socket.on("customer_order", handleCustomerOrder);
+socket.on("order_updated", handleOrderUpdated);
+socket.on("waiter_order_update", handleWaiterOrderUpdate);
+socket.on("frontend_kot_update", handleKotUpdate);
+ 
+
+  return () => {
+    socket.off("connect", joinRooms);
+    socket.off("food_item_availability_changed", handleAvailabilityChange);
+    socket.off("customer_order", handleCustomerOrder);
+socket.off("order_updated", handleOrderUpdated);
+socket.off("waiter_order_update", handleWaiterOrderUpdate);
+socket.off("frontend_kot_update", handleKotUpdate);
+    // socket.off("customer_order", handleCustomerOrder);
+    // socket.off("order_updated", handleOrderUpdated);
+    // socket.off("frontend_kot_update", handleKotUpdate);
+
+    socket.disconnect();
+    socketRef.current = null;
+  };
+}, [dispatch, Order_Id, refetchTableOrderDetails]);
   useEffect(() => {
     if (!tableOrderDetails?.kitchenItems) return;
 
@@ -174,95 +384,27 @@ const lastCategoryRef = useRef(activeCategory);
 
   }, [tableOrderDetails]);
 
-  useEffect(() => {
-    const handleKotUpdate = (data) => {
+useEffect(() => {
+  const socket = socketRef.current;
+  const kotId = tableOrderDetails?.KOT_Id;
 
-      console.log("📢 Frontend received KOT update:", data);
-      toast.info(`${data.itemName} → ${data.status}`);
+  if (!socket || !kotId) return;
 
-      // setKotNotifications((prev) => {
-      //   const index = prev.findIndex(n => n.KOT_Item_Id === data.KOT_Item_Id);
-      setKotNotifications((prev) => {
-        const index = prev.findIndex(
-          (n) => String(n.KOT_Item_Id) === String(data.KOT_Item_Id)
-        );
+  socket.emit("join_order_room", kotId);
 
-        // 🟢 1. If item already exists → update status/time
-        if (index !== -1) {
-          const updated = [...prev];
-          updated[index] = {
-            ...updated[index],
-            status: data.status,
-            time: data.updated_at, // ✅ FIXED
-
-            // time: data.time,
-          };
-          return updated;
-        }
-
-        // 🟢 2. If the row is NEW (e.g., new biriyani added), append it
-        return [
-          ...prev,
-          {
-            KOT_Id: data.KOT_Id,
-            KOT_Item_Id: data.KOT_Item_Id,
-            itemName: data.itemName,
-            status: data.status,
-            time: data.updated_at,
-
-            // time: data.time,
-          }
-        ];
-      });
-    };
-    dispatch(orderApi.util.invalidateTags(["Order"]));
-
-    socket.on("frontend_kot_update", handleKotUpdate);
-
-    return () => {
-      socket.off("frontend_kot_update", handleKotUpdate);
-    };
-  }, []);
-
-  // console.log(kotNotifications,"kotNotifications");
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      setRows((prev) =>
-        prev.map((row, idx) => {
-          const catRef = categoryRefs.current[idx];
-          const itemRef = itemRefs.current[idx];
-
-          const clickedInsideCategory =
-            catRef && catRef.contains(event.target);
-          const clickedInsideItem =
-            itemRef && itemRef.contains(event.target);
-
-          // if clicked outside both → close
-          if (!clickedInsideCategory && !clickedInsideItem) {
-            return { ...row, CategoryOpen: false, itemOpen: false };
-          }
-
-          return row;
-        })
-      );
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
-
+  return () => {
+    socket.emit("leave_order_room", kotId);
+  };
+}, [tableOrderDetails?.KOT_Id]);
   const {
 
     control,
     handleSubmit,
     setValue,
     watch,
-    
+
     reset,
-    
+
   } = useForm({
     defaultValues: {
       //   Tax_Type: "None",
@@ -324,90 +466,9 @@ const lastCategoryRef = useRef(activeCategory);
   });
 
 
-  // const filteredItems = activeCategory === 'All'
-  //     ? items
-  //     : items?.filter(item => item?.Item_Category === activeCategory);
+ 
 
 
-  // const filteredItems = useMemo(() => {
-  //   if (!items) return [];
-
-  //   const search = searchTerm.trim().toLowerCase();
-  //   const categoryChanged = lastCategoryRef.current !== activeCategory;
-
-  //   // 1️⃣ Filter first
-  //   const filtered = items.filter((item) => {
-  //     const matchesCategory =
-  //       activeCategory === "All" ||
-  //       item.Item_Category === activeCategory;
-
-  //     const matchesSearch =
-  //       categoryChanged ||
-  //       !search ||
-  //       item.Item_Name.toLowerCase().includes(search);
-
-  //     return matchesCategory && matchesSearch;
-  //   });
-
-  //   // 2️⃣ Split: already-added vs not-added
-  //   const addedItems = [];
-  //   const newItems = [];
-
-  //   filtered.forEach((item) => {
-  //     if (cart?.[item.Item_Id]) {
-  //       addedItems.push(item);   // 🔥 SHOW FIRST
-  //     } else {
-  //       newItems.push(item);
-  //     }
-  //   });
-
-  //   lastCategoryRef.current = activeCategory;
-
-  //   // 3️⃣ Merge → added items on top
-  //   return [...addedItems, ...newItems];
-  // }, [items, activeCategory, searchTerm, cart]);
-// const filteredItems = useMemo(() => {
-//   if (!items) return [];
-
-//   const term = searchTerm.trim().toLowerCase();
-//   const categoryChanged = lastCategoryRef.current !== activeCategory;
-
-//   const filtered = items.filter((item) => {
-//     const matchesCategory =
-//       activeCategory === "All" ||
-//       item.Item_Category === activeCategory;
-
-//     // 🔥 Ignore search when category JUST changed
-//     const matchesSearch = categoryChanged
-//       ? true
-//       : !term || item.Item_Name?.toLowerCase().includes(term);
-
-//     return matchesCategory && matchesSearch;
-//   });
-
-//   // update category ref AFTER filtering
-//   lastCategoryRef.current = activeCategory;
-
-//   return [...filtered].sort((a, b) => {
-//     const aId = a.id;
-//     const bId = b.id;
-
-//     const aInCart = cart[aId] ? 1 : 0;
-//     const bInCart = cart[bId] ? 1 : 0;
-
-//     // 🔥 MOST RECENT ITEM ALWAYS ON TOP
-//     if (aId === lastUpdatedItemRef.current) return -1;
-//     if (bId === lastUpdatedItemRef.current) return 1;
-
-//     // 🔥 CART ITEMS ABOVE NON-CART ITEMS
-//     if (aInCart !== bInCart) return bInCart - aInCart;
-
-//     return 0;
-//   });
-// }, [items, activeCategory, searchTerm, cart]);
-
-
-  
   const totalItems = Object.values(cart).reduce((sum, qty) => sum + qty, 0);
   const itemRowMap = useRef({});
   const updateTotals = () => {
@@ -602,70 +663,70 @@ const lastCategoryRef = useRef(activeCategory);
       };
     });
   };
-const filteredItems = useMemo(() => {
-  if (!items) return [];
+  const filteredItems = useMemo(() => {
+    if (!items) return [];
 
-  const term = searchTerm.trim().toLowerCase();
-  const categoryChanged = lastCategoryRef.current !== activeCategory;
+    const term = searchTerm.trim().toLowerCase();
+    const categoryChanged = lastCategoryRef.current !== activeCategory;
 
-  // 1️⃣ FILTER: category + smart search
-  const filtered = items.filter((item) => {
-    const matchesCategory =
-      activeCategory === "All" ||
-      item.Item_Category === activeCategory;
+    // 1️⃣ FILTER: category + smart search
+    const filtered = items.filter((item) => {
+      const matchesCategory =
+        activeCategory === "All" ||
+        item.Item_Category === activeCategory;
 
-    const matchesSearch =
-      categoryChanged ||
-      !term ||
-      item.Item_Name?.toLowerCase().includes(term);
+      const matchesSearch =
+        categoryChanged ||
+        !term ||
+        item.Item_Name?.toLowerCase().includes(term);
 
-    return matchesCategory && matchesSearch;
-  });
+      return matchesCategory && matchesSearch;
+    });
 
-  // update category ref AFTER filtering
-  lastCategoryRef.current = activeCategory;
+    // update category ref AFTER filtering
+    //lastCategoryRef.current = activeCategory;
+    return filtered;
+    // // 2️⃣ SPLIT: cart vs non-cart (preserve order)
+    // const addedItems = [];
+    // const newItems = [];
 
-  // 2️⃣ SPLIT: cart vs non-cart (preserve order)
-  const addedItems = [];
-  const newItems = [];
+    // filtered.forEach((item) => {
+    //   if (cart?.[item.Item_Id]) {
+    //     addedItems.push(item);
+    //   } else {
+    //     newItems.push(item);
+    //   }
+    // });
 
-  filtered.forEach((item) => {
-    if (cart?.[item.Item_Id]) {
-      addedItems.push(item);
-    } else {
-      newItems.push(item);
+    // // 3️⃣ MOST RECENT UPDATE → move to top of its group ONLY
+    // const lastId = lastUpdatedItemRef.current;
+
+    // if (lastId) {
+    //   const idx = addedItems.findIndex(
+    //     (item) => item.Item_Id === lastId
+    //   );
+
+    //   if (idx > 0) {
+    //     const [recent] = addedItems.splice(idx, 1);
+    //     addedItems.unshift(recent);
+    //   }
+    // }
+
+    // // 4️⃣ MERGE: cart items first, then others
+    // return [...addedItems, ...newItems];
+  }, [items, activeCategory, searchTerm, cart]);
+  useEffect(() => {
+    if (
+      activeCategory !== "All" &&
+      filteredItems.length === 0
+    ) {
+      setTimeout(() => {
+        setActiveCategory("All");
+      }, 1000);
+      // setActiveCategory("All");
     }
-  });
-
-  // 3️⃣ MOST RECENT UPDATE → move to top of its group ONLY
-  const lastId = lastUpdatedItemRef.current;
-
-  if (lastId) {
-    const idx = addedItems.findIndex(
-      (item) => item.Item_Id === lastId
-    );
-
-    if (idx > 0) {
-      const [recent] = addedItems.splice(idx, 1);
-      addedItems.unshift(recent);
-    }
-  }
-
-  // 4️⃣ MERGE: cart items first, then others
-  return [...addedItems, ...newItems];
-}, [items, activeCategory, searchTerm, cart]);
-useEffect(() => {
-  if (
-    activeCategory !== "All" &&
-    filteredItems.length === 0
-  ) {
-    setTimeout(() => {
-      setActiveCategory("All");
-    }, 1000);
-    // setActiveCategory("All");
-  }
-}, [filteredItems, activeCategory]);
- //console.log(filteredItems,"filteredItems",cart)
+  }, [filteredItems, activeCategory]);
+  //console.log(filteredItems,"filteredItems",cart)
   const summaryItems = watch("items") || [];
 
   const formValues = watch();
@@ -697,21 +758,21 @@ useEffect(() => {
   useEffect(() => {
     updateTotals();
   }, [watch("items")]);
-console.log(selectedTables,"selectedTables")
-const printKOTInvoice = (kitchens) => {
-  console.log("Preparing to print KOT invoice for kitchens:", kitchens);
-  const getCurrentDate = () =>
-    new Date().toLocaleDateString("en-GB");
+  console.log(selectedTables, "selectedTables")
+  const printKOTInvoice = (kitchens) => {
+    console.log("Preparing to print KOT invoice for kitchens:", kitchens);
+    const getCurrentDate = () =>
+      new Date().toLocaleDateString("en-GB");
 
-  const getCurrentTime = () =>
-    new Date().toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
+    const getCurrentTime = () =>
+      new Date().toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
 
-  const kitchenSections = Object.entries(kitchens)
-    .map(([kitchenName, items], index) => `
+    const kitchenSections = Object.entries(kitchens)
+      .map(([kitchenName, items], index) => `
       ${index > 0 ? `<div class="line"></div>` : ``}
 
       <div class="invoice-kitchen">
@@ -744,9 +805,9 @@ const printKOTInvoice = (kitchens) => {
         `).join("")}
       </div>
     `)
-    .join("");
+      .join("");
 
-  const html = `<!DOCTYPE html>
+    const html = `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
@@ -804,45 +865,45 @@ const printKOTInvoice = (kitchens) => {
 </body>
 </html>`;
 
-  const iframe = document.createElement("iframe");
-  iframe.style.display = "none";
-  document.body.appendChild(iframe);
+    const iframe = document.createElement("iframe");
+    iframe.style.display = "none";
+    document.body.appendChild(iframe);
 
-  // iframe.contentDocument.open();
-  // iframe.contentDocument.write(html);
-  // iframe.contentDocument.close();
+    // iframe.contentDocument.open();
+    // iframe.contentDocument.write(html);
+    // iframe.contentDocument.close();
 
-  iframe.onload = () => {
-    iframe.contentWindow.print();
+    iframe.onload = () => {
+      iframe.contentWindow.print();
+    };
+    iframe.onload = () => {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+    };
+
+    iframe.contentDocument.open();
+    iframe.contentDocument.write(html);
+    iframe.contentDocument.close();
+
+
+    setTimeout(() => document.body.removeChild(iframe), 1000);
+    //  const w = window.open("", "_blank");
+    //   if (!w) {
+    //     alert("Please allow pop-ups to print the invoice.");
+    //     return;
+    //   }
+
+    //   w.document.write(html);
+    //   w.document.write(`
+    //   <button onclick="window.print()" 
+    //     class="no-print"
+    //     style="position:fixed;top:10px;right:10px;padding:8px 12px;
+    //            background:#ff0000;color:white;border:none;border-radius:4px;
+    //            font-size:14px;cursor:pointer;z-index:9999;">
+    //       Print
+    //   </button>
+    // `);
   };
-  iframe.onload = () => {
-  iframe.contentWindow.focus();
-  iframe.contentWindow.print();
-};
-
-iframe.contentDocument.open();
-iframe.contentDocument.write(html);
-iframe.contentDocument.close();
-
-
-  setTimeout(() => document.body.removeChild(iframe), 1000);
-//  const w = window.open("", "_blank");
-//   if (!w) {
-//     alert("Please allow pop-ups to print the invoice.");
-//     return;
-//   }
-
-//   w.document.write(html);
-//   w.document.write(`
-//   <button onclick="window.print()" 
-//     class="no-print"
-//     style="position:fixed;top:10px;right:10px;padding:8px 12px;
-//            background:#ff0000;color:white;border:none;border-radius:4px;
-//            font-size:14px;cursor:pointer;z-index:9999;">
-//       Print
-//   </button>
-// `);
-};
   const onSubmit = async (data) => {
     console.log("Form Data:", data);
 
@@ -911,18 +972,18 @@ iframe.contentDocument.close();
         toast.error(res.message || "Failed to update order.");
         return;
       }
-if (res?.elligibleItems && res?.elligibleItems &&   Object.keys(res.elligibleItems).length > 0) {
-  printKOTInvoice(res.elligibleItems);
-}
+      if (res?.elligibleItems && res?.elligibleItems && Object.keys(res.elligibleItems).length > 0) {
+        printKOTInvoice(res.elligibleItems);
+      }
 
       toast.success("Order updated Successfully!");
       dispatch(kitchenStaffApi.util.invalidateTags(["Kitchen-Staff"]));
       //dispatch(tableApi.util.invalidateTags(["Table"]));
-          dispatch(
-  foodItemApi.util.invalidateTags([
-    { type: "Daily-Food-Item-Stock", id: "LIST" },
-  ]))
-   refetchMenuItems();
+      dispatch(
+        foodItemApi.util.invalidateTags([
+          { type: "Daily-Food-Item-Stock", id: "LIST" },
+        ]))
+      refetchMenuItems();
       // navigate("/staff/orders/all-orders");
       navigate("/staff/orders/all-tables");
 
@@ -932,384 +993,384 @@ if (res?.elligibleItems && res?.elligibleItems &&   Object.keys(res.elligibleIte
     }
   };
 
-//   const handleConfirmBillAndGenerateInvoice = async (data) => {
-//     try {
-//       const payload = {
-//         Customer_Name: data?.Customer_Name,
-//         Customer_Phone: data?.Customer_Phone,
-//         Discount: data?.Discount,
-//         Discount_Type: data?.Discount_Type ?? "amount",
-//         Service_Charge: data.Service_Charge,
-//         Payment_Type: data?.Payment_Type,
-//         Final_Amount: data?.Final_Amount,
-//       };
+  //   const handleConfirmBillAndGenerateInvoice = async (data) => {
+  //     try {
+  //       const payload = {
+  //         Customer_Name: data?.Customer_Name,
+  //         Customer_Phone: data?.Customer_Phone,
+  //         Discount: data?.Discount,
+  //         Discount_Type: data?.Discount_Type ?? "amount",
+  //         Service_Charge: data.Service_Charge,
+  //         Payment_Type: data?.Payment_Type,
+  //         Final_Amount: data?.Final_Amount,
+  //       };
 
-//       // 🔥 API CALL
-//       const response = await confirmBillAndInvoiceGenerated({
-//         // orderId,
-//         payload
-//       }).unwrap();
+  //       // 🔥 API CALL
+  //       const response = await confirmBillAndInvoiceGenerated({
+  //         // orderId,
+  //         payload
+  //       }).unwrap();
 
-//       toast.success("Invoice Generated & Bill Paid!");
-//       console.log(response, "response");
-//       //     setInvoiceDetails(prev => ({
-//       //   ...prev,
-//       //   Invoice_Number: response.Invoice_Id, // 🔥 map backend Invoice_Id
-//       // }));
-//       // const invoiceId = response.Invoice_Id;
-//       //  setInvoiceNumber(invoiceId);
-// printInvoiceWindow(
-//   response.Invoice_Id,        // invoiceId
-//   response.invoiceDetails,    // invoiceDetails
-//   response.items,             // items (array)
-//   response.Table_Names        // Table_Names (array)
-// );
+  //       toast.success("Invoice Generated & Bill Paid!");
+  //       console.log(response, "response");
+  //       //     setInvoiceDetails(prev => ({
+  //       //   ...prev,
+  //       //   Invoice_Number: response.Invoice_Id, // 🔥 map backend Invoice_Id
+  //       // }));
+  //       // const invoiceId = response.Invoice_Id;
+  //       //  setInvoiceNumber(invoiceId);
+  // printInvoiceWindow(
+  //   response.Invoice_Id,        // invoiceId
+  //   response.invoiceDetails,    // invoiceDetails
+  //   response.items,             // items (array)
+  //   response.Table_Names        // Table_Names (array)
+  // );
 
-//       // RESPONSE MUST INCLUDE invoice number
-//       //const newInvoiceNumber = response.invoiceNumber; 
+  //       // RESPONSE MUST INCLUDE invoice number
+  //       //const newInvoiceNumber = response.invoiceNumber; 
 
-//       // 🔥 NOW PRINT THE INVOICE
-//       // printInvoiceWindow();
+  //       // 🔥 NOW PRINT THE INVOICE
+  //       // printInvoiceWindow();
 
-//       // Refresh UI & close modal
-//       dispatch(tableApi.util.invalidateTags(["Table"]));
-//       dispatch(kitchenStaffApi.util.invalidateTags(["Kitchen-Staff"]));
-//       dispatch(orderApi.util.invalidateTags(["Order"]));
+  //       // Refresh UI & close modal
+  //       dispatch(tableApi.util.invalidateTags(["Table"]));
+  //       dispatch(kitchenStaffApi.util.invalidateTags(["Kitchen-Staff"]));
+  //       dispatch(orderApi.util.invalidateTags(["Order"]));
 
-//       navigate("/staff/orders/all-orders");
+  //       navigate("/staff/orders/all-orders");
 
-//     } catch (error) {
-//       console.error("❌ Error confirming bill and generating invoice:", error);
-//       toast.error(error?.data?.message || "Failed to generate invoice");
-//     }
-//   };
+  //     } catch (error) {
+  //       console.error("❌ Error confirming bill and generating invoice:", error);
+  //       toast.error(error?.data?.message || "Failed to generate invoice");
+  //     }
+  //   };
 
-//   const handleShareSMS = async (data) => {
-//     try {
-//       const payload = {
-//         Customer_Name: data?.Customer_Name,
-//         Customer_Phone: data?.Customer_Phone,
-//         Discount_Type: data?.Discount_Type,
-//         Discount: data?.Discount,
-//         Service_Charge: data?.Service_Charge,
-//         Payment_Type: data?.Payment_Type,
-//         Final_Amount: data?.Final_Amount,
-//       };
-//       console.log(payload, "payload");
+  //   const handleShareSMS = async (data) => {
+  //     try {
+  //       const payload = {
+  //         Customer_Name: data?.Customer_Name,
+  //         Customer_Phone: data?.Customer_Phone,
+  //         Discount_Type: data?.Discount_Type,
+  //         Discount: data?.Discount,
+  //         Service_Charge: data?.Service_Charge,
+  //         Payment_Type: data?.Payment_Type,
+  //         Final_Amount: data?.Final_Amount,
+  //       };
+  //       console.log(payload, "payload");
 
-//       const response = await generateSms({
-//         // Order_Id: orderId,
-//         payload,
-//       }).unwrap();
+  //       const response = await generateSms({
+  //         // Order_Id: orderId,
+  //         payload,
+  //       }).unwrap();
 
-//       toast.success("📩 Bill sent via SMS successfully");
-//       console.log(response, "response");
-//       dispatch(tableApi.util.invalidateTags(["Table"]));
-//       dispatch(kitchenStaffApi.util.invalidateTags(["Kitchen-Staff"]));
+  //       toast.success("📩 Bill sent via SMS successfully");
+  //       console.log(response, "response");
+  //       dispatch(tableApi.util.invalidateTags(["Table"]));
+  //       dispatch(kitchenStaffApi.util.invalidateTags(["Kitchen-Staff"]));
 
-//       navigate("/staff/orders/all-orders");
-//     } catch (err) {
-//       console.error(err);
-//       toast.error(err?.data?.message || "Failed to send SMS");
-//     }
-//   };
-//   // console.log(customerDetails,"customerDetails");
-//   //  console.log(invoiceDetails,"invoiceDetails");
+  //       navigate("/staff/orders/all-orders");
+  //     } catch (err) {
+  //       console.error(err);
+  //       toast.error(err?.data?.message || "Failed to send SMS");
+  //     }
+  //   };
+  //   // console.log(customerDetails,"customerDetails");
+  //   //  console.log(invoiceDetails,"invoiceDetails");
 
-//   const printInvoiceWindow = (invoiceId,invoiceDetails,items,Table_Names) => {
-//     const getCurrentDate = () =>
-//       new Date().toLocaleDateString("en-GB");
+  //   const printInvoiceWindow = (invoiceId,invoiceDetails,items,Table_Names) => {
+  //     const getCurrentDate = () =>
+  //       new Date().toLocaleDateString("en-GB");
 
-//     const getCurrentTime = () =>
-//       new Date().toLocaleTimeString("en-US", {
-//         hour: "2-digit",
-//         minute: "2-digit",
-//         hour12: true,
-//       });
-//     const total = invoiceDetails?.Final_Amount ?? 0;
-
-
-//     const html = `<!DOCTYPE html>
-// <html>
-// <head>
-//   <title>Invoice - ${invoiceDetails?.Invoice_Number ?? ""}</title>
-//   <meta charset="UTF-8">
-//   <style>
-//     * {
-//       margin: 0;
-//       padding: 0;
-//       box-sizing: border-box;
-//     }
-
-//     body {
-//       font-family: 'Courier New', Courier, monospace;
-//       font-size: 11px;
-//       line-height: 1.3;
-//       font-weight: 700;
-//       color: #000;
-//       width: 58mm;
-//       margin: 0;
-//       padding: 0;
-//       -webkit-print-color-adjust: exact;
-//       print-color-adjust: exact;
-//     }
-
-//     /* 🔥 SAFE PRINTABLE WIDTH */
-//     .invoice {
-//       width: 48mm;
-//       margin: 0 auto;
-//       padding: 2mm;
-//     }
-
-//     .header-center,
-//     .header-middle {
-//       text-align: center;
-//       margin-bottom: 6px;
-//       border-bottom: 1px dashed #000;
-//       padding-bottom: 6px;
-//     }
-
-//     .brand {
-//       font-size: 15px;
-//       font-weight: 800;
-//       letter-spacing: 1px;
-//     }
-
-//     .line {
-//       border-top: 1px dashed #000;
-//       margin: 5px 0;
-//     }
-
-//     .line-solid {
-//       border-top: 1px solid #000;
-//       margin: 5px 0;
-//     }
-
-//    .info-row.date-time {
-//   display: flex;
-//   justify-content: space-between;
-//   font-size: 9px;
-//   font-weight: 700;
-//   width: 100%;
-// }
-
-// .info-row.date-time span {
-//   white-space: nowrap;   /* 🔥 prevents wrapping */
-// }
-
-//     .info-label {
-//       font-weight: 800;
-//     }
-
-//     /* ITEMS */
-//     .items-header,
-//     .item-row {
-//       display: flex;
-//       justify-content: space-between;
-//       font-size: 10px;
-//       width: 100%;
-//     }
-
-//     .items-header {
-//       border-bottom: 1px solid #000;
-//       padding-bottom: 3px;
-//       font-weight: 800;
-//     }
-
-//     .item-row {
-//       border-bottom: 1px dashed #ccc;
-//       padding: 2px 0;
-//     }
-
-//     .col-no {
-//       width: 5mm;
-//     }
-
-//     .item-name {
-//       flex: 1;
-//       padding-right: 2mm;
-//       word-break: break-word;
-//     }
-
-//     .item-qty {
-//       width: 6mm;
-//       text-align: center;
-//     }
-
-//     .item-amount {
-//       width: 10mm;
-//       text-align: right;
-//     }
-
-//     /* SUMMARY */
-//     .summary {
-//       margin-top: 6px;
-//       font-size: 11px;
-//       width: 100%;
-//     }
-
-//     .summary-row {
-//       display: flex;
-//       justify-content: space-between;
-//       margin: 2px 0;
-//     }
-
-//     .summary-row.total {
-//       font-size: 13px;
-//       font-weight: 900;
-//       border-top: 1px solid #000;
-//       border-bottom: 2px solid #000;
-//       padding: 4px 0;
-//       margin-top: 4px;
-//     }
-
-//     .footer {
-//       text-align: center;
-//       margin-top: 8px;
-//       padding-top: 6px;
-//       border-top: 1px dashed #000;
-//       font-size: 10px;
-//       font-weight: 700;
-//     }
-
-//     @media print {
-//       @page {
-//         size: 58mm auto;
-//         margin: 0;
-//       }
-//     }
-//   </style>
-// </head>
-
-// <body>
-//   <div class="invoice">
-
-//     <div class="header-center">
-//       <div class="brand">HELLO GUYS</div>
-//       <div>Phone: +91 9903106989</div>
-//       <div>Mail: sparkhelloguys@gmail.com</div>
-//       <div style="font-size:9px">
-//         Address: 021D, Ho-Chi-Minh Sarani,
-//         Shakuntala Park, Kolkata 700061
-//       </div>
-//       <div>www.helloguys.co.in</div>
-//     </div>
-
-//     ${invoiceDetails?.Customer_Name ? `
-//     <div class="info-row">
-//       <span class="info-label">Customer:</span>
-//       <span>${invoiceDetails.Customer_Name}</span>
-//     </div>` : ``}
-
-//     ${invoiceDetails?.Customer_Phone ? `
-//     <div class="info-row">
-//       <span class="info-label">Phone:</span>
-//       <span>${invoiceDetails.Customer_Phone}</span>
-//     </div>` : ``}
-
-//     <div class="line"></div>
-
-// <div class="header-middle">
-//   <b>TABLE: ${
-//   Array.isArray(Table_Names) && Table_Names.length
-//     ? Table_Names.join(", ")
-//     : "-"
-// }</b>
-
-// </div>
+  //     const getCurrentTime = () =>
+  //       new Date().toLocaleTimeString("en-US", {
+  //         hour: "2-digit",
+  //         minute: "2-digit",
+  //         hour12: true,
+  //       });
+  //     const total = invoiceDetails?.Final_Amount ?? 0;
 
 
-//  <div class="info-row date-time">
-//   <span><b>Date:</b> ${getCurrentDate()}</span>
-//   <span><b>Time:</b> ${getCurrentTime()}</span>
-// </div>
+  //     const html = `<!DOCTYPE html>
+  // <html>
+  // <head>
+  //   <title>Invoice - ${invoiceDetails?.Invoice_Number ?? ""}</title>
+  //   <meta charset="UTF-8">
+  //   <style>
+  //     * {
+  //       margin: 0;
+  //       padding: 0;
+  //       box-sizing: border-box;
+  //     }
+
+  //     body {
+  //       font-family: 'Courier New', Courier, monospace;
+  //       font-size: 11px;
+  //       line-height: 1.3;
+  //       font-weight: 700;
+  //       color: #000;
+  //       width: 58mm;
+  //       margin: 0;
+  //       padding: 0;
+  //       -webkit-print-color-adjust: exact;
+  //       print-color-adjust: exact;
+  //     }
+
+  //     /* 🔥 SAFE PRINTABLE WIDTH */
+  //     .invoice {
+  //       width: 48mm;
+  //       margin: 0 auto;
+  //       padding: 2mm;
+  //     }
+
+  //     .header-center,
+  //     .header-middle {
+  //       text-align: center;
+  //       margin-bottom: 6px;
+  //       border-bottom: 1px dashed #000;
+  //       padding-bottom: 6px;
+  //     }
+
+  //     .brand {
+  //       font-size: 15px;
+  //       font-weight: 800;
+  //       letter-spacing: 1px;
+  //     }
+
+  //     .line {
+  //       border-top: 1px dashed #000;
+  //       margin: 5px 0;
+  //     }
+
+  //     .line-solid {
+  //       border-top: 1px solid #000;
+  //       margin: 5px 0;
+  //     }
+
+  //    .info-row.date-time {
+  //   display: flex;
+  //   justify-content: space-between;
+  //   font-size: 9px;
+  //   font-weight: 700;
+  //   width: 100%;
+  // }
+
+  // .info-row.date-time span {
+  //   white-space: nowrap;   /* 🔥 prevents wrapping */
+  // }
+
+  //     .info-label {
+  //       font-weight: 800;
+  //     }
+
+  //     /* ITEMS */
+  //     .items-header,
+  //     .item-row {
+  //       display: flex;
+  //       justify-content: space-between;
+  //       font-size: 10px;
+  //       width: 100%;
+  //     }
+
+  //     .items-header {
+  //       border-bottom: 1px solid #000;
+  //       padding-bottom: 3px;
+  //       font-weight: 800;
+  //     }
+
+  //     .item-row {
+  //       border-bottom: 1px dashed #ccc;
+  //       padding: 2px 0;
+  //     }
+
+  //     .col-no {
+  //       width: 5mm;
+  //     }
+
+  //     .item-name {
+  //       flex: 1;
+  //       padding-right: 2mm;
+  //       word-break: break-word;
+  //     }
+
+  //     .item-qty {
+  //       width: 6mm;
+  //       text-align: center;
+  //     }
+
+  //     .item-amount {
+  //       width: 10mm;
+  //       text-align: right;
+  //     }
+
+  //     /* SUMMARY */
+  //     .summary {
+  //       margin-top: 6px;
+  //       font-size: 11px;
+  //       width: 100%;
+  //     }
+
+  //     .summary-row {
+  //       display: flex;
+  //       justify-content: space-between;
+  //       margin: 2px 0;
+  //     }
+
+  //     .summary-row.total {
+  //       font-size: 13px;
+  //       font-weight: 900;
+  //       border-top: 1px solid #000;
+  //       border-bottom: 2px solid #000;
+  //       padding: 4px 0;
+  //       margin-top: 4px;
+  //     }
+
+  //     .footer {
+  //       text-align: center;
+  //       margin-top: 8px;
+  //       padding-top: 6px;
+  //       border-top: 1px dashed #000;
+  //       font-size: 10px;
+  //       font-weight: 700;
+  //     }
+
+  //     @media print {
+  //       @page {
+  //         size: 58mm auto;
+  //         margin: 0;
+  //       }
+  //     }
+  //   </style>
+  // </head>
+
+  // <body>
+  //   <div class="invoice">
+
+  //     <div class="header-center">
+  //       <div class="brand">HELLO GUYS</div>
+  //       <div>Phone: +91 9903106989</div>
+  //       <div>Mail: sparkhelloguys@gmail.com</div>
+  //       <div style="font-size:9px">
+  //         Address: 021D, Ho-Chi-Minh Sarani,
+  //         Shakuntala Park, Kolkata 700061
+  //       </div>
+  //       <div>www.helloguys.co.in</div>
+  //     </div>
+
+  //     ${invoiceDetails?.Customer_Name ? `
+  //     <div class="info-row">
+  //       <span class="info-label">Customer:</span>
+  //       <span>${invoiceDetails.Customer_Name}</span>
+  //     </div>` : ``}
+
+  //     ${invoiceDetails?.Customer_Phone ? `
+  //     <div class="info-row">
+  //       <span class="info-label">Phone:</span>
+  //       <span>${invoiceDetails.Customer_Phone}</span>
+  //     </div>` : ``}
+
+  //     <div class="line"></div>
+
+  // <div class="header-middle">
+  //   <b>TABLE: ${
+  //   Array.isArray(Table_Names) && Table_Names.length
+  //     ? Table_Names.join(", ")
+  //     : "-"
+  // }</b>
+
+  // </div>
 
 
-//     <div class="info-row">
-//       <span><b>Invoice:</b> ${invoiceId || "-"}</span>
-//     </div>
+  //  <div class="info-row date-time">
+  //   <span><b>Date:</b> ${getCurrentDate()}</span>
+  //   <span><b>Time:</b> ${getCurrentTime()}</span>
+  // </div>
 
-//     <div class="line-solid"></div>
 
-//     <div class="items-header">
-//       <div class="col-no">No</div>
-//       <div class="item-name">ITEM</div>
-//       <div class="item-qty">QTY</div>
-//       <div class="item-amount">AMT</div>
-//     </div>
+  //     <div class="info-row">
+  //       <span><b>Invoice:</b> ${invoiceId || "-"}</span>
+  //     </div>
 
-//     ${(items || []).map((it, i) => `
-//       <div class="item-row">
-//         <div class="col-no">${i + 1}</div>
-//         <div class="item-name">${it.Item_Name}</div>
-//         <div class="item-qty">${it.Item_Quantity}</div>
-//         <div class="item-amount">₹${Number(it.Amount).toFixed(2)}</div>
-//       </div>
-//     `).join("")}
+  //     <div class="line-solid"></div>
 
-//     <div class="line-solid"></div>
+  //     <div class="items-header">
+  //       <div class="col-no">No</div>
+  //       <div class="item-name">ITEM</div>
+  //       <div class="item-qty">QTY</div>
+  //       <div class="item-amount">AMT</div>
+  //     </div>
 
-//     <div class="summary">
-//       <div class="summary-row">
-//         <span>Subtotal</span>
-//         <span>₹${Number(invoiceDetails?.Sub_Total).toFixed(2)}</span>
-//       </div>
+  //     ${(items || []).map((it, i) => `
+  //       <div class="item-row">
+  //         <div class="col-no">${i + 1}</div>
+  //         <div class="item-name">${it.Item_Name}</div>
+  //         <div class="item-qty">${it.Item_Quantity}</div>
+  //         <div class="item-amount">₹${Number(it.Amount).toFixed(2)}</div>
+  //       </div>
+  //     `).join("")}
 
-//       ${invoiceDetails?.Discount ? `
-//       <div class="summary-row">
-//         <span>Discount</span>
-//         <span>
-//           ${invoiceDetails.Discount_Type === "percentage"
-//           ? invoiceDetails.Discount + "%"
-//           : "₹" + invoiceDetails.Discount}
-//         </span>
-//       </div>` : ``}
+  //     <div class="line-solid"></div>
 
-//       <div class="summary-row total">
-//         <span>TOTAL</span>
-//         <span>₹${Number(total).toFixed(2)}</span>
-//       </div>
-//     </div>
+  //     <div class="summary">
+  //       <div class="summary-row">
+  //         <span>Subtotal</span>
+  //         <span>₹${Number(invoiceDetails?.Sub_Total).toFixed(2)}</span>
+  //       </div>
 
-//     <div class="footer">
-//       <b>THANK YOU!</b><br>
-//       Please Visit Again
-//     </div>
+  //       ${invoiceDetails?.Discount ? `
+  //       <div class="summary-row">
+  //         <span>Discount</span>
+  //         <span>
+  //           ${invoiceDetails.Discount_Type === "percentage"
+  //           ? invoiceDetails.Discount + "%"
+  //           : "₹" + invoiceDetails.Discount}
+  //         </span>
+  //       </div>` : ``}
 
-//   </div>
-// </body>
-// </html>
-// `
+  //       <div class="summary-row total">
+  //         <span>TOTAL</span>
+  //         <span>₹${Number(total).toFixed(2)}</span>
+  //       </div>
+  //     </div>
 
-//     // 🔥 CREATE HIDDEN IFRAME
+  //     <div class="footer">
+  //       <b>THANK YOU!</b><br>
+  //       Please Visit Again
+  //     </div>
 
-//     const iframe = document.createElement("iframe");
-//     iframe.style.position = "fixed";
-//     iframe.style.right = "0";
-//     iframe.style.bottom = "0";
-//     iframe.style.width = "0";
-//     iframe.style.height = "0";
-//     iframe.style.border = "0";
+  //   </div>
+  // </body>
+  // </html>
+  // `
 
-//     document.body.appendChild(iframe);
+  //     // 🔥 CREATE HIDDEN IFRAME
 
-//     const doc = iframe.contentWindow.document;
-//     doc.open();
-//     doc.write(html);
-//     doc.close();
+  //     const iframe = document.createElement("iframe");
+  //     iframe.style.position = "fixed";
+  //     iframe.style.right = "0";
+  //     iframe.style.bottom = "0";
+  //     iframe.style.width = "0";
+  //     iframe.style.height = "0";
+  //     iframe.style.border = "0";
 
-//     // ✅ THIS WAS MISSING
-//     iframe.onload = () => {
-//       iframe.contentWindow.focus();
-//       iframe.contentWindow.print();
-//     };
+  //     document.body.appendChild(iframe);
 
-//     // 🧹 CLEANUP AFTER PRINT
-//     setTimeout(() => {
-//       document.body.removeChild(iframe);
-//     }, 1000);
+  //     const doc = iframe.contentWindow.document;
+  //     doc.open();
+  //     doc.write(html);
+  //     doc.close();
 
-//   };
+  //     // ✅ THIS WAS MISSING
+  //     iframe.onload = () => {
+  //       iframe.contentWindow.focus();
+  //       iframe.contentWindow.print();
+  //     };
+
+  //     // 🧹 CLEANUP AFTER PRINT
+  //     setTimeout(() => {
+  //       document.body.removeChild(iframe);
+  //     }, 1000);
+
+  //   };
 
 
 
@@ -1317,7 +1378,7 @@ if (res?.elligibleItems && res?.elligibleItems &&   Object.keys(res.elligibleIte
   console.log("Current form values:", formValues);
   //console.log("Form errors:", errors);
 
-
+  console.log(summaryItems, "summaryItems");
 
   return (
     <>
@@ -1365,7 +1426,7 @@ if (res?.elligibleItems && res?.elligibleItems &&   Object.keys(res.elligibleIte
 
                   {/* RIGHT BUTTON SECTION */}
 
-                   <div className="
+                  <div className="
        w-full flex justify-center items-center sm:w-auto 
        flex flex-wrap sm:flex-nowrap 
         sm:justify-end 
@@ -1389,7 +1450,7 @@ if (res?.elligibleItems && res?.elligibleItems &&   Object.keys(res.elligibleIte
                       All Orders
                     </button> */}
 
-                     <button
+                    <button
                       type="button"
                       onClick={() => navigate("/staff/orders/all-tables")}
                       className="text-white font-bold py-2 px-4 rounded"
@@ -1465,7 +1526,7 @@ if (res?.elligibleItems && res?.elligibleItems &&   Object.keys(res.elligibleIte
                       </div>
                     </div>
 
-                    {/* ⭐ KITCHEN ITEMS GRID */}
+                    {/*  KITCHEN ITEMS GRID */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full">
                       {kotNotifications?.length === 0 ? (
                         <p className="text-gray-500 text-sm text-center col-span-full py-8">
@@ -1505,793 +1566,567 @@ if (res?.elligibleItems && res?.elligibleItems &&   Object.keys(res.elligibleIte
                     </div>
                   </div>
 
-                  <div 
-  style={{ backgroundColor: "#f1f1f19d"}} className=" mx-auto px-2 py-2">
-  {/* <div
-    className="
-      flex 
-      flex-wrap 
-      gap-2 
-      overflow-x-auto 
-      scrollbar-hide
-    "
-  >
-    {newCategories?.map((cat,index) => (
-      <button
-      type="button"
-        key={index}
-        onClick={() => setActiveCategory(cat)}
-        className={`
-          px-6 py-2 rounded-full font-medium whitespace-nowrap transition-all
-          ${activeCategory === cat
-            ? "text-white shadow-lg scale-105"
-            : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-300"
-          }
-        `}
-        style={{
-          backgroundColor: activeCategory === cat ? "#ff0000" : "",
-          borderColor: activeCategory === cat ? "#ff0000" : "",
-        }}
-      >
-        {cat}
-      </button>
-    ))}
-  </div> */}
 
-                    <div className="sm:hidden px-2 relative">
-  {/* <div
-    onClick={() => setCategoryOpen(!categoryOpen)}
-    className="w-full px-4 py-2  border text-sm flex justify-between items-center"
-  >
-    {activeCategory}
-    <span>▼</span>
-  </div> */}
-  <div>
-    <span style={{color:"#ff0000"}}
-    className="active">Category</span>
-    <input
-                      type="text"
-                      id="Category"
-                       value={categorySearch}
-                  style={{outline:"none"}}
-                      placeholder="Category"
-                      className="w-full outline-none  text-gray-900"
-                      onFocus={() => setCategoryOpen(true)}
-                         onChange={(e) => {
-        setCategorySearch(e.target.value);
-        setCategoryOpen(true);
-         
-      }}
-         onBlur={() => {
-        setTimeout(() => setCategoryOpen(false), 150);
-      }}
-      />
-      </div>
+                  {/* ══════════════════════════════════════════════════════════
+          MOBILE FAB BUTTONS — visible only on small screens
+          Category drawer trigger (left) + Order summary (right)
+      ══════════════════════════════════════════════════════════ */}
+                  <div className="flex lg:hidden fixed bottom-4 left-0 right-0 z-40
+       justify-between px-4 pointer-events-none">
 
- {categoryOpen && (
-  <div className="absolute mt-1 w-full bg-white border rounded-lg shadow-md max-h-60 overflow-y-auto z-50">
+                    {/* Category FAB */}
+                    <button
+                      type="button"
+                      onClick={() => setShowCategoryDrawer(true)}
+                      className="pointer-events-auto flex items-center gap-1 bg-white border border-gray-200 text-[#ff0000] font-bold px-4 py-2 rounded-full shadow-lg text-sm"
+                    >
+                      ☰ Categories
+                    </button>
 
-    {(() => {
-      const filteredCategories = newCategories?.filter((cat) =>
-        cat.toLowerCase().includes(categorySearch.toLowerCase())
-      );
+                    {/* Order FAB */}
+                    <button
+                      type="button"
+                      onClick={() => setShowOrderDrawer(true)}
+                      className="pointer-events-auto relative flex items-center gap-1 text-white font-bold px-4 py-2 rounded-full shadow-lg text-sm"
+                      style={{ backgroundColor: "#ff0000" }}
+                    >
+                      🧾 Order
+                      {totalItems > 0 && (
+                        <span className="absolute -top-2 -right-2 bg-white text-[#ff0000] text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full shadow">
+                          {totalItems}
+                        </span>
+                      )}
+                    </button>
+                  </div>
 
-      if (!filteredCategories || filteredCategories.length === 0) {
-        return (
-          <div className="px-4 py-3 text-sm text-gray-500 text-center">
-            No categories found
-          </div>
-        );
-      }
+                  {/* ══════════════════════════════════════════════════════════
+          MOBILE — Category Side Drawer (slides from left)
+      ══════════════════════════════════════════════════════════ */}
+                  {showCategoryDrawer && (
+                    <div className="lg:hidden fixed inset-0 z-50 flex ">
+                      {/* Backdrop */}
+                      <button
+                        type="button"
+                        className="absolute inset-0 bg-black/40"
+                        onClick={() => setShowCategoryDrawer(false)}
+                      />
+                      {/* Drawer */}
+                      <div className="relative w-64 bg-white h-[calc(100%-6rem)] mt-24 flex flex-col shadow-2xl z-10">
+                      {/* <div className="relative w-64 bg-white h-full flex flex-col shadow-2xl z-10"> */}
+                        <div className="px-4 py-3 bg-[#ff0000] flex justify-between items-center">
+                          <h4 className="text-white font-bold text-sm uppercase tracking-wide">Categories</h4>
+                          <button type="button"
+                            onClick={() => setShowCategoryDrawer(false)} className="text-white text-xl font-bold">✖</button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto py-2 px-2 space-y-1">
+                          {newCategories.map((cat, index) => (
+                            <button
+                              type="button"
+                              key={index}
+                              onClick={() => { setActiveCategory(cat); setShowCategoryDrawer(false); }}
+                              className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all ${activeCategory === cat
+                                  ? "bg-[#ff0000] text-white shadow-sm"
+                                  : "bg-gray-50 hover:bg-red-50 text-gray-700 border border-gray-100"
+                                }`}
+                            >
+                              {cat}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
-      return filteredCategories.map((cat, idx) => (
-        <div
-          key={idx}
-          onClick={() => {
-            setActiveCategory(cat);
-            setCategoryOpen(false);
-            setCategorySearch(cat);
-          }}
-          className="px-4 py-2 text-sm hover:bg-gray-100 cursor-pointer"
-        >
-          {cat}
-        </div>
-      ));
-    })()}
+                  {/* ══════════════════════════════════════════════════════════
+          MOBILE — Order Summary Bottom Drawer (slides from bottom)
+      ══════════════════════════════════════════════════════════ */}
+                  {showOrderDrawer && (
+                    <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end ">
+                      {/* Backdrop */}
+                      <button
+                        type="button"
+                        className="absolute inset-0 bg-black/40"
+                        onClick={() => setShowOrderDrawer(false)}
+                      />
+                      {/* Drawer */}
+                      <div className="relative bg-white rounded-t-2xl shadow-2xl z-10 flex flex-col" style={{ maxHeight: "80vh" }}>
+                        {/* Handle */}
+                        <div className="flex justify-center pt-3 pb-1">
+                          <div className="w-10 h-1 bg-gray-300 rounded-full" />
+                        </div>
+                        {/* Header */}
+                        <div className="px-4 py-3 bg-[#ff0000] flex justify-between items-center">
+                          <h4 className="text-white font-bold text-sm uppercase tracking-wide">Order Summary</h4>
+                          <div className="flex items-center gap-3">
+                            <span className="relative">
+                              <ShoppingCart size={20} className="text-white" />
+                              {totalItems > 0 && (
+                                <span className="absolute -top-2 -right-2 bg-white text-[#ff0000] text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full">
+                                  {totalItems}
+                                </span>
+                              )}
+                            </span>
+                            <button type="button" onClick={() => setShowOrderDrawer(false)} className="text-white text-xl font-bold">✖</button>
+                          </div>
+                        </div>
+                        {/* Scrollable items */}
+                        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+                          {summaryItems && summaryItems.length > 0 ? (
+                            summaryItems.map((item, index) => (
+                              <div key={index} className="bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
+                                <div className="flex justify-between items-start">
+                                  <span className="font-semibold text-sm text-gray-800 flex-1 pr-2">
+                                    {item?.Item_Name}</span>
+                                  <span className="text-xs bg-red-100 text-[#ff0000] px-2 py-0.5 rounded-full font-medium whitespace-nowrap">x {item?.Item_Quantity}</span>
+                                </div>
+                                <div className="flex justify-between text-xs text-gray-500 mt-1">
+                                  <span>Amount</span>
+                                  <span className="font-semibold text-gray-700">₹{item?.Amount}</span>
+                                </div>
+                                <div className="flex items-center justify-between bg-[#4CA1AF10] rounded-md p-1.5">
+                                  <button
+                                    type="button"
+                                    disabled={Number(cart[item.id] || 0) === 0}
+                                    onClick={() => updateCart(item.id, -1, index, item.Item_Name, item.Item_Price)}
+                                    className={`w-7 h-7 flex items-center justify-center rounded-md shadow transition ${Number(cart[item.id] || 0) === 0 ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-white hover:bg-gray-100 text-[#ff0000]"}`}
+                                  >
+                                    <Minus className="w-3 h-3" />
+                                  </button>
+                                  <span className="text-base font-semibold text-gray-800 px-2">
+                                    {cart[item.id] || 0}</span>
+                                  <button
+                                    style={{ backgroundColor: "#ff0000" }}
+                                    type="button"
+                                    // disabled={unavailable}
+                                    onClick={() => updateCart(item.id, 1, index,
+                                      item.Item_Name, item.Item_Price)}
+                                    className={`w-7 h-7 flex items-center 
+                            justify-center rounded-md shadow transition
+                             ${Number(cart[item.id] || 0) === 0 ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-[#ff0000] text-white hover:bg-[#3a8c98]"}`}
+                                  >
+                                    <Plus className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="flex flex-col items-center justify-center h-32 text-gray-400">
+                              <ShoppingCart size={32} className="mb-2 opacity-30" />
+                              <p className="text-sm">No items added yet</p>
+                            </div>
+                          )}
+                        </div>
+                        {/* Footer */}
+                        <div className="border-t px-4 py-3 space-y-2 bg-white">
+                          <div className="flex justify-between font-bold text-gray-900">
+                            <span>Total</span>
+                            <span className="text-[#ff0000] text-lg">₹{watch("Amount")}</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => { setShowOrderDrawer(false); setShowSummary(true); }}
+                              className="py-2.5 flex items-center justify-center gap-2 rounded-lg text-white font-bold shadow text-sm"
+                              style={{ backgroundColor: "black" }}
+                            >
+                              {/* <ShoppingCart size={16} className="text-white" /> 
+                  {totalItems > 0 && (
+                <span className="absolute -top-2 -right-2 bg-white text-white 
+                text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full shadow">
+                  {totalItems}
+                </span> */}
+                              <span className="relative">
+                                <ShoppingCart size={20} className="text-white" />
+                                {totalItems > 0 && (
+                                  <span className="absolute -top-2 -right-2 bg-white text-[#ff0000] text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full">
+                                    {totalItems}
+                                  </span>
+                                )}
+                              </span>
 
-  </div>
-)}
+                              {isUpdateOrderLoading ? "Saving..." : "Save & Hold"}
+                              {/* Save &amp; Hold */}
+                            </button>
+                            <button
+                              type="button"
+                              className="py-2.5 rounded-lg text-white font-bold shadow text-sm"
+                              style={{ backgroundColor: "#ff0000" }}
+                              onClick={() => setOrderDetailsModalOpen(true)}
+                            >
+                              Save &amp; Pay Bill
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
-  
-</div>
+                  {/* ══════════════════════════════════════════════════════════
+          DESKTOP — 3-column layout (sm and above)
+      ══════════════════════════════════════════════════════════ */}
+                  <div className="hidden lg:flex h-[calc(100vh-120px)] 
+      overflow-hidden bg-gradient-to-br from-orange-50 via-white to-red-50">
 
-{/* Desktop */}
-<div className="hidden sm:flex flex-wrap gap-2">
-  {newCategories.map((cat, index) => (
-    <button
-    type="button"
-      key={index}
-      onClick={() => setActiveCategory(cat)}
-      className={`px-6 py-2 rounded-full transition ${
-        activeCategory === cat
-          ? "bg-[#ff0000] text-white"
-          : "bg-white border"
-      }`}
-    >
-      {cat}
-    </button>
-  ))}
-</div>
-</div>
+                    {/* LEFT — Categories */}
+                    <aside className="w-[180px] lg:w-[200px] flex-shrink-0 bg-white shadow-md
+                     flex flex-col overflow-y-auto border-r">
+                      <div className="px-3 py-3 border-b bg-[#ff0000]">
+                        <h4 className="text-white font-bold text-sm tracking-wide uppercase">Categories</h4>
+                      </div>
+                      <div className="flex flex-col overflow-y-auto flex-1 py-2 gap-1 px-2">
+                        {newCategories.map((cat, index) => (
+                          <button
+                            type="button"
+                            key={index}
+                            onClick={() => setActiveCategory(cat)}
+                            className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-all ${activeCategory === cat
+                                ? "bg-[#ff0000] text-white shadow-sm"
+                                : "bg-gray-50 hover:bg-red-50 text-gray-700 border border-gray-100"
+                              }`}
+                          >
+                            {cat}
+                          </button>
+                        ))}
+                      </div>
+                    </aside>
 
+                    {/* MIDDLE — Items grid */}
+                    <main className="flex-1 overflow-y-auto px-3 py-4 pb-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {(isMenuItemsLoading || isFetching) ? (
+                          [...Array(12)].map((_, i) => (
+                            <div key={i} className="bg-white rounded-xl overflow-hidden shadow-md animate-pulse">
+                              <div className="h-32 bg-gray-200" />
+                              <div className="p-2 space-y-2">
+                                <div className="h-4 bg-gray-200 rounded w-3/4" />
+                                <div className="h-3 bg-gray-200 rounded w-1/2" />
+                                <div className="h-8 bg-gray-200 rounded" />
+                              </div>
+                            </div>
+                          ))
+                        ) : filteredItems && filteredItems.length > 0 ? (
+                          filteredItems?.map((item, index) => {
+                            const unavailable = item.is_available === 0;
+                            return (
+                              <div
 
-                  <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-red-50">
+                                key={item.id ?? index}
+                                className={`group relative 
+                      bg-white rounded-xl overflow-hidden shadow-md 
+                      transition-all duration-300 ${unavailable ? "opacity-40 grayscale cursor-not-allowed" :
+                                    "cursor-pointer hover:shadow-lg hover:-translate-y-1"
 
+                                  }
+                     ${summaryItems?.some(it => it.Item_Name === item.Item_Name)
+                                    ? "border-2 border-green-500"
+                                    : ""
+                                  }
                     
 
+                    `}
+                                onClick={() => {
+                                  if (unavailable) return; // 🚫 STOP HERE
+                                  updateCart(item.id, 1, index, item.Item_Name, item.Item_Price);
+                                }}
+                              //onClick={()=> updateCart(item.id, 1, index, item.Item_Name, item.Item_Price)}
+                              >
+                                {unavailable && (
+                                  <div className="absolute top-2 left-2 bg-red-600 
+                      text-white text-[10px] px-2 py-1 rounded shadow">
+                                    Unavailable
+                                  </div>
+                                )}
+                                <div className="relative h-32 bg-gradient-to-br from-[#4CA1AF22] to-[#4CA1AF44]">
+                                  {item?.Item_Image && (
+                                    <img loading="lazy" src={`http://192.168.0.111:4000/uploads/food-item/${item.Item_Image}`} alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
+                                  )}
+                                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+                                  <div className="absolute top-2 right-2">
+                                    <span className="bg-white/90 px-2 py-0.5 rounded-full text-[10px] font-semibold text-[#ff0000] shadow">{item.Item_Category}</span>
+                                  </div>
+                                </div>
+                                <div className="p-2">
+                                  <div className="flex mb-2">
+                                    <h5 style={{ color: "red" }} className="text-[20px] leading-tight">{item?.Item_Name}</h5>
+                                  </div>
+                                  <div className="flex justify-between items-center mb-2">
+                                    <div>
+                                      <div className="text-base font-semibold text-gray-800">₹{Number(item?.Item_Price || 0).toFixed(2)}</div>
+                                      <div className="text-[10px] text-gray-500">Tax: {TAX_RATES[item?.Tax_Type]}%</div>
+                                    </div>
+                                    <div className="text-right">
+                                      <div className="text-sm font-bold text-[#ff0000]">₹{Number(item?.Amount || 0).toFixed(2)}</div>
+                                      <div className="text-[10px] text-gray-500">Total</div>
+                                    </div>
+                                  </div>
+                                  {/* <div className="flex items-center justify-between bg-[#4CA1AF10] rounded-md p-1.5">
+                        <button
+                          type="button"
+                          disabled={unavailable || Number(cart[item.id] || 0) === 0}
+                          onClick={() => !unavailable && 
+                          updateCart(item.id, -1, index, item.Item_Name, item.Item_Price)}
+                          className={`w-7 h-7 flex items-center justify-center rounded-md shadow transition ${unavailable ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-white hover:bg-gray-100 text-[#ff0000]"}`}
+                        >
+                          <Minus className="w-3 h-3" />
+                        </button>
+                        <span className="text-base font-semibold text-gray-800 px-2">{cart[item.id] || 0}</span>
+                        <button
+                          style={{ backgroundColor: "#ff0000" }}
+                          type="button"
+                          disabled={unavailable}
+                          onClick={() => !unavailable && updateCart(item.id, 1, index, item.Item_Name, item.Item_Price)}
+                          className={`w-7 h-7 flex items-center justify-center rounded-md shadow transition ${unavailable ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-[#ff0000] text-white hover:bg-[#3a8c98]"}`}
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </div> */}
+                                  <div className="flex mt-2 items-center gap-2">
+                                    <span style={{ color: "#ff0000" }} className="text-base font-semibold">Quantity:</span>
+                                    <span className="text-[16px]">{item?.Current_Quantity}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <p className="text-gray-500 text-center col-span-full">No items found</p>
+                        )}
+                      </div>
+                    </main>
 
-                    {/* Food Items Grid */}
-                    <div className=" mx-auto px-2 py-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 
-                                                                                            lg:grid-cols-4 xl:grid-cols-6 gap-6">
-                                                {(isMenuItemsLoading || isFetching) ? (
-  [...Array(12)].map((_, i) => (
-    <div
-      key={i}
-      className="bg-white rounded-xl overflow-hidden shadow-md animate-pulse"
-    >
-      <div className="h-32 bg-gray-200" />
-      <div className="p-2 space-y-2">
-        <div className="h-4 bg-gray-200 rounded w-3/4" />
-        <div className="h-3 bg-gray-200 rounded w-1/2" />
-        <div className="h-8 bg-gray-200 rounded" />
-      </div>
-    </div>
-  ))):
-                        filteredItems?.length > 0 ?(filteredItems?.map((item, index) => {
+                    {/* RIGHT — Order Summary (fixed height, scrollable list) */}
+                    <aside className="w-[280px] lg:w-[300px] overflow-y-auto
+        flex-shrink-0 bg-white shadow-md flex flex-col border-l">
+                      {/* Header */}
+                      <div className="px-4 py-3 bg-[#ff0000] flex items-center justify-between flex-shrink-0">
+                        <h4 className="text-white font-bold text-sm tracking-wide uppercase">Order Summary</h4>
+                        <span className="relative">
+                          <ShoppingCart size={20} className="text-white" />
+                          {totalItems > 0 && (
+                            <span className="absolute -top-2 -right-2 bg-white text-[#ff0000] text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full shadow">
+                              {totalItems}
+                            </span>
+                          )}
+                        </span>
+                      </div>
 
-                          const unavailable = item.is_available === 0; //  unavailable items
+                      {/* ✅ Scrollable item list — grows and scrolls */}
+                      <div
+                        className="flex-1 overflow-y-auto px-3 py-3 space-y-2 min-h-0 
+         ">
+                        {summaryItems && summaryItems.length > 0 ? (
+                          summaryItems.map((item, index) => (
+                            <div key={index} className="bg-gray-50  rounded-lg px-3 
+                py-2 border border-gray-100">
+                              <div className="flex justify-between items-start">
+                                <span className="font-semibold text-sm text-gray-800 leading-tight flex-1 pr-2">{item?.Item_Name}</span>
+                                <span className="text-xs bg-red-100 text-[#ff0000] px-2 py-0.5 rounded-full font-medium whitespace-nowrap">x {item?.Item_Quantity}</span>
+                              </div>
+                              <div className="flex justify-between text-xs text-gray-500 mt-1">
+                                <span>Amount</span>
+                                <span className="font-semibold text-gray-700">₹{item?.Amount}</span>
+                              </div>
+                              <div className="flex items-center justify-between bg-[#4CA1AF10] rounded-md p-1.5">
+                                <button
+                                  type="button"
+                                  disabled={Number(cart[item.id] || 0) === 0}
+                                  onClick={() => updateCart(item.id, -1, index, item.Item_Name, item.Item_Price)}
+                                  className={`w-7 h-7 flex items-center justify-center rounded-md shadow transition ${Number(cart[item.id] || 0) === 0 ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-white hover:bg-gray-100 text-[#ff0000]"}`}
+                                >
+                                  <Minus className="w-3 h-3" />
+                                </button>
+                                <span className="text-base font-semibold text-gray-800 px-2">
+                                  {cart[item.id] || 0}</span>
+                                <button
+                                  style={{ backgroundColor: "#ff0000" }}
+                                  type="button"
+                                  // disabled={unavailable}
+                                  onClick={() => updateCart(item.id, 1, index,
+                                    item.Item_Name, item.Item_Price)}
+                                  className={`w-7 h-7 flex items-center 
+                            justify-center rounded-md shadow transition
+                             ${Number(cart[item.id] || 0) === 0 ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-[#ff0000] text-white hover:bg-[#3a8c98]"}`}
+                                >
+                                  <Plus className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="flex flex-col items-center justify-center h-40 text-gray-400">
+                            <ShoppingCart size={36} className="mb-2 opacity-30" />
+                            <p className="text-sm">No items added yet</p>
+                          </div>
+                        )}
+                      </div>
 
-                          // const minQty = minQuantityOfItems.get(item.Item_Id) || 0;
-                          // const currentQty = Number(cart[item.Item_Id] || 0);
+                      {/* ✅ Pinned footer — never scrolls away */}
+                      <div className="border-t bg-white px-4 py-3 space-y-3 flex-shrink-0">
+                        <div className="flex justify-between items-center text-base font-bold text-gray-900">
+                          <span>Total</span>
+                          <span className="text-[#ff0000] text-lg">₹{watch("Amount")}</span>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setShowSummary(true)}
+                            className="w-full py-2.5 px-4 flex items-center justify-center gap-2 rounded-lg text-white font-bold shadow transition hover:opacity-90"
+                            style={{ backgroundColor: "black" }}
+                          >
+                            {/* <ShoppingCart size={18} className="text-white"/>
+               {totalItems > 0 && (
+                <span className="absolute -top-1  bg-white text-[#ff0000] text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full shadow">
+                  {totalItems}
+                </span> */}
+                            <span className="relative">
+                              <ShoppingCart size={20} className="text-white" />
+                              {totalItems > 0 && (
+                                <span className="absolute -top-2 -right-2 bg-white text-[#ff0000] text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full">
+                                  {totalItems}
+                                </span>
+                              )}
+                            </span>
 
-                          // const disableMinus =
-                          //   unavailable || currentQty <= minQty;
+                            {isUpdateOrderLoading ? "Saving..." : "Save & Hold"}
+                            {/* Save &amp; Hold */}
+                          </button>
+                          <button
+                            type="button"
+                            className="w-full py-2.5 px-4 rounded-lg text-white font-bold shadow transition hover:opacity-90"
+                            style={{ backgroundColor: "#ff0000" }}
+                            onClick={() => setOrderDetailsModalOpen(true)}
+                          >
+                            Save &amp; Pay Bill
+                          </button>
+                        </div>
+                      </div>
+                    </aside>
+                  </div>
 
+                  {/* ══════════════════════════════════════════════════════════
+          MOBILE — Items only (full width)
+      ══════════════════════════════════════════════════════════ */}
+                  <div className="lg:hidden bg-gradient-to-br from-orange-50 via-white to-red-50 pb-24">
+                    <div className="px-3 py-4 grid grid-cols-2 gap-3">
+                      {(isMenuItemsLoading || isFetching) ? (
+                        [...Array(6)].map((_, i) => (
+                          <div key={i} className="bg-white rounded-xl overflow-hidden shadow-md animate-pulse">
+                            <div className="h-28 bg-gray-200" />
+                            <div className="p-2 space-y-2">
+                              <div className="h-4 bg-gray-200 rounded w-3/4" />
+                              <div className="h-3 bg-gray-200 rounded w-1/2" />
+                              <div className="h-8 bg-gray-200 rounded" />
+                            </div>
+                          </div>
+                        ))
+                      ) : filteredItems && filteredItems.length > 0 ? (
+                        filteredItems?.map((item, index) => {
+                          const unavailable = item.is_available === 0;
                           return (
                             <div
                               key={item.id ?? index}
-                              className={`
-                                                    group relative bg-white rounded-xl overflow-hidden shadow-md transition-all duration-300 
-                                                    ${unavailable
-                                  ? "opacity-40 grayscale cursor-not-allowed"
-                                  : "hover:shadow-lg hover:-translate-y-1"
+                              className={`relative bg-white rounded-xl overflow-hidden
+                     shadow-md ${unavailable ? "opacity-40 grayscale cursor-not-allowed"
+                                  : "cursor-pointer"}
+                                       ${summaryItems?.some(it => it.Item_Name === item.Item_Name)
+                                  ? "border-2 border-green-500"
+                                  : ""
                                 }
-                                                  `}
-                            >
+                       `}
+                              onClick={() => {
+                                if (unavailable) return; // 🚫 STOP HERE
+                                updateCart(item.id, 1, index, item.Item_Name, item.Item_Price);
+                              }}
+                            //onClick={()=> updateCart(item.id, 1, index, item.Item_Name, item.Item_Price)}
 
-                              {/* ===== UNAVAILABLE BADGE ===== */}
+                            >
                               {unavailable && (
-                                <div className="absolute top-2 left-2 bg-red-600 text-white text-[10px] px-2 py-1 rounded shadow">
+                                <div className="absolute top-2 left-2 bg-red-600 text-white text-[10px] px-2 py-1 rounded shadow z-10">
                                   Unavailable
                                 </div>
                               )}
-
-                              {/* ===== IMAGE SECTION ===== */}
-                              <div className="relative h-32 bg-gradient-to-br from-[#4CA1AF22] to-[#4CA1AF44]">
-{/* 
-                                <img
-                                loading="lazy"
-                                  src={
-                                    item?.Item_Image
-                                      ? `http://192.168.0.111:4000/uploads/food-item/${item?.Item_Image}`
-                                      : ""
-                                  }
-                                  alt={item?.Item_Name}
-                                  className="w-full h-full object-cover opacity-90"
-                                /> */}
-                                 {item?.Item_Image && (
-                                        <img
-                                          loading="lazy"
-                                src={`http://192.168.0.111:4000/uploads/food-item/${item.Item_Image}`}
-                                                      alt={item?.Item_Name}
-                                              className="w-full h-full object-cover opacity-90"
-                                                   />
-                                     )}
-
+                              <div className="relative h-28 bg-gradient-to-br from-[#4CA1AF22] to-[#4CA1AF44]">
+                                {item?.Item_Image && (
+                                  <img loading="lazy" src={`http://192.168.0.111:4000/uploads/food-item/${item.Item_Image}`} alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
+                                )}
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-
-                                <div className="absolute top-2 right-2">
-                                  <span className="bg-white/90 px-2 py-0.5 rounded-full text-[10px] font-semibold text-[#ff0000] shadow">
-                                    {item?.Item_Category}
-                                  </span>
+                                <div className="absolute top-1 right-1">
+                                  <span className="bg-white/90 px-1.5 py-0.5 rounded-full text-[9px] font-semibold text-[#ff0000] shadow">{item.Item_Category}</span>
                                 </div>
-
-                                {/* <div className="absolute bottom-1 left-2 right-2">
-                                                      <h4 className="text-white text-[20px] leading-tight">
-                                                        {item?.Item_Name}
-                                                      </h4>
-                                                    </div> */}
                               </div>
-
-                              {/* ===== DETAILS SECTION ===== */}
-                              {/* <div className="p-2">
-                                <div className="flex  mb-2">
-                                  <h5 style={{ color: "red" }}
-                                    className="text-red text-[20px] leading-tight">
-                                    {item?.Item_Name}
-                                  </h5>
-                                </div>
-
-                                {/* PRICE ROW
-                                <div className="flex justify-between items-center mb-2">
+                              <div className="p-2">
+                                <h5 style={{ color: "red" }} className="text-[15px] leading-tight mb-1 font-semibold">{item?.Item_Name}</h5>
+                                <div className="flex justify-between items-center mb-1.5">
                                   <div>
-                                    <div className="text-base font-semibold text-gray-800">
-                                      ₹{parseFloat(item?.Item_Price).toFixed(2)}
-                                    </div>
-                                    <div className="text-[10px] text-gray-500">
-                                      Tax: {TAX_RATES[item?.Tax_Type]}%
-                                    </div>
+                                    <div className="text-sm font-semibold text-gray-800">₹{Number(item?.Item_Price || 0).toFixed(2)}</div>
+                                    <div className="text-[9px] text-gray-500">Tax: {TAX_RATES[item?.Tax_Type]}%</div>
                                   </div>
-
                                   <div className="text-right">
-                                    <div className="text-sm font-bold text-[#ff0000]">
-                                      ₹{parseFloat(item?.Amount).toFixed(2)}
-                                    </div>
-                                    <div className="text-[10px] text-gray-500">Total</div>
+                                    <div className="text-xs font-bold text-[#ff0000]">₹{Number(item?.Amount || 0).toFixed(2)}</div>
+                                    <div className="text-[9px] text-gray-500">Total</div>
                                   </div>
                                 </div>
-
-                                {/* ===== CART CONTROLS ===== 
-                                <div className="flex items-center justify-between bg-[#4CA1AF10] rounded-md p-1.5">
-
-                                  {/* MINUS BUTTON 
-                                  <button
-                                    type="button"
-                                    disabled={unavailable || cart[item.Item_Id] === 0}
-                                    onClick={() =>
-                                      !unavailable &&
-                                      updateCart(item.Item_Id, -1, index, item?.Item_Name, item?.Item_Price)
-                                      // updateCart(item.Item_Id, -1, index, item?.Item_Name, item?.Amount)
-                                    }
-                                    className={`
-                                                          w-7 h-7 flex items-center justify-center rounded-md shadow transition
-                                                          ${unavailable
-                                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                                        : "bg-white hover:bg-gray-100 text-[#ff0000]"
-                                      }
-                                                        `}
-                                  >
-                                    <Minus className="w-3 h-3" />
-                                  </button>
-                                  {/* <button
-                                                        type="button"
-                                                          
-                                                 disabled={disableMinus||unavailable || Number(cart[item.Item_Id] || 0) === 0}
-                                                  onClick={() =>
-                                                                    !disableMinus &&
-                                                    updateCart(item.Item_Id, -1, index, item?.Item_Name, item?.Amount)
-                                                              }
-          
-                                                        
-                                                         className={`
-      w-7 h-7 flex items-center justify-center rounded-md shadow transition
-      ${disableMinus
-        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-        : "bg-white hover:bg-gray-100 text-[#ff0000]"
-      }
-    `}
-                                                        
-                                                      >
-                                                        <Minus className="w-3 h-3" />
-                                                      </button> 
-
-                                  {/* QUANTITY DISPLAY
-                                  <span className="text-base font-semibold text-gray-800 px-2">
-                                    {cart[item.Item_Id] || 0}
-                                  </span>
-
-                                  {/* PLUS BUTTON
-                                  <button
-                                    style={{ backgroundColor: "#ff0000" }}
-                                    type="button"
-                                    disabled={unavailable}
-                                    onClick={() =>
-                                      !unavailable &&
-                                      updateCart(item?.Item_Id, 1, index, item?.Item_Name, item?.Item_Price)
-                                      // updateCart(item?.Item_Id, 1, index, item?.Item_Name, item?.Amount)
-                                    }
-                                    className={`
-                                                          w-7 h-7 flex items-center justify-center rounded-md shadow transition
-                                                          ${unavailable
-                                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                                        : "bg-[#ff0000] text-white hover:bg-[#3a8c98]"
-                                      }
-                                                        `}
-                                  >
-                                    <Plus className="w-3 h-3" />
-                                  </button>
-
+                           
+                                <div className="flex mt-1.5 items-center gap-1">
+                                  <span style={{ color: "#ff0000" }} className="text-xs font-semibold">Qty:</span>
+                                  <span className="text-xs">{item.Current_Quantity}</span>
                                 </div>
-                       <div className="flex mt-2 items-left gap-2 " >
-              <span style={{color:"#ff0000"}}
-               className="text-base font-semibold text-gray-800"> Quantity: </span>
-              <span className="text-[16px] ">
-                {item.Current_Quantity}
-              </span>
-            </div>
-                              </div> */}
-
-                                 <div className="p-2">
-                                <div className="flex  mb-2">
-                                  <h5 style={{ color: "red" }}
-                                    className="text-red text-[20px] leading-tight">
-                                    {item?.Item_Name}
-                                  </h5>
-                                </div>
-
-                                {/* PRICE ROW */}
-                                <div className="flex justify-between items-center mb-2">
-                                  <div>
-                                    <div className="text-base font-semibold text-gray-800">
-                                        ₹{Number(item?.Item_Price || 0).toFixed(2)}
-                                      {/* ₹{parseFloat(item?.Item_Price).toFixed(2)} */}
-                                    </div>
-                                    <div className="text-[10px] text-gray-500">
-                                      Tax: {TAX_RATES[item?.Tax_Type]}%
-                                    </div>
-                                  </div>
-
-                                  <div className="text-right">
-                                    <div className="text-sm font-bold text-[#ff0000]">
-                                       ₹{Number(item?.Amount || 0).toFixed(2)}
-                                      {/* ₹{parseFloat(item?.Amount).toFixed(2)} */}
-                                    </div>
-                                    <div className="text-[10px] text-gray-500">Total</div>
-                                  </div>
-                                </div>
-
-                                {/* ===== CART CONTROLS ===== */}
-                                <div className="flex items-center justify-between bg-[#4CA1AF10] rounded-md p-1.5">
-
-                                  {/* MINUS BUTTON */}
-                                  <button
-                                    type="button"
-                                    disabled={unavailable || cart[item.Item_Id] === 0}
-                                    onClick={() =>
-                                      !unavailable &&
-                                      updateCart(item.Item_Id, -1, index, item?.Item_Name, item?.Item_Price)
-                                      // updateCart(item.Item_Id, -1, index, item?.Item_Name, item?.Amount)
-                                    }
-                                    className={`
-                                                          w-7 h-7 flex items-center justify-center rounded-md shadow transition
-                                                          ${unavailable
-                                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                                        : "bg-white hover:bg-gray-100 text-[#ff0000]"
-                                      }
-                                                        `}
-                                  >
-                                    <Minus className="w-3 h-3" />
-                                  </button>
-                                  {/* <button
-                                                        type="button"
-                                                          
-                                                 disabled={disableMinus||unavailable || Number(cart[item.Item_Id] || 0) === 0}
-                                                  onClick={() =>
-                                                                    !disableMinus &&
-                                                    updateCart(item.Item_Id, -1, index, item?.Item_Name, item?.Amount)
-                                                              }
-          
-                                                        
-                                                         className={`
-      w-7 h-7 flex items-center justify-center rounded-md shadow transition
-      ${disableMinus
-        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-        : "bg-white hover:bg-gray-100 text-[#ff0000]"
-      }
-    `}
-                                                        
-                                                      >
-                                                        <Minus className="w-3 h-3" />
-                                                      </button> */}
-
-                                  {/* QUANTITY DISPLAY */}
-                                  <span className="text-base font-semibold text-gray-800 px-2">
-                                    {cart[item.Item_Id] || 0}
-                                  </span>
-
-                                  {/* PLUS BUTTON */}
-                                  <button
-                                    style={{ backgroundColor: "#ff0000" }}
-                                    type="button"
-                                    disabled={unavailable}
-                                    onClick={() =>
-                                      !unavailable &&
-                                      updateCart(item?.Item_Id, 1, index, item?.Item_Name, item?.Item_Price)
-                                      // updateCart(item?.Item_Id, 1, index, item?.Item_Name, item?.Amount)
-                                    }
-                                    className={`
-                                                          w-7 h-7 flex items-center justify-center rounded-md shadow transition
-                                                          ${unavailable
-                                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                                        : "bg-[#ff0000] text-white hover:bg-[#3a8c98]"
-                                      }
-                                                        `}
-                                  >
-                                    <Plus className="w-3 h-3" />
-                                  </button>
-
-                                </div>
-                       <div className="flex mt-2 items-left gap-2 " >
-              <span style={{color:"#ff0000"}}
-               className="text-base font-semibold text-gray-800"> Quantity: </span>
-              <span className="text-[16px] ">
-                {item.Current_Quantity}
-              </span>
-            </div>
                               </div>
                             </div>
                           );
-                        })):(
-                            <p className="text-gray-500 text-center col-span-full">
-                              No items found
-                            </p>
-                          )}
-
-                      </div>
+                        })
+                      ) : (
+                        <p className="text-gray-500 text-center col-span-full">No items found</p>
+                      )}
                     </div>
-
-
-{/*                     
-                                          <div className="
-                        fixed bottom-0 left-0 w-full 
-                        bg-white shadow-lg 
-                        px-4 py-2 z-50
-                      "
-                                          >
-                    
-                                            <div className="grid grid-cols-1 sm:grid-cols-8 items-center gap-2">
-                                             
-                                             
-                    
-                                             
-                                                
-                                                    
-                                                  
-                                                   
-                                                    <button
-                                                      type="button"
-                                                      onClick={() => setShowSummary(true)}   // open bottom sheet
-                                                      // disabled={formValues.errorCount > 0 || isAddingOrder}
-                                                      className="relative w-full py-2 px-4 md:w-auto 
-                                                      flex items-center justify-center gap-3 
-                                                      
-                                                            text-white font-bold  rounded shadow sm:py-3 px-6"
-                                                     style={{ backgroundColor: "black" }}
-                                                    >
-                                                      {isUpdateOrderLoading ? "Saving..." : "Save & Hold"}
-                                                    
-                                                      <span className="relative">
-                                                        <ShoppingCart size={22} />
-                                                        {totalItems > 0 && (
-                                                          <span className="absolute -top-2 -right-2 bg-red-500 text-white 
-                                                                           text-[10px] font-bold w-4 h-4 flex items-center justify-center 
-                                                                           rounded-full shadow">
-                                                            {totalItems}
-                                                          </span>
-                                                        )}
-                                                      </span>
-                                                    </button>                        
-                                            
-                                         
-                    
-                    <div className="flex items-center gap-2  ">
-                
-                      <span className="text-sm font-medium whitespace-nowrap">
-                        Discount
-                      </span>
-                    
-                  
-                      <input
-                        type="text"
-                        placeholder={discountType === "percentage" ? "0 %" : "0.00"}
-                        className="w-24 border-b-2 outline-none text-gray-900 text-sm"
-                        {...register("Discount")}
-                        onChange={(e) => {
-                          let val = e.target.value.replace(/[^0-9.]/g, "");
-                    
-                          // allow only one dot
-                          const parts = val.split(".");
-                          if (parts.length > 2) {
-                            val = parts[0] + "." + parts.slice(1).join("");
-                          }
-                    
-                          // limit decimals
-                          if (val.includes(".")) {
-                            const [int, dec] = val.split(".");
-                            val = int + "." + dec.slice(0, 2);
-                          }
-                    
-                          // percentage cap
-                          if (discountType === "percentage" && Number(val) > 100) {
-                            val = "100";
-                          }
-                    
-                          setValue("Discount", val, { shouldValidate: true });
-                        }}
-                      />
-                    
-                  
-                      <select
-                        className="w-24 border rounded-md px-1 py-1 text-sm"
-                        {...register("Discount_Type")}
-                        defaultValue="percentage"
-                        onChange={(e) => {
-                          setValue("Discount_Type", e.target.value);
-                          setValue("Discount", "0.00");
-                        }}
-                      >
-                        <option value="amount">Amt</option>
-                        <option value="percentage">%</option>
-                      </select>
-                    </div>
-                     <div  
-  className="input-field col s6 ">
-       <span className="text-sm font-medium whitespace-nowrap">
-        Service Charge
-       </span>
-
-      <input
-  type="text"
-  id="Service_Charge"
-  // value={invoiceDetails?.Service_Charge}
-//   value={dailyExpense?.Amount}
-   {...register("Service_Charge")}
-   onChange={(e) => {
-    
-      let val = e.target.value;
-
-  // ✅ allow digits and one dot
-  val = val.replace(/[^0-9.]/g, "");
-
-  // ✅ if more than one dot, keep only the first
-  const parts = val.split(".");
-  if (parts.length > 2) {
-    val = parts[0] + "." + parts.slice(1).join(""); // collapse extra dots
-  }
-
-  // ✅ limit to 2 decimal places
-  if (val.includes(".")) {
-    const [int, dec] = val.split(".");
-    val = int + "." + dec.slice(0, 2);
-  }
-
-  e.target.value = val;
-
-   setValue("Service_Charge", val);
-    
-  }}
-  placeholder="0.00"
-  className="w-full outline-none border-b-2 text-gray-900"
-//  
-/>
-
-      
-     
-  </div>
-                    <div 
-                        className="flex items-center gap-3 sm:col-span-2 ">
-                                          <span className="text-sm font-medium whitespace-nowrap">Payment Type</span>
-                                        
-                                          <select                         
-                                          id="Payment Mode"
-                                          {...register("Payment_Type")}
-                                          
-                                          // onChange={(e)=>setInvoiceDetails({...invoiceDetails,
-                                          //   Payment_Type: e.target.value
-                                          // })}
-                    
-                                            // value={invoiceDetails?.Payment_Type}
-                                            className="w-full border border-gray-300 text-gray-900 bg-white rounded-md p-2"
-                                          >
-                                            
-                                              
-                                              <option value="Cash">Cash</option>
-                                              
-                                              <option value="Online">Online</option>
-                                               <option value="Online">Upi</option>
-                                             
-                           
-                                          </select>
-                      
-                                     
-                                        </div>
-                    
-                      <button
-                                                                          type="button"
-                                                                          onClick={() => setShowSummary(true)}   // open bottom sheet
-                                                                          // disabled={formValues.errorCount > 0 || isAddingOrder}
-                                                                          className="relative w-full py-2 px-4 md:w-auto 
-                                                                          flex items-center justify-center gap-3 
-                                                                          
-                                                                                text-white font-bold  rounded shadow sm:py-3 px-6"
-                                                                          style={{ backgroundColor: "black" }}
-                                                                        >
-                                                                          View
-                                                                         
-                                              
-                                                                          <span className="relative">
-                                                                            <ShoppingCart size={22} />
-                                                                            {totalItems > 0 && (
-                                                                              <span className="absolute -top-2 -right-2 bg-red-500 text-white 
-                                                                                                                           text-[10px] font-bold w-4 h-4 flex items-center justify-center 
-                                                                                                                           rounded-full shadow">
-                                                                                {totalItems}
-                                                                              </span>
-                                                                            )}
-                                                                          </span>
-                                                                        </button>
-                                               <button
-                                                type="button"
-                                                  onClick={handleSubmit(handleConfirmBillAndGenerateInvoice)}
-                                                className="relative w-full py-2 px-4 md:w-auto 
-                                                                          flex items-center justify-center gap-3 
-                                                                          sm:whitespace-nowrap
-                                                                                text-white font-bold  rounded shadow sm:py-3 px-6"
-                                                style={{ backgroundColor: "#ff0000" }}
-                                              >
-                                           Print Bill
-                                              </button>
-                    
-                                                  <button
-                                                type="button"
-                                                onClick={handleSubmit(handleShareSMS)}
-                                                className="relative w-full py-2 px-4 md:w-auto 
-                                                                          flex items-center justify-center gap-3 
-                                                                          
-                                                                                text-white font-bold  rounded shadow sm:py-3 px-6"
-                                                style={{ backgroundColor: "#ff0000" }}
-                                              >
-                                              {isGenerateSmsLoading ? "Sharing..." : "Share"}
-                                              </button>
-                    
-                                            </div>
-                                          </div> */}
-
-                    {/* BACKDROP */}
-
-                    <div className="
-                                                    fixed bottom-0 left-0 w-full 
-                                                    bg-white shadow-lg 
-                                                    px-4 py-2 z-50
-                                                  "
-                                                >
-                                                   <div className="flex justify-center items-center gap-12 w-full">
-                                                  {/* <div className="grid grid-cols-3"> */}
-                                                    
-                                                  
-                                                    {/* SAVE & HOLD */}
-                                                    <button
-                                                      type="button"
-                                                      onClick={() => setShowSummary(true)}   // open bottom sheet
-                                                      // disabled={formValues.errorCount > 0 || isAddingOrder}
-                                                      className="relative w-full py-2 px-4 md:w-auto 
-                                                      flex items-center justify-center gap-3 
-                                                      
-                                                            text-white font-bold whitespace-nowrap rounded shadow sm:py-3 px-6"
-                                                     style={{ backgroundColor: "black" }}
-                                                    >
-                                                      {isUpdateOrderLoading ? "Saving..." : "Save & Hold"}
-                                                      {/* {isAddingOrder ? "Saving..." : "Save & Hold"} */}
-                                                
-                                                      <span className="relative">
-                                                        <ShoppingCart size={22} />
-                                                        {totalItems > 0 && (
-                                                          <span className="absolute -top-2 -right-2 bg-red-500 text-white 
-                                                                           text-[10px] font-bold w-4 h-4 flex items-center justify-center 
-                                                                           rounded-full shadow">
-                                                            {totalItems}
-                                                          </span>
-                                                        )}
-                                                      </span>
-                                                    </button>
-                                                
-                                                {/* <div></div> */}
-                                                    {/* SAVE & PAY BILL */}
-                                                    
-                                                    <button
-                                                      type="button"
-                                                       onClick={()=>setOrderDetailsModalOpen(true)}
-                                                      className="relative w-full py-2 px-4 md:w-auto 
-                                                      flex items-center justify-center gap-3  whitespace-nowrap
-                                                      
-                                                            text-white font-bold  rounded shadow sm:py-3 px-6"
-                                                      style={{ backgroundColor: "#ff0000" }}
-                                                    >
-                                                      Save & Pay Bill
-                                                    </button>
-                                                
-                                                  </div>
-                                                </div>
-                    {showSummary && (
-                      <div>
-
-                        <button
-                          type="button"
-                          onClick={() => setShowSummary(false)}
-                          className="fixed inset-0 bg-black/40 z-40"></button>
-                      </div>
-                    )}
-
-                    {/* BOTTOM SHEET */}
-                    <div
-                      className={`
-                                                    fixed left-0 bottom-0 w-full 
-                                                    bg-white shadow-2xl rounded-t-2xl z-50
-                                                    transform transition-transform duration-300 p-4
-                                                    ${showSummary ? "translate-y-0" : "translate-y-full"}
-                                                  `}
-                      
-                    >
-                      {/* HANDLE BAR */}
-                      <div className="w-full flex justify-center py-2">
-                        <div className="w-12 h-1.5 bg-gray-300 rounded-full"></div>
-                      </div>
-
-                      <div className="px-4 pb-3 border-b">
-                        <div className="flex justify-between items-center">
-                          <div className="flex justify-center items-center mx-auto">
-                            <h2 className="text-lg font-bold text-gray-700">Bill Summary</h2>
-                          </div>
-                          <div className="flex justify-enditems-center gap-2">
-                            <button type="button" style={{ backgroundColor: "transparent" }}
-                              className="text-gray-500 text-2xl font-bold"
-                              onClick={() => setShowSummary(false)}>✖</button>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* SUMMARY CONTENT */}
-                      <div className="px-4 py-3 overflow-y-auto" style={{ maxHeight: "55vh" }}>
-                        {summaryItems?.map((item, index) => (
-                          <div key={index} className="border-b pb-2 mb-2">
-                            <div className="flex justify-between">
-                              <span className="font-semibold">{item?.Item_Name}</span>
-                              <span>x {item?.Item_Quantity}</span>
-                            </div>
-                            <div className="flex justify-between text-sm text-gray-500">
-                              <span>Amount</span>
-                              <span>₹{item?.Amount}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* TOTAL FOOTER */}
-                      <div className="px-4 py-3 border-t">
-                        <div className="flex justify-between text-lg font-bold text-gray-900">
-                          <span>Total</span>
-                          <span>₹{watch("Amount")}</span>
-                        </div>
-                        <div
-                          className="flex justify-center mt-4">
-                          <button style={{ backgroundColor: "#ff0000" }}
-                            type="submit"
-                            className="w-16 h-10 flex items-center justify-center bg-[#ff0000] 
-                                                          rounded-md text-white shadow hover:bg-[#3a8c98] ">
-                            OK
-                          </button>
-
-                        </div>
-                      </div>
-                    </div>
-                    {/* </div>
-                                            </div> */}
-
-
                   </div>
 
-
+                  {/* ══════════════════════════════════════════════════════════
+          BILL SUMMARY MODAL — unchanged logic, works on all screens
+      ══════════════════════════════════════════════════════════ */}
+                  {showSummary && (
+                    <button type="button" onClick={() => setShowSummary(false)} className="fixed inset-0 bg-black/40 z-40" />
+                  )}
+                  <div className={`fixed left-0 bottom-0 w-full bg-white shadow-2xl rounded-t-2xl z-50 transform transition-transform duration-300 p-4 ${showSummary ? "translate-y-0" : "translate-y-full"}`}>
+                    <div className="w-full flex justify-center py-2">
+                      <div className="w-12 h-1.5 bg-gray-300 rounded-full"></div>
+                    </div>
+                    <div className="px-4 pb-3 border-b">
+                      <div className="flex justify-between items-center">
+                        <div className="flex justify-center items-center mx-auto">
+                          <h2 className="text-lg font-bold text-gray-700">Bill Summary</h2>
+                        </div>
+                        <div className="flex justify-end items-center gap-2">
+                          <button type="button" style={{ backgroundColor: "transparent", fontSize: "30px" }} className="text-gray-500 text-2xl font-bold" onClick={() => setShowSummary(false)}>✖</button>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="px-4 py-3 overflow-y-auto" style={{ maxHeight: "55vh" }}>
+                      {summaryItems?.map((item, index) => (
+                        <div key={index} className="border-b pb-2 mb-2">
+                          <div className="flex justify-between">
+                            <span className="font-semibold">{item?.Item_Name}</span>
+                            <span>x {item?.Item_Quantity}</span>
+                          </div>
+                          <div className="flex justify-between text-sm text-gray-500">
+                            <span>Amount</span>
+                            <span>₹{item?.Amount}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="px-4 py-3 border-t">
+                      <div className="flex justify-between text-lg font-bold text-gray-900">
+                        <span>Total</span>
+                        <span>₹{watch("Amount")}</span>
+                      </div>
+                      <div className="flex justify-center mt-4">
+                        <button type="submit" style={{ backgroundColor: "#ff0000" }} className="w-16 h-10 flex items-center justify-center rounded-md text-white shadow">
+                          OK
+                        </button>
+                      </div>
+                    </div>
+                  </div>
 
 
 
@@ -2444,4 +2279,3 @@ if (res?.elligibleItems && res?.elligibleItems &&   Object.keys(res.elligibleIte
     </>
   );
 }
-  

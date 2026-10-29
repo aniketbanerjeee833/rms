@@ -38,15 +38,18 @@ import { kitchenStaffApi } from "../../redux/api/KitchenStaff/kitchenStaffApi";
 import { useGetAllCategoriesQuery } from "../../redux/api/itemApi"
 import { io } from "socket.io-client";
 import { useGetAllCouponsQuery } from "../../redux/api/couponApi";
-import {
-  checkCleanterReady,
-  printViaCleanter,
-  isMobileDevice,
-  PAPER_WIDTH,
-} from "../../utils/cleanter";
+
+
+
 
 export default function OrdersTakeAway() {
-  
+  //const { userId } = useSelector((state) => state.user);
+  // const dispatch = useDispatch();
+  // const socket = io("https://helloguys.co.in/billmeal", {
+  //   path: "/billmeal/socket.io",
+  //   transports: ["polling", "websocket"], // fallback
+  //   withCredentials: true,
+  // });
 
   const TAX_RATES = {
     "None": 0,
@@ -88,7 +91,40 @@ export default function OrdersTakeAway() {
   //const [categoryOpen, setCategoryOpen] = useState(false);
   // const [categorySearch, setCategorySearch] = useState("");
   const dropdownRef = useRef(null);
-  
+  //const categoryOpenRef = useRef(null);
+  // Close on outside click
+  // useEffect(() => {
+  //   const handleClickOutside = (e) => {
+  //     if (categoryOpenRef.current && !categoryOpenRef.current.contains(e.target)) {
+  //       setCategoryOpen(false);
+  //     }
+  //   };
+
+  //   document.addEventListener("mousedown", handleClickOutside);
+  //   return () => document.removeEventListener("mousedown", handleClickOutside);
+  // }, []);
+
+  // const { data: parties } = useGetAllPartiesQuery();
+
+  // console.log(items, "items");
+
+  //const [open, setOpen] = useState(false);
+  //const[categoryOpen,setCategoryOpen] = useState(false);
+  // const [showModal, setShowModal] = useState(false);
+  //const[selected,setSelected] = useState([]);
+  // const [tableSearch, setTableSearch] = useState("");
+  // const [open, setOpen] = useState(false);
+  // const [newCategory, setNewCategory] = useState("");
+
+  // const [selectedTables, setSelectedTables] = useState([]);
+  // const [addOrder, { isLoading: isAddingOrder }] = useAddOrderMutation();
+  // const itemUnits = {
+
+  //     "pcs": "Pcs",
+  //     "plates": "Plates",
+  //     "btl": "Bottle",
+
+  // }
   const { data: customers } = useGetAllCustomersQuery();
   console.log(customers, "customers");
   const [customerSearch, setCustomerSearch] = useState("");
@@ -128,7 +164,18 @@ export default function OrdersTakeAway() {
   const nextTakeawayInvoiceId = nextTakeawayInvoiceNumber?.next_takeaway_invoice_id;
   //console.log(nextTakeawayInvoiceId,"nextTakeawayInvoiceId",nextTakeawayInvoiceNumber);
   const { data: coupon } = useGetAllCouponsQuery();
- 
+  //console.log(coupon, "coupon");
+  //  const [customerSearch, setCustomerSearch] = useState("");
+  // const [customerModal, setCustomerModal] = useState({
+  //   open: false,
+  //   mode: "add", // add | edit
+  // });
+  //  const[customerDropdownOpen,setCustomerDropdownOpen]=useState(false);
+  // const [rows, setRows] = useState([
+  //   {
+  //     CategoryOpen: false, categorySearch: "", preview: null
+  //   }
+  // ]);
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (
@@ -145,8 +192,7 @@ export default function OrdersTakeAway() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-
-
+ 
 
   const {
 
@@ -186,13 +232,47 @@ export default function OrdersTakeAway() {
 
   const formValues = watch();
 
+  //const totalPaid = watch("Total_Paid"); // watch Total_Paid
+  // const num = (v) => (v === undefined || v === null || v === "" ? 0 : Number(v));
 
+  // const hasCustomer = Boolean(customerPhone); // phone is safest
 
 
 
   const [cart, setCart] = useState({});
 
+  // const newCategories = ['All', existingCategories];
 
+
+  // const filteredItems = activeCategory === 'All'
+  //   ? items
+  //   : items?.filter(item => item?.Item_Category === activeCategory);
+
+  // const filteredItems = useMemo(() => {
+  //   if (!items) return [];
+
+  //   const categoryChanged = lastCategoryRef.current !== activeCategory;
+
+  //   const result = items.filter((item) => {
+  //     const matchesCategory =
+  //       activeCategory === "All" ||
+  //       item.Item_Category === activeCategory;
+
+  //     // 🔥 Ignore search when category JUST changed
+  //     const matchesSearch =
+  //       categoryChanged
+  //         ? true
+  //         : !searchTerm.trim() ||
+  //           item.Item_Name.toLowerCase().includes(searchTerm.toLowerCase());
+
+  //     return matchesCategory && matchesSearch;
+  //   });
+
+  //   // update ref AFTER filtering
+  //   lastCategoryRef.current = activeCategory;
+
+  //   return result;
+  // }, [items, activeCategory, searchTerm]);
   const updateCart = (itemId, delta, _index, itemName, itemPrice) => {
     const price = Number(itemPrice);
     if (!price || price <= 0) return;
@@ -252,7 +332,34 @@ export default function OrdersTakeAway() {
     });
   };
 
+  // const filteredItems = useMemo(() => {
+  //   if (!items) return [];
 
+  //   const term = searchTerm.trim().toLowerCase();
+
+  //   const list = !term
+  //     ? items
+  //     : items.filter(item =>
+  //         item.Item_Name?.toLowerCase().includes(term)
+  //       );
+
+  //   return [...list].sort((a, b) => {
+  //     const aId = a.id;     // ✅ FIX
+  //     const bId = b.id;
+
+  //     const aInCart = cart[aId] ? 1 : 0;
+  //     const bInCart = cart[bId] ? 1 : 0;
+
+  //     // 🔥 MOST RECENT ITEM ON TOP
+  //     if (aId === lastUpdatedItemRef.current) return -1;
+  //     if (bId === lastUpdatedItemRef.current) return 1;
+
+  //     // 🔥 CART ITEMS ABOVE OTHERS
+  //     if (aInCart !== bInCart) return bInCart - aInCart;
+
+  //     return 0;
+  //   });
+  // }, [items, searchTerm, cart]);
 
   const filteredItems = useMemo(() => {
     if (!items) return [];
@@ -319,7 +426,28 @@ export default function OrdersTakeAway() {
   // }, [items, searchTerm]);
 
   const itemRowMap = useRef({});
- 
+  // const updateTotals = () => {
+  //   const itemsValues = watch("items") || [];
+
+  //   let subTotal = 0;
+
+
+  //   itemsValues.forEach(item => {
+  //     const price = parseFloat(item.Item_Price) || 0;
+  //     const qty = parseInt(item.Item_Quantity) || 0;
+
+
+  //     subTotal += price * qty;
+
+  //   });
+
+
+
+  //   setValue("Sub_Total", subTotal.toFixed(2));
+
+  //   setValue("Amount", subTotal.toFixed(2));
+  // };
+
 
   const updateTotals = () => {
   const itemsValues = watch("items") || [];
@@ -390,10 +518,59 @@ export default function OrdersTakeAway() {
 
   setValue("Amount", finalAmount.toFixed(2));
 };
+  // const updateTotals = () => {
+  //   const itemsValues = watch("items") || [];
+
+  //   let subTotal = 0;
+
+
+  //   itemsValues.forEach(item => {
+  //     const price = parseFloat(item.Item_Price) || 0;
+  //     const qty = parseInt(item.Item_Quantity) || 0;
+
+
+  //     subTotal += price * qty;
+
+  //   });
+
+
+
+  //   setValue("Sub_Total", subTotal.toFixed(2));
+
+  //   setValue("Amount", subTotal.toFixed(2));
+  // };
 
   const totalItems = Object.values(cart).reduce((sum, qty) => sum + qty, 0);
 
   const summaryItems = watch("items") || []
+  // useEffect(() => {
+  //   const handleAvailabilityChange = (data) => {
+  //     console.log("📢 Food status changed:", data);
+
+  //     // Force RTK Query to refetch
+  //     dispatch(foodItemApi.util.invalidateTags([{ type: "Food-Item", id: "LIST" }]));
+  //   };
+
+  //   socket.on("food_item_availability_changed", handleAvailabilityChange);
+
+  //   return () => {
+  //     socket.off("food_item_availability_changed", handleAvailabilityChange);
+  //   };
+  // }, []);
+  // useEffect(() => {
+  //   const handleSoftDeletedItem = (data) => {
+  //     console.log("📢 Food status changed:", data);
+
+  //     // Force RTK Query to refetch
+  //     dispatch(foodItemApi.util.invalidateTags([{ type: "Food-Item", id: "LIST" }]));
+  //   };
+
+  //   socket.on("food_item_deleted", handleSoftDeletedItem);
+
+  //   return () => {
+  //     socket.off("food_item_deleted", handleSoftDeletedItem);
+  //   };
+  // }, []);
 
 
   useEffect(() => {
@@ -419,7 +596,26 @@ export default function OrdersTakeAway() {
   }, [dispatch]);
   
   console.log(summaryItems, "summaryItems");
-  
+  // const subTotal = Number(watch("Sub_Total") || 0);
+  // const discountType = watch("Discount_Type");
+  // const discountValue = Number(watch("Discount") || 0);
+
+  // // 1️⃣ Calculate discount amount
+  // let discountAmount = 0;
+
+  // if (discountType === "percentage") {
+  //   discountAmount = (subTotal * discountValue) / 100;
+  // } else {
+  //   discountAmount = discountValue;
+  // }
+
+  // // safety
+  // if (discountAmount > subTotal) discountAmount = subTotal;
+
+  // // round
+  // discountAmount = Number(discountAmount.toFixed(2));
+
+  // // 2️⃣ Calculate final amount
   // const finalAmount = Number((subTotal - discountAmount).toFixed(2));
   const subTotal = Number(watch("Sub_Total") || 0);
 
@@ -562,44 +758,27 @@ const finalAmount = Number(
     setCustomerDropdownOpen(false);
     setSelectedCoupon(null);
   };
+
   const handleGenerateInvoice = async (data) => {
     if (!data.items || data.items.length === 0) {
       toast.error("Please add at least one item before saving.");
       return;
     }
-    if (isSubmittingRef.current) return;
+    if (isSubmittingRef.current) return; //  block multiple clicks
 
+    isSubmittingRef.current = true;
     const cleanedItems = data.items.filter(
-      (it) => it.Item_Name && it.Item_Name.trim() !== "",
+      (it) => it.Item_Name && it.Item_Name.trim() !== ""
     );
 
     for (const item of cleanedItems) {
       if (!item.Item_Quantity || Number(item.Item_Quantity) <= 0) {
-        toast.error(
-          `Quantity for "${item.Item_Name}" must be greater than zero`,
-        );
+        toast.error(`Quantity for "${item.Item_Name}" must be greater than zero`);
         return;
       }
     }
 
-    isSubmittingRef.current = true;
-
     try {
-      // 1. On phones, check Cleanter BEFORE creating the order
-      const useCleanter = isMobileDevice();
-
-      if (useCleanter) {
-        try {
-          await checkCleanterReady();
-        } catch (error) {
-          toast.error(`${error.message} No order was submitted.`, {
-            autoClose: 10000,
-          });
-          return;
-        }
-      }
-
-      // 2. Create the order
       const payload = {
         userId: user?.User_Id,
         items: cleanedItems,
@@ -610,116 +789,47 @@ const finalAmount = Number(
         Discount: data.Discount,
         Discount_Type: data.Discount_Type,
         Payment_Type: data.Payment_Type,
-        Coupon_Id: selectedCoupon?.id,
+         Coupon_Id: selectedCoupon?.id,
+
         Coupon_Code: selectedCoupon?.code,
-        Coupon_Discount_Type: selectedCoupon?.discount_type,
-        Coupon_Discount_Value: selectedCoupon?.discount_value,
+
+        Coupon_Discount_Type:selectedCoupon?.discount_type,
+
+        Coupon_Discount_Value:selectedCoupon?.discount_value
       };
 
-      const response =
-        await takeawayAddOrdersAndGenerateInvoices(payload).unwrap();
+      const response = await takeawayAddOrdersAndGenerateInvoices(payload).unwrap();
+
       const { invoice, items } = response;
+      console.log(response, "response");
+      //  PRINT
+      printInvoiceWindow(invoice, { items });
 
-      // 3. Print (its own try/catch, because the order is already saved)
-      if (useCleanter) {
-        try {
-          await printInvoiceViaCleanter(invoice, { items });
-          toast.success("Takeaway Order Added & Invoice Printed!");
-        } catch (printError) {
-          toast.error(
-            `Order saved, but printing failed (${printError.message}). Do not submit the order again.`,
-          );
-        }
-      } else {
-        printInvoiceWindow(invoice, { items }); // PC: browser print dialog
-        toast.success("Takeaway Order Added & Invoice Printed!");
-      }
+      toast.success("Takeaway Order Added & Invoice Printed!");
 
-      // 4. Reset
+      //  RESET EVERYTHING (IMPORTANT)
       resetOrderForm();
       resetCustomerUI();
+
+      // optional
+      setShowSummary(false);
+
       dispatch(kitchenStaffApi.util.invalidateTags(["Kitchen-Staff"]));
       dispatch(orderApi.util.invalidateTags(["Order"]));
       dispatch(foodItemApi.util.invalidateTags(["Daily-Food-Item-Stock"]));
       refetchMenuItems();
+      isSubmittingRef.current = false;
+      //  NO NAVIGATE
+      // stay on same page with blank form
+
     } catch (err) {
       console.error(err);
       toast.error(err?.data?.message || "Failed to submit order.");
+
     } finally {
-      isSubmittingRef.current = false;
+      isSubmittingRef.current = false; // reset flag
     }
   };
-  // const handleGenerateInvoice = async (data) => {
-  //   if (!data.items || data.items.length === 0) {
-  //     toast.error("Please add at least one item before saving.");
-  //     return;
-  //   }
-  //   if (isSubmittingRef.current) return; //  block multiple clicks
-
-  //   isSubmittingRef.current = true;
-  //   const cleanedItems = data.items.filter(
-  //     (it) => it.Item_Name && it.Item_Name.trim() !== ""
-  //   );
-
-  //   for (const item of cleanedItems) {
-  //     if (!item.Item_Quantity || Number(item.Item_Quantity) <= 0) {
-  //       toast.error(`Quantity for "${item.Item_Name}" must be greater than zero`);
-  //       return;
-  //     }
-  //   }
-
-  //   try {
-  //     const payload = {
-  //       userId: user?.User_Id,
-  //       items: cleanedItems,
-  //       Sub_Total: data.Sub_Total,
-  //       Final_Amount: data.Amount,
-  //       Customer_Name: data.Customer_Name,
-  //       Customer_Phone: data.Customer_Phone,
-  //       Discount: data.Discount,
-  //       Discount_Type: data.Discount_Type,
-  //       Payment_Type: data.Payment_Type,
-  //        Coupon_Id: selectedCoupon?.id,
-
-  //       Coupon_Code: selectedCoupon?.code,
-
-  //       Coupon_Discount_Type:selectedCoupon?.discount_type,
-
-  //       Coupon_Discount_Value:selectedCoupon?.discount_value
-  //     };
-
-  //     const response = await takeawayAddOrdersAndGenerateInvoices(payload).unwrap();
-
-  //     const { invoice, items } = response;
-  //     console.log(response, "response");
-  //     //  PRINT
-  //     printInvoiceWindow(invoice, { items });
-
-  //     toast.success("Takeaway Order Added & Invoice Printed!");
-
-  //     //  RESET EVERYTHING (IMPORTANT)
-  //     resetOrderForm();
-  //     resetCustomerUI();
-
-  //     // optional
-  //     setShowSummary(false);
-
-  //     dispatch(kitchenStaffApi.util.invalidateTags(["Kitchen-Staff"]));
-  //     dispatch(orderApi.util.invalidateTags(["Order"]));
-  //     dispatch(foodItemApi.util.invalidateTags(["Daily-Food-Item-Stock"]));
-  //     refetchMenuItems();
-  //     isSubmittingRef.current = false;
-  //     //  NO NAVIGATE
-  //     // stay on same page with blank form
-
-  //   } catch (err) {
-  //     console.error(err);
-  //     toast.error(err?.data?.message || "Failed to submit order.");
-
-  //   } finally {
-  //     isSubmittingRef.current = false; // reset flag
-  //   }
-  // };
 
   //const isSharingRef = useRef(false);
   const handleShareSMS = async (data) => {
@@ -780,937 +890,416 @@ const finalAmount = Number(
       // toast.error(err?.data?.message || "Failed to send SMS");
     }
   };
-//   const printInvoiceWindow = (invoiceDetails, data) => {
-//     const getCurrentDate = () =>
-//       new Date().toLocaleDateString("en-GB");
+  const printInvoiceWindow = (invoiceDetails, data) => {
+    const getCurrentDate = () =>
+      new Date().toLocaleDateString("en-GB");
 
-//     const getCurrentTime = () =>
-//       new Date().toLocaleTimeString("en-US", {
-//         hour: "2-digit",
-//         minute: "2-digit",
-//         hour12: true,
-//       });
-//     const total = invoiceDetails?.Final_Amount ?? 0;
-
-
-//     const html = `<!DOCTYPE html>
-// <html>
-// <head>
-//   <title>Invoice - ${invoiceDetails?.Invoice_Number ?? ""}</title>
-//   <meta charset="UTF-8">
-//   <style>
-//     * {
-//       margin: 0;
-//       padding: 0;
-//       box-sizing: border-box;
-//     }
-
-//     body {
-//       font-family: 'Courier New', Courier, monospace;
-//       font-size: 11px;
-//       line-height: 1.3;
-//       font-weight: 700;
-//       color: #000;
-//       width: 58mm;
-//       margin: 0;
-//       padding: 0;
-//       -webkit-print-color-adjust: exact;
-//       print-color-adjust: exact;
-//     }
-
-//     /* 🔥 SAFE PRINTABLE WIDTH */
-//     .invoice {
-//       width: 46mm;
-//       margin: 0 auto;
-//       padding: 1mm;
-//     }
-//        .invoice-kitchen {
-//       width: 46mm;
-//       margin: 0 auto;
-//       padding: 1mm;
-//       margin-top: 10px;
-//     }
+    const getCurrentTime = () =>
+      new Date().toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
+    const total = invoiceDetails?.Final_Amount ?? 0;
 
 
-//     .header-center,
-//     .header-middle {
-//       text-align: center;
-//       margin-bottom: 6px;
-//       border-bottom: 1px dashed #000;
-//       padding-bottom: 6px;
-//     }
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <title>Invoice - ${invoiceDetails?.Invoice_Number ?? ""}</title>
+  <meta charset="UTF-8">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
-//     .brand {
-//       font-size: 15px;
-//       font-weight: 800;
-//       letter-spacing: 1px;
-//     }
+    body {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 11px;
+      line-height: 1.3;
+      font-weight: 700;
+      color: #000;
+      width: 58mm;
+      margin: 0;
+      padding: 0;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
 
-//     .line {
-//       border-top: 1px dashed #000;
-//       margin: 5px 0;
-//     }
+    /* 🔥 SAFE PRINTABLE WIDTH */
+    .invoice {
+      width: 46mm;
+      margin: 0 auto;
+      padding: 1mm;
+    }
+       .invoice-kitchen {
+      width: 46mm;
+      margin: 0 auto;
+      padding: 1mm;
+      margin-top: 10px;
+    }
 
-//     .line-solid {
-//       border-top: 1px solid #000;
-//       margin: 5px 0;
-//     }
 
-//    .info-row.date-time {
-//   display: flex;
-//   justify-content: space-between;
-//   font-size: 9px;
-//   font-weight: 700;
-//   width: 100%;
-// }
+    .header-center,
+    .header-middle {
+      text-align: center;
+      margin-bottom: 6px;
+      border-bottom: 1px dashed #000;
+      padding-bottom: 6px;
+    }
 
-// .info-row.date-time span {
-//   white-space: nowrap;   /* 🔥 prevents wrapping */
-// }
+    .brand {
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 1px;
+    }
 
-//     .info-label {
-//       font-weight: 800;
-//     }
+    .line {
+      border-top: 1px dashed #000;
+      margin: 5px 0;
+    }
 
-//     /* ITEMS */
-//     .items-header,
-//     .item-row {
-//       display: flex;
-//       justify-content: space-between;
-//       font-size: 10px;
-//       width: 100%;
-//     }
+    .line-solid {
+      border-top: 1px solid #000;
+      margin: 5px 0;
+    }
 
-//     .items-header {
-//       border-bottom: 1px solid #000;
-//       padding-bottom: 3px;
-//       font-weight: 800;
-//     }
+   .info-row.date-time {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  font-weight: 700;
+  width: 100%;
+}
 
-//     .item-row {
-//       border-bottom: 1px dashed #ccc;
-//       padding: 2px 0;
-//     }
+.info-row.date-time span {
+  white-space: nowrap;   /* 🔥 prevents wrapping */
+}
 
-//     .col-no {
-//       width: 5mm;
-//     }
+    .info-label {
+      font-weight: 800;
+    }
 
-//     .item-name {
-//       flex: 1;
-//       padding-right: 1mm;
-//       word-break: break-word;
-//     }
+    /* ITEMS */
+    .items-header,
+    .item-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      width: 100%;
+    }
 
-//     .item-qty {
-//       width: 5mm;
-//       text-align: center;
-//     }
+    .items-header {
+      border-bottom: 1px solid #000;
+      padding-bottom: 3px;
+      font-weight: 800;
+    }
 
-//     .item-amount {
-//       width: 8mm;
-//       text-align: right;
-//     }
+    .item-row {
+      border-bottom: 1px dashed #ccc;
+      padding: 2px 0;
+    }
 
-//     /* SUMMARY */
-//     .summary {
-//       margin-top: 6px;
-//       font-size: 11px;
-//       width: 100%;
-//     }
+    .col-no {
+      width: 5mm;
+    }
 
-//     .summary-row {
-//       display: flex;
-//       justify-content: space-between;
-//       margin: 2px 0;
-//     }
+    .item-name {
+      flex: 1;
+      padding-right: 1mm;
+      word-break: break-word;
+    }
 
-//     .summary-row.total {
-//       font-size: 13px;
-//       font-weight: 900;
-//       border-top: 1px solid #000;
-//       border-bottom: 2px solid #000;
-//       padding: 4px 0;
-//       margin-top: 4px;
-//     }
+    .item-qty {
+      width: 5mm;
+      text-align: center;
+    }
 
-//     .footer {
-//       text-align: center;
-//       margin-top: 8px;
-//       padding-top: 6px;
-//       border-top: 1px dashed #000;
-//       font-size: 10px;
-//       font-weight: 700;
-//     }
+    .item-amount {
+      width: 8mm;
+      text-align: right;
+    }
 
-//     @media print {
-//       @page {
-//         size: 58mm auto;
-//         margin: 0;
-//       }
-//         .no-print {
-//               display: none !important;
-//             }
-//     }
-//   </style>
-// </head>
+    /* SUMMARY */
+    .summary {
+      margin-top: 6px;
+      font-size: 11px;
+      width: 100%;
+    }
 
-// <body>
-//   <div class="invoice">
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      margin: 2px 0;
+    }
 
-//     <div class="header-center">
-//       <div class="brand" style="font-weight:900;">HELLO GUYS</div>
-//       <div>Ph: +91 9903106989</div>
+    .summary-row.total {
+      font-size: 13px;
+      font-weight: 900;
+      border-top: 1px solid #000;
+      border-bottom: 2px solid #000;
+      padding: 4px 0;
+      margin-top: 4px;
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 8px;
+      padding-top: 6px;
+      border-top: 1px dashed #000;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    @media print {
+      @page {
+        size: 58mm auto;
+        margin: 0;
+      }
+        .no-print {
+              display: none !important;
+            }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="invoice">
+
+    <div class="header-center">
+      <div class="brand" style="font-weight:900;">HELLO GUYS</div>
+      <div>Ph: +91 9903106989</div>
  
-//       <div style="font-size:9px">
-//         Address:Shakuntala Park, Kolkata 700061
-//       </div>
+      <div style="font-size:9px">
+        Address:Shakuntala Park, Kolkata 700061
+      </div>
      
-//     </div>
+    </div>
 
-//     ${invoiceDetails?.Customer_Name ? `
-//     <div class="info-row">
-//       <span class="info-label">Customer:</span>
-//       <span>${invoiceDetails.Customer_Name}</span>
-//     </div>` : ``}
+    ${invoiceDetails?.Customer_Name ? `
+    <div class="info-row">
+      <span class="info-label">Customer:</span>
+      <span>${invoiceDetails.Customer_Name}</span>
+    </div>` : ``}
 
-//     ${invoiceDetails?.Customer_Phone ? `
-//     <div class="info-row">
-//       <span class="info-label">Phone:</span>
-//       <span>${invoiceDetails.Customer_Phone}</span>
-//     </div>` : ``}
+    ${invoiceDetails?.Customer_Phone ? `
+    <div class="info-row">
+      <span class="info-label">Phone:</span>
+      <span>${invoiceDetails.Customer_Phone}</span>
+    </div>` : ``}
 
-//     <div class="line"></div>
+    <div class="line"></div>
 
-//     <div class="header-middle"><b>TAKEAWAY</b></div>
+    <div class="header-middle"><b>TAKEAWAY</b></div>
 
-//  <div class="info-row date-time">
-//   <span><b>Date:</b> ${getCurrentDate()}</span>
-//   <span><b>Time:</b> ${getCurrentTime()}</span>
-// </div>
+ <div class="info-row date-time">
+  <span><b>Date:</b> ${getCurrentDate()}</span>
+  <span><b>Time:</b> ${getCurrentTime()}</span>
+</div>
 
 
-//     <div class="info-row">
-//       <span><b>Invoice:</b> ${invoiceDetails?.Invoice_Number ?? "-"}</span>
-//     </div>
+    <div class="info-row">
+      <span><b>Invoice:</b> ${invoiceDetails?.Invoice_Number ?? "-"}</span>
+    </div>
 
-//     <div class="line-solid"></div>
+    <div class="line-solid"></div>
 
-//     <div class="items-header">
-//       <div class="col-no">No</div>
-//       <div class="item-name">ITEM</div>
-//       <div class="item-qty">QTY</div>
-//       <div class="item-amount">AMT</div>
-//     </div>
+    <div class="items-header">
+      <div class="col-no">No</div>
+      <div class="item-name">ITEM</div>
+      <div class="item-qty">QTY</div>
+      <div class="item-amount">AMT</div>
+    </div>
 
-//     ${(data?.items || []).map((it, i) => `
-//       <div class="item-row">
-//         <div class="col-no">${i + 1}</div>
-//         <div class="item-name">${it.Item_Name}</div>
-//         <div class="item-qty">${it.Item_Quantity}</div>
-//         <div class="item-amount">₹${Number(it.Amount).toFixed(2)}</div>
-//       </div>
-//     `).join("")}
+    ${(data?.items || []).map((it, i) => `
+      <div class="item-row">
+        <div class="col-no">${i + 1}</div>
+        <div class="item-name">${it.Item_Name}</div>
+        <div class="item-qty">${it.Item_Quantity}</div>
+        <div class="item-amount">₹${Number(it.Amount).toFixed(2)}</div>
+      </div>
+    `).join("")}
 
-//     <div class="line-solid"></div>
+    <div class="line-solid"></div>
 
-//     <div class="summary">
-//       <div class="summary-row">
-//         <span>Subtotal</span>
-//         <span>₹${Number(invoiceDetails?.Sub_Total).toFixed(2)}</span>
-//       </div>
+    <div class="summary">
+      <div class="summary-row">
+        <span>Subtotal</span>
+        <span>₹${Number(invoiceDetails?.Sub_Total).toFixed(2)}</span>
+      </div>
 
-//       ${invoiceDetails?.Discount ? `
-//       <div class="summary-row">
-//         <span>Discount</span>
-//         <span>
-//           ${invoiceDetails.Discount_Type === "percentage"
-//           ? invoiceDetails.Discount + "%"
-//           : "₹" + invoiceDetails.Discount}
-//         </span>
-//       </div>` : ``}
-//       ${invoiceDetails?.Coupon_Code ? `
-//       <div class="summary-row">
-//         <span>Coupon Discount</span>
-//         <span>
-//           ${invoiceDetails.Coupon_Discount_Type === "PERCENT"
-//           ? invoiceDetails.Coupon_Discount_Value + "%"
-//           : "₹" + invoiceDetails.Coupon_Discount_Value}
-//         </span>
-//       </div>` : ``}
+      ${invoiceDetails?.Discount ? `
+      <div class="summary-row">
+        <span>Discount</span>
+        <span>
+          ${invoiceDetails.Discount_Type === "percentage"
+          ? invoiceDetails.Discount + "%"
+          : "₹" + invoiceDetails.Discount}
+        </span>
+      </div>` : ``}
+      ${invoiceDetails?.Coupon_Code ? `
+      <div class="summary-row">
+        <span>Coupon Discount</span>
+        <span>
+          ${invoiceDetails.Coupon_Discount_Type === "PERCENT"
+          ? invoiceDetails.Coupon_Discount_Value + "%"
+          : "₹" + invoiceDetails.Coupon_Discount_Value}
+        </span>
+      </div>` : ``}
 
-//       <div class="summary-row total">
-//         <span>TOTAL</span>
-//         <span>₹${Number(total).toFixed(2)}</span>
-//       </div>
-//     </div>
+      <div class="summary-row total">
+        <span>TOTAL</span>
+        <span>₹${Number(total).toFixed(2)}</span>
+      </div>
+    </div>
 
-//     <div class="footer">
-//       <b>THANK YOU!</b><br>
-//       Please Visit Again
-//     </div>
-//   </div> <!-- end of .invoice -->
+    <div class="footer">
+      <b>THANK YOU!</b><br>
+      Please Visit Again
+    </div>
+  </div> <!-- end of .invoice -->
 
-//   <!-- ================= KITCHEN COPY ================= -->
+  <!-- ================= KITCHEN COPY ================= -->
   
   
 
-//   </div>
-// </body>
-// </html>
-// `
+  </div>
+</body>
+</html>
+`
 
-//     // 🔥 CREATE HIDDEN IFRAME
-//     // const iframe = document.createElement("iframe");
-//     // iframe.style.position = "fixed";
-//     // iframe.style.right = "0";
-//     // iframe.style.bottom = "0";
-//     // iframe.style.width = "0";
-//     // iframe.style.height = "0";
-//     // iframe.style.border = "0";
+    // 🔥 CREATE HIDDEN IFRAME
+    // const iframe = document.createElement("iframe");
+    // iframe.style.position = "fixed";
+    // iframe.style.right = "0";
+    // iframe.style.bottom = "0";
+    // iframe.style.width = "0";
+    // iframe.style.height = "0";
+    // iframe.style.border = "0";
 
-//     // document.body.appendChild(iframe);
+    // document.body.appendChild(iframe);
 
-//     // const doc = iframe.contentWindow.document;
-//     // doc.open();
-//     // doc.write(html);
-//     // doc.close();
+    // const doc = iframe.contentWindow.document;
+    // doc.open();
+    // doc.write(html);
+    // doc.close();
 
-//     // // ✅ THIS WAS MISSING
-//     // iframe.onload = () => {
-//     //   iframe.contentWindow.focus();
-//     //   iframe.contentWindow.print();
-//     // };
+    // // ✅ THIS WAS MISSING
+    // iframe.onload = () => {
+    //   iframe.contentWindow.focus();
+    //   iframe.contentWindow.print();
+    // };
 
-//     // // 🧹 CLEANUP AFTER PRINT
-//     // setTimeout(() => {
-//     //   document.body.removeChild(iframe);
-//     // }, 1000);
-//     //  const iframe = document.createElement("iframe");
-//     // iframe.style.position = "fixed";
-//     // iframe.style.right = "0";
-//     // iframe.style.bottom = "0";
-//     // iframe.style.width = "0";
-//     // iframe.style.height = "0";
-//     // iframe.style.border = "0";
+    // // 🧹 CLEANUP AFTER PRINT
+    // setTimeout(() => {
+    //   document.body.removeChild(iframe);
+    // }, 1000);
+    //  const iframe = document.createElement("iframe");
+    // iframe.style.position = "fixed";
+    // iframe.style.right = "0";
+    // iframe.style.bottom = "0";
+    // iframe.style.width = "0";
+    // iframe.style.height = "0";
+    // iframe.style.border = "0";
 
-//     // document.body.appendChild(iframe);
+    // document.body.appendChild(iframe);
 
-//     // const doc = iframe.contentWindow.document;
-//     // doc.open();
-//     // doc.write(html);
-//     // doc.close();
+    // const doc = iframe.contentWindow.document;
+    // doc.open();
+    // doc.write(html);
+    // doc.close();
 
-//     // // ✅ THIS WAS MISSING
-//     // iframe.onload = () => {
-//     //   iframe.contentWindow.focus();
-//     //   iframe.contentWindow.print();
-//     // };
+    // // ✅ THIS WAS MISSING
+    // iframe.onload = () => {
+    //   iframe.contentWindow.focus();
+    //   iframe.contentWindow.print();
+    // };
 
-//     // // 🧹 CLEANUP AFTER PRINT
-//     // setTimeout(() => {
-//     //   document.body.removeChild(iframe);
-//     // }, 1000);
-//     const iframe = document.createElement("iframe");
-//     iframe.style.display = "none";
-//     document.body.appendChild(iframe);
+    // // 🧹 CLEANUP AFTER PRINT
+    // setTimeout(() => {
+    //   document.body.removeChild(iframe);
+    // }, 1000);
+    const iframe = document.createElement("iframe");
+    iframe.style.display = "none";
+    document.body.appendChild(iframe);
 
-//     iframe.contentDocument.open();
-//     iframe.contentDocument.write(html);
-//     iframe.contentDocument.close();
+    iframe.contentDocument.open();
+    iframe.contentDocument.write(html);
+    iframe.contentDocument.close();
 
-//     iframe.onload = () => {
-//       iframe.contentWindow.print();
-//     };
-
-//     setTimeout(() => document.body.removeChild(iframe), 1000);
-//     // const isAndroid = /Android/i.test(navigator.userAgent);
-//     //   const isWindows = /Windows/i.test(navigator.userAgent);
-
-//     //   /* ================= ANDROID (RawBT Bluetooth) ================= */
-//     //   if (isAndroid) {
-//     //     const encoded = encodeURIComponent(html);
-//     //     window.location.href = `rawbt://print?text=${encoded}`;
-//     //     return;
-//     //   }
-
-//     //   /* ================= WINDOWS (USB Printer) ================= */
-//     //   if (isWindows) {
-//     //     const iframe = document.createElement("iframe");
-//     //     iframe.style.display = "none";
-//     //     document.body.appendChild(iframe);
-
-//     //     iframe.contentDocument.open();
-//     //     iframe.contentDocument.write(html);
-//     //     iframe.contentDocument.close();
-
-//     //     iframe.onload = () => {
-//     //       iframe.contentWindow.print();
-//     //     };
-
-//     //     setTimeout(() => document.body.removeChild(iframe), 1000);
-//     //     return;
-//     //   }
-//     // const w = window.open("", "_blank", "width=320,height=600");
-//     // const w = window.open("", "_blank");
-//     //   if (!w) {
-//     //     alert("Please allow pop-ups to print the invoice.");
-//     //     return;
-//     //   }
-
-//     //   w.document.write(html);
-//     //   w.document.write(`
-//     //   <button onclick="window.print()" 
-//     //     style="position:fixed;top:10px;right:10px;padding:8px 12px;
-//     //            background:#ff0000;color:white;border:none;border-radius:4px;
-//     //            font-size:14px;cursor:pointer;z-index:9999;">
-//     //       Print
-//     //   </button>
-//     // `);
-//     // const w = window.open("", "_blank");
-//     //   if (!w) {
-//     //     alert("Please allow pop-ups to print the invoice.");
-//     //     return;
-//     //   }
-
-//     //   w.document.write(html);
-//     //   w.document.write(`
-//     //   <button onclick="window.print()" 
-//     //     class="no-print"
-//     //     style="position:fixed;top:10px;right:10px;padding:8px 12px;
-//     //            background:#ff0000;color:white;border:none;border-radius:4px;
-//     //            font-size:14px;cursor:pointer;z-index:9999;">
-//     //       Print
-//     //   </button>
-//     // `);
-//     //w.document.close();
-
-//   };
-   const printInvoiceWindow = (invoiceDetails, data) => {
-      const escapeHTML = (value) =>
-        String(value ?? "").replace(
-          /[&<>"']/g,
-          (char) =>
-            ({
-              "&": "&amp;",
-              "<": "&lt;",
-              ">": "&gt;",
-              '"': "&quot;",
-              "'": "&#39;",
-            })[char],
-        );
-  
-      const getCurrentDate = () => new Date().toLocaleDateString("en-GB");
-  
-      const getCurrentTime = () =>
-        new Date().toLocaleTimeString("en-IN", {
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: true,
-        });
-  
-      const itemsHTML = (data?.items || [])
-        .map(
-          (item, index) => `
-            <tr>
-              <td>${index + 1}. ${escapeHTML(item?.Item_Name)}</td>
-              <td class="center">${Number(item?.Item_Quantity || 0)}</td>
-              <td class="right">₹${Number(item?.Amount || 0).toFixed(2)}</td>
-            </tr>
-          `,
-        )
-        .join("");
-  
-      const discountHTML = invoiceDetails?.Discount
-        ? `<div class="row">
-             <span>Discount</span>
-             <span>${
-               invoiceDetails.Discount_Type === "percentage"
-                 ? `${escapeHTML(invoiceDetails.Discount)}%`
-                 : `₹${escapeHTML(invoiceDetails.Discount)}`
-             }</span>
-           </div>`
-        : "";
-  
-      const couponHTML = invoiceDetails?.Coupon_Code
-        ? `<div class="row">
-             <span>Coupon (${escapeHTML(invoiceDetails.Coupon_Code)})</span>
-             <span>${
-               invoiceDetails.Coupon_Discount_Type === "PERCENT"
-                 ? `${escapeHTML(invoiceDetails.Coupon_Discount_Value)}%`
-                 : `₹${escapeHTML(invoiceDetails.Coupon_Discount_Value)}`
-             }</span>
-           </div>`
-        : "";
-  
-      const html = `<!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="UTF-8" />
-          <title>Takeaway Invoice</title>
-          <style>
-            @page { size: 80mm auto; margin: 0; }
-            * { box-sizing: border-box; }
-            body {
-              width: ${PAPER_WIDTH}mm;
-              margin: 0 auto;
-              font-family: "Courier New", monospace;
-              font-size: 11px;
-              font-weight: bold;
-              color: #000;
-            }
-            .center { text-align: center; }
-            .right { text-align: right; }
-            .brand { font-size: 16px; font-weight: bold; }
-            .line {
-              border-top: 1px dashed #000;
-              margin: 6px 0;
-            }
-            .row {
-              display: flex;
-              justify-content: space-between;
-              gap: 4px;
-              margin: 4px 0;
-            }
-            .row span:first-child { overflow-wrap: anywhere; }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              font-size: 10px;
-            }
-            th, td { padding: 4px 1px; }
-            th { border-bottom: 1px solid #000; }
-            .total { font-size: 13px; }
-            @media print {
-              body { width: ${PAPER_WIDTH}mm; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="center">
-            <div class="brand">HELLO GUYS</div>
-            <div>Ph: +91 9903106989</div>
-            <div>Shakuntala Park, Kolkata 700061</div>
-          </div>
-  
-          <div class="line"></div>
-          <div class="center">TAKEAWAY</div>
-          <div class="row">
-            <span>Date: ${getCurrentDate()}</span>
-            <span>${getCurrentTime()}</span>
-          </div>
-          <div class="row">
-            <span>Invoice:</span>
-            <span>${escapeHTML(invoiceDetails?.Invoice_Number ?? "-")}</span>
-          </div>
-  
-          ${
-            invoiceDetails?.Customer_Name
-              ? `<div class="row"><span>Customer:</span><span>${escapeHTML(invoiceDetails.Customer_Name)}</span></div>`
-              : ""
-          }
-          ${
-            invoiceDetails?.Customer_Phone
-              ? `<div class="row"><span>Phone:</span><span>${escapeHTML(invoiceDetails.Customer_Phone)}</span></div>`
-              : ""
-          }
-  
-          <div class="line"></div>
-          <table>
-            <thead>
-              <tr>
-                <th style="text-align:left">ITEM</th>
-                <th>QTY</th>
-                <th style="text-align:right">AMT</th>
-              </tr>
-            </thead>
-            <tbody>${itemsHTML}</tbody>
-          </table>
-  
-          <div class="line"></div>
-          <div class="row">
-            <span>Subtotal</span>
-            <span>₹${Number(invoiceDetails?.Sub_Total || 0).toFixed(2)}</span>
-          </div>
-          ${discountHTML}
-          ${couponHTML}
-          <div class="line"></div>
-          <div class="row total">
-            <span>TOTAL</span>
-            <span>₹${Number(invoiceDetails?.Final_Amount || 0).toFixed(2)}</span>
-          </div>
-          <div class="line"></div>
-          <div class="center">THANK YOU!</div>
-          <div class="center">Please Visit Again</div>
-        </body>
-        </html>`;
-  
-      const printFrame = document.createElement("iframe");
-      printFrame.style.position = "fixed";
-      printFrame.style.width = "1px";
-      printFrame.style.height = "1px";
-      printFrame.style.left = "-10000px";
-      printFrame.style.bottom = "0";
-      printFrame.style.border = "0";
-  
-      document.body.appendChild(printFrame);
-  
-      const frameWindow = printFrame.contentWindow;
-      const frameDocument = frameWindow.document;
-  
-      let printStarted = false;
-  
-      const cleanup = () => {
-        if (printFrame.parentNode) {
-          printFrame.parentNode.removeChild(printFrame);
-        }
-      };
-  
-      frameWindow.onafterprint = () => {
-        setTimeout(cleanup, 500);
-      };
-  
-      frameDocument.open();
-      frameDocument.write(html);
-      frameDocument.close();
-  
-      const startPrint = () => {
-        if (printStarted) return;
-        printStarted = true;
-  
-        frameWindow.focus();
-        frameWindow.print();
-  
-        // Fallback cleanup in case afterprint does not fire.
-        setTimeout(cleanup, 60000);
-      };
-  
-      setTimeout(startPrint, 300);
+    iframe.onload = () => {
+      iframe.contentWindow.print();
     };
-  
+
+    setTimeout(() => document.body.removeChild(iframe), 1000);
+    // const isAndroid = /Android/i.test(navigator.userAgent);
+    //   const isWindows = /Windows/i.test(navigator.userAgent);
+
+    //   /* ================= ANDROID (RawBT Bluetooth) ================= */
+    //   if (isAndroid) {
+    //     const encoded = encodeURIComponent(html);
+    //     window.location.href = `rawbt://print?text=${encoded}`;
+    //     return;
+    //   }
+
+    //   /* ================= WINDOWS (USB Printer) ================= */
+    //   if (isWindows) {
+    //     const iframe = document.createElement("iframe");
+    //     iframe.style.display = "none";
+    //     document.body.appendChild(iframe);
+
+    //     iframe.contentDocument.open();
+    //     iframe.contentDocument.write(html);
+    //     iframe.contentDocument.close();
+
+    //     iframe.onload = () => {
+    //       iframe.contentWindow.print();
+    //     };
+
+    //     setTimeout(() => document.body.removeChild(iframe), 1000);
+    //     return;
+    //   }
+    // const w = window.open("", "_blank", "width=320,height=600");
+    // const w = window.open("", "_blank");
+    //   if (!w) {
+    //     alert("Please allow pop-ups to print the invoice.");
+    //     return;
+    //   }
+
+    //   w.document.write(html);
+    //   w.document.write(`
+    //   <button onclick="window.print()" 
+    //     style="position:fixed;top:10px;right:10px;padding:8px 12px;
+    //            background:#ff0000;color:white;border:none;border-radius:4px;
+    //            font-size:14px;cursor:pointer;z-index:9999;">
+    //       Print
+    //   </button>
+    // `);
+    // const w = window.open("", "_blank");
+    //   if (!w) {
+    //     alert("Please allow pop-ups to print the invoice.");
+    //     return;
+    //   }
+
+    //   w.document.write(html);
+    //   w.document.write(`
+    //   <button onclick="window.print()" 
+    //     class="no-print"
+    //     style="position:fixed;top:10px;right:10px;padding:8px 12px;
+    //            background:#ff0000;color:white;border:none;border-radius:4px;
+    //            font-size:14px;cursor:pointer;z-index:9999;">
+    //       Print
+    //   </button>
+    // `);
+    //w.document.close();
+
+  };
   useEffect(() => {
     setValue("Amount", finalAmount.toFixed(2));
   }, [finalAmount, setValue]);
-//cleanter connection for printing through website
 
-  const printInvoiceViaCleanter = async (invoiceDetails, data) => {
-    try {
-      const getCurrentDate = () => new Date().toLocaleDateString("en-GB");
-
-      const getCurrentTime = () =>
-        new Date().toLocaleTimeString("en-US", {
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: true,
-        });
-
-      const content = [];
-
-      // ==========================================
-      // HEADER
-      // ==========================================
-
-      content.push({
-        type: "text",
-        text: "HELLO GUYS",
-        align: "center",
-        bold: true,
-        size: "large",
-      });
-
-      content.push({
-        type: "text",
-        text: "Ph: +91 9903106989",
-        align: "center",
-      });
-
-      content.push({
-        type: "text",
-        text: "Address: Shakuntala Park, Kolkata 700061",
-        align: "center",
-      });
-
-      content.push({
-        type: "divider",
-      });
-
-      // ==========================================
-      // CUSTOMER
-      // ==========================================
-
-      if (invoiceDetails?.Customer_Name) {
-        content.push({
-          type: "row",
-          left: "Customer:",
-          right: invoiceDetails.Customer_Name,
-        });
-      }
-
-      if (invoiceDetails?.Customer_Phone) {
-        content.push({
-          type: "row",
-          left: "Phone:",
-          right: invoiceDetails.Customer_Phone,
-        });
-      }
-
-      content.push({
-        type: "divider",
-      });
-
-      // ==========================================
-      // ORDER TYPE
-      // ==========================================
-
-      content.push({
-        type: "text",
-        text: "TAKEAWAY",
-        align: "center",
-        bold: true,
-      });
-
-      content.push({
-        type: "row",
-        left: `Date: ${getCurrentDate()}`,
-        right: getCurrentTime(),
-      });
-
-      content.push({
-        type: "row",
-        left: "Invoice:",
-        right: invoiceDetails?.Invoice_Number ?? "-",
-      });
-
-      content.push({
-        type: "divider",
-      });
-
-      // ==========================================
-      // ITEMS HEADER
-      // ==========================================
-
-      content.push({
-        type: "row",
-        left: "ITEM / QTY",
-        right: "AMT",
-        bold: true,
-      });
-
-      // ==========================================
-      // ITEMS
-      // ==========================================
-
-      (data?.items || []).forEach((item) => {
-        const itemName = item?.Item_Name || "";
-        const quantity = Number(item?.Item_Quantity || 0);
-        const amount = Number(item?.Amount || 0).toFixed(2);
-
-        content.push({
-          type: "row",
-          left: `${itemName} x${quantity}`,
-          right: `Rs.${amount}`,
-        });
-      });
-
-      content.push({
-        type: "divider",
-      });
-
-      // ==========================================
-      // SUMMARY
-      // ==========================================
-
-      content.push({
-        type: "row",
-        left: "Subtotal",
-        right: `Rs.${Number(invoiceDetails?.Sub_Total || 0).toFixed(2)}`,
-      });
-
-      // ==========================================
-      // MANUAL DISCOUNT
-      // ==========================================
-
-      if (invoiceDetails?.Discount) {
-        content.push({
-          type: "row",
-          left: "Discount",
-          right:
-            invoiceDetails.Discount_Type === "percentage"
-              ? `${invoiceDetails.Discount}%`
-              : `Rs.${invoiceDetails.Discount}`,
-        });
-      }
-
-      // ==========================================
-      // COUPON DISCOUNT
-      // ==========================================
-
-      if (invoiceDetails?.Coupon_Code) {
-        content.push({
-          type: "row",
-          left: "Coupon Discount",
-          right:
-            invoiceDetails.Coupon_Discount_Type === "PERCENT"
-              ? `${invoiceDetails.Coupon_Discount_Value}%`
-              : `Rs.${invoiceDetails.Coupon_Discount_Value}`,
-        });
-      }
-
-      // ==========================================
-      // TOTAL
-      // ==========================================
-
-      content.push({
-        type: "divider",
-      });
-
-      content.push({
-        type: "row",
-        left: "TOTAL",
-        right: `Rs.${Number(invoiceDetails?.Final_Amount || 0).toFixed(2)}`,
-        bold: true,
-      });
-
-      // ==========================================
-      // FOOTER
-      // ==========================================
-
-      content.push({
-        type: "divider",
-      });
-
-      content.push({
-        type: "text",
-        text: "THANK YOU!",
-        align: "center",
-        bold: true,
-      });
-
-      content.push({
-        type: "text",
-        text: "Please Visit Again",
-        align: "center",
-      });
-
-      content.push({
-        type: "feed",
-        lines: 3,
-      });
-
-      // ==========================================
-      // SEND TO CLEANter
-      // ==========================================
-
-      await printViaCleanter(content);
-    } catch (error) {
-      console.error("Cleanter invoice print error:", error);
-      throw error;
-    }
-  };
-  //PRINT KOT using Cleanter
-    const printKOTViaCleanter = async (kitchens) => {
-      try {
-        const getCurrentDate = () => new Date().toLocaleDateString("en-GB");
-  
-        const getCurrentTime = () =>
-          new Date().toLocaleTimeString("en-US", {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: true,
-          });
-  
-        const content = [];
-  
-        Object.entries(kitchens).forEach(([kitchenName, items], kitchenIndex) => {
-          // Divider between kitchens
-          if (kitchenIndex > 0) {
-            content.push({
-              type: "divider",
-            });
-          }
-  
-          // =========================
-          // HEADER
-          // =========================
-  
-          content.push({
-            type: "text",
-            text: "TAKEAWAY",
-            align: "center",
-            bold: true,
-          });
-  
-          content.push({
-            type: "text",
-            text: kitchenName,
-            align: "center",
-            bold: true,
-            size: "large",
-          });
-  
-          content.push({
-            type: "divider",
-          });
-  
-          // =========================
-          // DATE / TIME
-          // =========================
-  
-          content.push({
-            type: "row",
-            left: `Date: ${getCurrentDate()}`,
-            right: getCurrentTime(),
-          });
-  
-          content.push({
-            type: "divider",
-          });
-  
-          // =========================
-          // ITEMS HEADER
-          // =========================
-  
-          content.push({
-            type: "row",
-            left: "NO.  ITEM",
-            right: "QTY",
-            bold: true,
-          });
-  
-          // =========================
-          // ITEMS
-          // =========================
-  
-          items.forEach((item, index) => {
-            content.push({
-              type: "row",
-              left: `${index + 1}. ${item?.Item_Name || ""}`,
-              right: `${item?.Item_Quantity || 0}`,
-            });
-          });
-        });
-  
-        // Extra paper before cutting
-        content.push({
-          type: "feed",
-          lines: 3,
-        });
-  
-        // =========================
-        // SEND TO CLEANter
-        // =========================
-  
-        await printViaCleanter(content);
-  
-        toast.success("KOT printed successfully!");
-      } catch (error) {
-        console.error("Cleanter KOT print error:", error);
-  
-        toast.error(`Could not print KOT: ${error.message}`);
-  
-        throw error;
-      }
-    };
   
   const printKOTInvoice = (kitchens) => {
     const getCurrentDate = () =>
@@ -1957,50 +1546,36 @@ const finalAmount = Number(
   };
 
   const handlePrintKOT = async () => {
-     if (!summaryItems || summaryItems.length === 0) {
-       toast.error("Please add at least one item before printing KOT.");
-       return;
-     }
- 
-     const cleanedItems = summaryItems.filter(
-       (it) => it.Item_Name && it.Item_Name.trim() !== "",
-     );
- 
-     for (const item of cleanedItems) {
-       if (!item.Item_Quantity || Number(item.Item_Quantity) <= 0) {
-         toast.error(
-           `Quantity for "${item.Item_Name}" must be greater than zero`,
-         );
-         return;
-       }
-     }
- 
-     let response;
-     try {
-       response = await elligibleForKotPrint(cleanedItems).unwrap();
-       console.log("KOT eligible response:", response);
-     } catch (err) {
-       console.error(err);
-       toast.error("Failed to check KOT eligibility");
-       return;
-     }
- 
-     if (
-       response.success &&
-       response?.elligibleItems &&
-       Object.keys(response.elligibleItems).length > 0
-     ) {
-       if (isMobileDevice()) {
-         try {
-           await printKOTViaCleanter(response.elligibleItems);
-         } catch {
-           // the error toast was already shown inside printKOTViaCleanter
-         }
-       } else {
-         printKOTInvoice(response.elligibleItems); // PC: browser print dialog
-       }
-     }
-   };
+    if (!summaryItems || summaryItems.length === 0) {
+      toast.error("Please add at least one item before printing KOT.");
+      return;
+    }
+
+    const cleanedItems = summaryItems.filter(
+      (it) => it.Item_Name && it.Item_Name.trim() !== ""
+    );
+
+    for (const item of cleanedItems) {
+      if (!item.Item_Quantity || Number(item.Item_Quantity) <= 0) {
+        toast.error(`Quantity for "${item.Item_Name}" must be greater than zero`);
+        return;
+      }
+    }
+
+    try {
+      const response = await elligibleForKotPrint(cleanedItems).unwrap();
+      console.log("KOT eligible response:", response);
+
+      if (response.success && response?.elligibleItems && Object.keys(response.elligibleItems).length > 0
+      ) {
+        // printKOTInvoice({ items: response.elligibleItems });
+        printKOTInvoice(response.elligibleItems);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to check KOT eligibility");
+    }
+  };
 
   // const customerName = watch("Customer_Name");
   // const customerPhone = watch("Customer_Phone");
@@ -2298,8 +1873,9 @@ const finalAmount = Number(
                         onClick={() => setShowCategoryDrawer(false)}
                       />
                       {/* Drawer */}
+                      {/* <div className="relative w-64 bg-white h-full
+                       flex flex-col shadow-2xl z-10"> */}
                        <div className="relative w-64 bg-white h-[calc(100%-6rem)] mt-24 flex flex-col shadow-2xl z-10">
-                      {/* <div className="relative w-64 bg-white h-full flex flex-col shadow-2xl z-10"> */}
                         <div className="px-4 py-3 bg-[#ff0000] flex justify-between items-center">
                           <h4 className="text-white font-bold text-sm uppercase tracking-wide">Categories</h4>
                           <button type="button"
@@ -2740,7 +2316,9 @@ const finalAmount = Number(
                                 )}
                                 <div className="relative h-32 bg-gradient-to-br from-[#4CA1AF22] to-[#4CA1AF44]">
                                   {item?.Item_Image && (
-                                    <img loading="lazy" src={`http://192.168.0.111:4000/uploads/food-item/${item.Item_Image}`} alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
+                                    <img loading="lazy" 
+                                     src={`http://192.168.0.111:4000/uploads/food-item/${item.Item_Image}`}
+                                    alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
                                   )}
                                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
                                   <div className="absolute top-2 right-2">
@@ -3194,7 +2772,9 @@ const finalAmount = Number(
                               )}
                               <div className="relative h-28 bg-gradient-to-br from-[#4CA1AF22] to-[#4CA1AF44]">
                                 {item?.Item_Image && (
-                                  <img loading="lazy" src={`http://192.168.0.111:4000/uploads/food-item/${item.Item_Image}`} alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
+                                  <img loading="lazy" 
+                                  src={`http://192.168.0.111:4000/uploads/food-item/${item.Item_Image}`}
+                                  alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
                                 )}
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
                                 <div className="absolute top-1 right-1">

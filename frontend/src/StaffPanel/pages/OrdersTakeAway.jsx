@@ -1,181 +1,122 @@
-
-import { foodItemApi, useGetAllFoodItemsQuery } from "../../redux/api/foodItemApi";
-// import { useGetAllTablesQuery } from "../../redux/api/tableApi";
-
+import {
+  foodItemApi,
+  useGetAllFoodItemsQuery,
+} from "../../redux/api/foodItemApi";
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { useFieldArray, useForm } from "react-hook-form";
 
-
-
 import { useRef } from "react";
 import { useEffect } from "react";
 
-
-
-
-
 import { Minus, Plus, ShoppingCart } from "lucide-react";
 
-
-
-
-
 import {
-  orderApi, useCheckItemElligibleForKOTPrintMutation,
-
-  useGenerateSmsForTakeawayMutation, useGetAllCustomersQuery,
+  orderApi,
+  useCheckItemElligibleForKOTPrintMutation,
+  useGenerateSmsForTakeawayMutation,
+  useGetAllCustomersQuery,
   useGetNextTakeawayInvoiceIdQuery,
-  useTakeawayAddOrdersAndGenerateInvoicesMutation
+  useTakeawayAddOrdersAndGenerateInvoicesMutation,
 } from "../../redux/api/Staff/orderApi";
 
 import { useMemo } from "react";
 import { toast } from "react-toastify";
 import { useDispatch, useSelector } from "react-redux";
 import { kitchenStaffApi } from "../../redux/api/KitchenStaff/kitchenStaffApi";
-import { useGetAllCategoriesQuery } from "../../redux/api/itemApi"
+import { useGetAllCategoriesQuery } from "../../redux/api/itemApi";
 import { io } from "socket.io-client";
 import { useGetAllCouponsQuery } from "../../redux/api/couponApi";
 
-
-
+import {
+  checkCleanterReady,
+  printViaCleanter,
+  isMobileDevice,
+} from "../../utils/cleanter";
 
 export default function OrdersTakeAway() {
-  //const { userId } = useSelector((state) => state.user);
-  // const dispatch = useDispatch();
-  // const socket = io("https://helloguys.co.in/billmeal", {
-  //   path: "/billmeal/socket.io",
-  //   transports: ["polling", "websocket"], // fallback
-  //   withCredentials: true,
-  // });
-
+//  const socket = io("https://helloguys.co.in/billmeal", {
+//      path: "/billmeal/socket.io",
+//      transports: ["polling", "websocket"], // fallback
+//      withCredentials: true,
+//    });
   const TAX_RATES = {
-    "None": 0,
-    "GST0": 0,
+    None: 0,
+    GST0: 0,
     "GST0.25": 0.25,
-    "GST3": 3,
-    "GST5": 5,
-    "GST12": 12,
-    "GST18": 18,
-    "GST28": 28,
-    "GST40": 40,
+    GST3: 3,
+    GST5: 5,
+    GST12: 12,
+    GST18: 18,
+    GST28: 28,
+    GST40: 40,
 
-    "IGST0": 0,
+    IGST0: 0,
     "IGST0.25": 0.25,
-    "IGST3": 3,
-    "IGST5": 5,
-    "IGST12": 12,
-    "IGST18": 18,
-    "IGST28": 28,
-    "IGST40": 40,
+    IGST3: 3,
+    IGST5: 5,
+    IGST12: 12,
+    IGST18: 18,
+    IGST28: 28,
+    IGST40: 40,
   };
   const isSubmittingRef = useRef(false);
   const [showCategoryDrawer, setShowCategoryDrawer] = useState(false);
   const [showOrderDrawer, setShowOrderDrawer] = useState(false);
-  //const categoryRefs = useRef([]); // store refs for category dropdowns
-  //const itemRefs = useRef([]);     // store refs for item dropdowns
   const [showSummary, setShowSummary] = useState(false);
   const [selectedCoupon, setSelectedCoupon] = useState(null);
-  // const [ordertakeawayModalOpen, setOrdertakeawayModalOpen] = useState(false);
-  const { data: categories } = useGetAllCategoriesQuery()
+  const { data: categories } = useGetAllCategoriesQuery();
   const { user } = useSelector((state) => state.user);
-  //const existingCategories=categories?.map((category) => category.Item_Category);
-  const existingCategories = [...new Set(categories?.map(c => c.Item_Category))];
-  const [searchTerm, setSearchTerm] = useState('');
+  const existingCategories = [
+    ...new Set(categories?.map((c) => c.Item_Category)),
+  ];
+  const [searchTerm, setSearchTerm] = useState("");
   const newCategories = ["All", ...existingCategories];
 
   const navigate = useNavigate();
 
-  //const [categoryOpen, setCategoryOpen] = useState(false);
-  // const [categorySearch, setCategorySearch] = useState("");
   const dropdownRef = useRef(null);
-  //const categoryOpenRef = useRef(null);
-  // Close on outside click
-  // useEffect(() => {
-  //   const handleClickOutside = (e) => {
-  //     if (categoryOpenRef.current && !categoryOpenRef.current.contains(e.target)) {
-  //       setCategoryOpen(false);
-  //     }
-  //   };
 
-  //   document.addEventListener("mousedown", handleClickOutside);
-  //   return () => document.removeEventListener("mousedown", handleClickOutside);
-  // }, []);
-
-  // const { data: parties } = useGetAllPartiesQuery();
-
-  // console.log(items, "items");
-
-  //const [open, setOpen] = useState(false);
-  //const[categoryOpen,setCategoryOpen] = useState(false);
-  // const [showModal, setShowModal] = useState(false);
-  //const[selected,setSelected] = useState([]);
-  // const [tableSearch, setTableSearch] = useState("");
-  // const [open, setOpen] = useState(false);
-  // const [newCategory, setNewCategory] = useState("");
-
-  // const [selectedTables, setSelectedTables] = useState([]);
-  // const [addOrder, { isLoading: isAddingOrder }] = useAddOrderMutation();
-  // const itemUnits = {
-
-  //     "pcs": "Pcs",
-  //     "plates": "Plates",
-  //     "btl": "Bottle",
-
-  // }
   const { data: customers } = useGetAllCustomersQuery();
   console.log(customers, "customers");
   const [customerSearch, setCustomerSearch] = useState("");
 
   const [customerDropdownOpen, setCustomerDropdownOpen] = useState(false);
-  // const[customerModal,setShowCustomerModal]=useState(false);
-  //const[addParty, { isLoading }] = useAddPartyMutation();
   const [isExistingCustomer, setIsExistingCustomer] = useState(false);
 
-
-
-
-
-
-  // const dropdownRef = useRef(null);
   const inputRef = useRef(null);
   console.log(isExistingCustomer, "isExistingCustomer");
 
-
   const dispatch = useDispatch();
-  const [takeawayAddOrdersAndGenerateInvoices, { isLoading: isTakeawayAddOrdersAndGenerateInvoicesLoading }
+  const [
+    takeawayAddOrdersAndGenerateInvoices,
+    { isLoading: isTakeawayAddOrdersAndGenerateInvoicesLoading },
   ] = useTakeawayAddOrdersAndGenerateInvoicesMutation();
 
   const [generateSmsForTakeaway, { isLoading: isGenerateSmsLoading }] =
     useGenerateSmsForTakeawayMutation();
-  const [activeCategory, setActiveCategory] = useState('All');
+  const [activeCategory, setActiveCategory] = useState("All");
   const lastCategoryRef = useRef(activeCategory);
-  // const { data: tables, isLoading } = useGetAllTablesQuery({});
-  //const { data: menuItems, isLoading: isMenuItemsLoading, refetch: refetchMenuItems, isFetching } = useGetAllFoodItemsQuery({});
-  const { data: menuItems, isLoading: isMenuItemsLoading, refetch: refetchMenuItems, isFetching } = useGetAllFoodItemsQuery({orderType: "TAKEAWAY"});
-  const items = menuItems?.foodItems
+  const {
+    data: menuItems,
+    isLoading: isMenuItemsLoading,
+    refetch: refetchMenuItems,
+    isFetching,
+  } = useGetAllFoodItemsQuery({ orderType: "TAKEAWAY" });
+  const items = menuItems?.foodItems;
   //console.log(tables, isLoading, "tables", menuItems, isMenuItemsLoading);
-  // const[customerModal,setShowCustomerModal]=useState(false);
   const [elligibleForKotPrint] = useCheckItemElligibleForKOTPrintMutation();
   const lastUpdatedItemRef = useRef(null);
-  const { data: nextTakeawayInvoiceNumber } = useGetNextTakeawayInvoiceIdQuery();
-  const nextTakeawayInvoiceId = nextTakeawayInvoiceNumber?.next_takeaway_invoice_id;
+  const { data: nextTakeawayInvoiceNumber } =
+    useGetNextTakeawayInvoiceIdQuery();
+  const nextTakeawayInvoiceId =
+    nextTakeawayInvoiceNumber?.next_takeaway_invoice_id;
   //console.log(nextTakeawayInvoiceId,"nextTakeawayInvoiceId",nextTakeawayInvoiceNumber);
   const { data: coupon } = useGetAllCouponsQuery();
   //console.log(coupon, "coupon");
-  //  const [customerSearch, setCustomerSearch] = useState("");
-  // const [customerModal, setCustomerModal] = useState({
-  //   open: false,
-  //   mode: "add", // add | edit
-  // });
-  //  const[customerDropdownOpen,setCustomerDropdownOpen]=useState(false);
-  // const [rows, setRows] = useState([
-  //   {
-  //     CategoryOpen: false, categorySearch: "", preview: null
-  //   }
-  // ]);
+
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (
@@ -192,10 +133,7 @@ export default function OrdersTakeAway() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
- 
-
   const {
-
     control,
     handleSubmit,
     setValue,
@@ -215,64 +153,19 @@ export default function OrdersTakeAway() {
       Coupon_Code: "",
       Coupon_Discount_Type: "",
       Coupon_Discount_Value: "",
-      items: []   // No pre-created empty row
-    }
-
-
+      items: [], // No pre-created empty row
+    },
   });
-
 
   const { fields, append, remove } = useFieldArray({
     control,
     name: "items",
   });
 
-
-
-
   const formValues = watch();
-
-  //const totalPaid = watch("Total_Paid"); // watch Total_Paid
-  // const num = (v) => (v === undefined || v === null || v === "" ? 0 : Number(v));
-
-  // const hasCustomer = Boolean(customerPhone); // phone is safest
-
-
 
   const [cart, setCart] = useState({});
 
-  // const newCategories = ['All', existingCategories];
-
-
-  // const filteredItems = activeCategory === 'All'
-  //   ? items
-  //   : items?.filter(item => item?.Item_Category === activeCategory);
-
-  // const filteredItems = useMemo(() => {
-  //   if (!items) return [];
-
-  //   const categoryChanged = lastCategoryRef.current !== activeCategory;
-
-  //   const result = items.filter((item) => {
-  //     const matchesCategory =
-  //       activeCategory === "All" ||
-  //       item.Item_Category === activeCategory;
-
-  //     // 🔥 Ignore search when category JUST changed
-  //     const matchesSearch =
-  //       categoryChanged
-  //         ? true
-  //         : !searchTerm.trim() ||
-  //           item.Item_Name.toLowerCase().includes(searchTerm.toLowerCase());
-
-  //     return matchesCategory && matchesSearch;
-  //   });
-
-  //   // update ref AFTER filtering
-  //   lastCategoryRef.current = activeCategory;
-
-  //   return result;
-  // }, [items, activeCategory, searchTerm]);
   const updateCart = (itemId, delta, _index, itemName, itemPrice) => {
     const price = Number(itemPrice);
     if (!price || price <= 0) return;
@@ -294,9 +187,11 @@ export default function OrdersTakeAway() {
 
           // rebuild mapping
           const newMap = {};
-          watch("items")?.filter(Boolean).forEach((it, idx) => {
-            newMap[it.id] = idx;
-          });
+          watch("items")
+            ?.filter(Boolean)
+            .forEach((it, idx) => {
+              newMap[it.id] = idx;
+            });
           itemRowMap.current = newMap;
         }
 
@@ -321,45 +216,13 @@ export default function OrdersTakeAway() {
         });
       } else {
         setValue(`items.${rowIndex}.Item_Quantity`, newQty);
-        setValue(
-          `items.${rowIndex}.Amount`,
-          (price * newQty).toFixed(2)
-        );
+        setValue(`items.${rowIndex}.Amount`, (price * newQty).toFixed(2));
       }
 
       setTimeout(updateTotals, 0);
       return { ...prev, [itemId]: newQty };
     });
   };
-
-  // const filteredItems = useMemo(() => {
-  //   if (!items) return [];
-
-  //   const term = searchTerm.trim().toLowerCase();
-
-  //   const list = !term
-  //     ? items
-  //     : items.filter(item =>
-  //         item.Item_Name?.toLowerCase().includes(term)
-  //       );
-
-  //   return [...list].sort((a, b) => {
-  //     const aId = a.id;     // ✅ FIX
-  //     const bId = b.id;
-
-  //     const aInCart = cart[aId] ? 1 : 0;
-  //     const bInCart = cart[bId] ? 1 : 0;
-
-  //     // 🔥 MOST RECENT ITEM ON TOP
-  //     if (aId === lastUpdatedItemRef.current) return -1;
-  //     if (bId === lastUpdatedItemRef.current) return 1;
-
-  //     // 🔥 CART ITEMS ABOVE OTHERS
-  //     if (aInCart !== bInCart) return bInCart - aInCart;
-
-  //     return 0;
-  //   });
-  // }, [items, searchTerm, cart]);
 
   const filteredItems = useMemo(() => {
     if (!items) return [];
@@ -369,8 +232,7 @@ export default function OrdersTakeAway() {
 
     const filtered = items.filter((item) => {
       const matchesCategory =
-        activeCategory === "All" ||
-        item.Item_Category === activeCategory;
+        activeCategory === "All" || item.Item_Category === activeCategory;
 
       // 🔥 Ignore search when category JUST changed
       const matchesSearch = categoryChanged
@@ -380,31 +242,10 @@ export default function OrdersTakeAway() {
       return matchesCategory && matchesSearch;
     });
 
-    // update category ref AFTER filtering
-    //lastCategoryRef.current = activeCategory;
     return filtered;
-    // return [...filtered].sort((a, b) => {
-    //   const aId = a.id;
-    //   const bId = b.id;
-
-    //   const aInCart = cart[aId] ? 1 : 0;
-    //   const bInCart = cart[bId] ? 1 : 0;
-
-    //   // 🔥 MOST RECENT ITEM ALWAYS ON TOP
-    //   if (aId === lastUpdatedItemRef.current) return -1;
-    //   if (bId === lastUpdatedItemRef.current) return 1;
-
-    //   // 🔥 CART ITEMS ABOVE NON-CART ITEMS
-    //   if (aInCart !== bInCart) return bInCart - aInCart;
-
-    //   return 0;
-    // });
   }, [items, activeCategory, searchTerm, cart]);
   useEffect(() => {
-    if (
-      activeCategory !== "All" &&
-      filteredItems.length === 0
-    ) {
+    if (activeCategory !== "All" && filteredItems.length === 0) {
       setTimeout(() => {
         setActiveCategory("All");
       }, 1000);
@@ -413,170 +254,78 @@ export default function OrdersTakeAway() {
   }, [filteredItems, activeCategory]);
 
   console.log(filteredItems, "filteredItems");
-  // const filteredItems = useMemo(() => {
-  //   if (!items) return [];
-
-  //   const term = searchTerm.trim().toLowerCase();
-
-  //   if (!term) return items; // 🔥 show all when search empty
-
-  //   return items.filter(item =>
-  //     item.Item_Name?.toLowerCase().includes(term)
-  //   );
-  // }, [items, searchTerm]);
 
   const itemRowMap = useRef({});
-  // const updateTotals = () => {
-  //   const itemsValues = watch("items") || [];
-
-  //   let subTotal = 0;
-
-
-  //   itemsValues.forEach(item => {
-  //     const price = parseFloat(item.Item_Price) || 0;
-  //     const qty = parseInt(item.Item_Quantity) || 0;
-
-
-  //     subTotal += price * qty;
-
-  //   });
-
-
-
-  //   setValue("Sub_Total", subTotal.toFixed(2));
-
-  //   setValue("Amount", subTotal.toFixed(2));
-  // };
-
 
   const updateTotals = () => {
-  const itemsValues = watch("items") || [];
+    const itemsValues = watch("items") || [];
 
-  let subTotal = 0;
+    let subTotal = 0;
 
-  itemsValues.forEach((item) => {
-    const price = parseFloat(item.Item_Price) || 0;
-    const qty = parseInt(item.Item_Quantity) || 0;
+    itemsValues.forEach((item) => {
+      const price = parseFloat(item.Item_Price) || 0;
+      const qty = parseInt(item.Item_Quantity) || 0;
 
-    subTotal += price * qty;
-  });
+      subTotal += price * qty;
+    });
 
-  setValue("Sub_Total", subTotal.toFixed(2));
+    setValue("Sub_Total", subTotal.toFixed(2));
 
-  // -----------------------------
-  // MANUAL DISCOUNT
-  // -----------------------------
-  const discountType = watch("Discount_Type");
+    // -----------------------------
+    // MANUAL DISCOUNT
+    // -----------------------------
+    const discountType = watch("Discount_Type");
 
-  const discountValue = Number(
-    watch("Discount") || 0
-  );
+    const discountValue = Number(watch("Discount") || 0);
 
-  let manualDiscount = 0;
+    let manualDiscount = 0;
 
-  if (discountType === "percentage") {
-    manualDiscount =
-      (subTotal * discountValue) / 100;
-  } else {
-    manualDiscount = discountValue;
-  }
-
-  // -----------------------------
-  // COUPON DISCOUNT
-  // -----------------------------
-  let couponDiscount = 0;
-
-  if (selectedCoupon) {
-    if (selectedCoupon.discount_type === "PERCENT") {
-      couponDiscount =
-        (subTotal *
-          parseFloat(selectedCoupon.discount_value)) /
-        100;
+    if (discountType === "percentage") {
+      manualDiscount = (subTotal * discountValue) / 100;
     } else {
-      couponDiscount = parseFloat(
-        selectedCoupon.discount_value
-      );
+      manualDiscount = discountValue;
     }
-  }
 
-  // -----------------------------
-  // TOTAL DISCOUNT
-  // -----------------------------
-  let totalDiscount =
-    manualDiscount + couponDiscount;
+    // -----------------------------
+    // COUPON DISCOUNT
+    // -----------------------------
+    let couponDiscount = 0;
 
-  // safety
-  if (totalDiscount > subTotal) {
-    totalDiscount = subTotal;
-  }
+    if (selectedCoupon) {
+      if (selectedCoupon.discount_type === "PERCENT") {
+        couponDiscount =
+          (subTotal * parseFloat(selectedCoupon.discount_value)) / 100;
+      } else {
+        couponDiscount = parseFloat(selectedCoupon.discount_value);
+      }
+    }
 
-  // -----------------------------
-  // FINAL AMOUNT
-  // -----------------------------
-  const finalAmount =
-    subTotal - totalDiscount;
+    // -----------------------------
+    // TOTAL DISCOUNT
+    // -----------------------------
+    let totalDiscount = manualDiscount + couponDiscount;
 
-  setValue("Amount", finalAmount.toFixed(2));
-};
-  // const updateTotals = () => {
-  //   const itemsValues = watch("items") || [];
+    // safety
+    if (totalDiscount > subTotal) {
+      totalDiscount = subTotal;
+    }
 
-  //   let subTotal = 0;
+    // -----------------------------
+    // FINAL AMOUNT
+    // -----------------------------
+    const finalAmount = subTotal - totalDiscount;
 
-
-  //   itemsValues.forEach(item => {
-  //     const price = parseFloat(item.Item_Price) || 0;
-  //     const qty = parseInt(item.Item_Quantity) || 0;
-
-
-  //     subTotal += price * qty;
-
-  //   });
-
-
-
-  //   setValue("Sub_Total", subTotal.toFixed(2));
-
-  //   setValue("Amount", subTotal.toFixed(2));
-  // };
+    setValue("Amount", finalAmount.toFixed(2));
+  };
 
   const totalItems = Object.values(cart).reduce((sum, qty) => sum + qty, 0);
 
-  const summaryItems = watch("items") || []
-  // useEffect(() => {
-  //   const handleAvailabilityChange = (data) => {
-  //     console.log("📢 Food status changed:", data);
-
-  //     // Force RTK Query to refetch
-  //     dispatch(foodItemApi.util.invalidateTags([{ type: "Food-Item", id: "LIST" }]));
-  //   };
-
-  //   socket.on("food_item_availability_changed", handleAvailabilityChange);
-
-  //   return () => {
-  //     socket.off("food_item_availability_changed", handleAvailabilityChange);
-  //   };
-  // }, []);
-  // useEffect(() => {
-  //   const handleSoftDeletedItem = (data) => {
-  //     console.log("📢 Food status changed:", data);
-
-  //     // Force RTK Query to refetch
-  //     dispatch(foodItemApi.util.invalidateTags([{ type: "Food-Item", id: "LIST" }]));
-  //   };
-
-  //   socket.on("food_item_deleted", handleSoftDeletedItem);
-
-  //   return () => {
-  //     socket.off("food_item_deleted", handleSoftDeletedItem);
-  //   };
-  // }, []);
-
-
+  const summaryItems = watch("items") || [];
+  
   useEffect(() => {
-     const socket = io("http://192.168.0.111:4000", {
-  transports: ["websocket"],
-});
+const socket = io("http://192.168.0.111:4000", {
+    transports: ["websocket"],
+  });
 
     const refreshFoodItems = (data) => {
       console.log("📢 Food item changed:", data);
@@ -594,215 +343,107 @@ export default function OrdersTakeAway() {
       socket.disconnect();
     };
   }, [dispatch]);
-  
   console.log(summaryItems, "summaryItems");
-  // const subTotal = Number(watch("Sub_Total") || 0);
-  // const discountType = watch("Discount_Type");
-  // const discountValue = Number(watch("Discount") || 0);
-
-  // // 1️⃣ Calculate discount amount
-  // let discountAmount = 0;
-
-  // if (discountType === "percentage") {
-  //   discountAmount = (subTotal * discountValue) / 100;
-  // } else {
-  //   discountAmount = discountValue;
-  // }
-
-  // // safety
-  // if (discountAmount > subTotal) discountAmount = subTotal;
-
-  // // round
-  // discountAmount = Number(discountAmount.toFixed(2));
 
   // // 2️⃣ Calculate final amount
-  // const finalAmount = Number((subTotal - discountAmount).toFixed(2));
   const subTotal = Number(watch("Sub_Total") || 0);
 
-const discountType = watch("Discount_Type");
+  const discountType = watch("Discount_Type");
 
-const discountValue = Number(watch("Discount") || 0);
+  const discountValue = Number(watch("Discount") || 0);
 
-// -----------------------------
-// MANUAL DISCOUNT
-// -----------------------------
-let manualDiscount = 0;
+  // -----------------------------
+  // MANUAL DISCOUNT
+  // -----------------------------
+  let manualDiscount = 0;
 
-if (discountType === "percentage") {
-  manualDiscount =
-    (subTotal * discountValue) / 100;
-} else {
-  manualDiscount = discountValue;
-}
-
-// -----------------------------
-// COUPON DISCOUNT
-// -----------------------------
-let couponDiscount = 0;
-
-if (selectedCoupon) {
-  if (selectedCoupon.discount_type === "PERCENT") {
-    couponDiscount =
-      (subTotal *
-        Number(selectedCoupon.discount_value)) /
-      100;
+  if (discountType === "percentage") {
+    manualDiscount = (subTotal * discountValue) / 100;
   } else {
-    couponDiscount = Number(
-      selectedCoupon.discount_value
-    );
+    manualDiscount = discountValue;
   }
-}
 
-// -----------------------------
-// TOTAL DISCOUNT
-// -----------------------------
-let totalDiscount =manualDiscount + couponDiscount;
+  // -----------------------------
+  // COUPON DISCOUNT
+  // -----------------------------
+  let couponDiscount = 0;
 
-// safety
-if (totalDiscount > subTotal) {
-  totalDiscount = subTotal;
-}
+  if (selectedCoupon) {
+    if (selectedCoupon.discount_type === "PERCENT") {
+      couponDiscount = (subTotal * Number(selectedCoupon.discount_value)) / 100;
+    } else {
+      couponDiscount = Number(selectedCoupon.discount_value);
+    }
+  }
 
-// round
-totalDiscount = Number(
-  totalDiscount.toFixed(2)
-);
+  // -----------------------------
+  // TOTAL DISCOUNT
+  // -----------------------------
+  let totalDiscount = manualDiscount + couponDiscount;
 
-// -----------------------------
-// FINAL AMOUNT
-// -----------------------------
-const finalAmount = Number(
-  (subTotal - totalDiscount).toFixed(2)
-);
+  // safety
+  if (totalDiscount > subTotal) {
+    totalDiscount = subTotal;
+  }
 
-  // const discountType = watch("Discount_Type", "amount");
+  // round
+  totalDiscount = Number(totalDiscount.toFixed(2));
+
+  // -----------------------------
+  // FINAL AMOUNT
+  // -----------------------------
+  const finalAmount = Number((subTotal - totalDiscount).toFixed(2));
 
   // console.log("updateCart", cart);
   console.log("Current form values:", formValues);
   console.log("Form errors:", errors);
 
   const handleApplyCoupon = (couponItem) => {
-  const subTotal = parseFloat(watch("Sub_Total")) || 0;
+    const subTotal = parseFloat(watch("Sub_Total")) || 0;
 
-  // REMOVE coupon if same clicked again
-  if (selectedCoupon?.id === couponItem.id) {
-    setSelectedCoupon(null);
+    if (selectedCoupon?.id === couponItem.id) {
+      setSelectedCoupon(null);
 
-    setValue("Coupon_Id", null);
-    setValue("Coupon_Code", null);
-    setValue("Coupon_Discount_Type", null);
-    setValue("Coupon_Discount_Value", null);
+      setValue("Coupon_Id", null);
+      setValue("Coupon_Code", null);
+      setValue("Coupon_Discount_Type", null);
+      setValue("Coupon_Discount_Value", null);
 
-    // restore original amount
-    setValue("Amount", subTotal.toFixed(2));
+      // restore original amount
+      setValue("Amount", subTotal.toFixed(2));
 
-    return;
-  }
+      return;
+    }
 
-  // APPLY NEW coupon
-  setSelectedCoupon(couponItem);
+    // APPLY NEW coupon
+    setSelectedCoupon(couponItem);
 
-  let discountAmount = 0;
+    let discountAmount = 0;
 
-  if (couponItem.discount_type === "PERCENT") {
-    discountAmount =
-      (subTotal * parseFloat(couponItem.discount_value)) / 100;
-  } else {
-    discountAmount = parseFloat(couponItem.discount_value);
-  }
+    if (couponItem.discount_type === "PERCENT") {
+      discountAmount = (subTotal * parseFloat(couponItem.discount_value)) / 100;
+    } else {
+      discountAmount = parseFloat(couponItem.discount_value);
+    }
 
-  const finalAmount = subTotal - discountAmount;
+    const finalAmount = subTotal - discountAmount;
 
-  setValue("Coupon_Id", couponItem.id);
+    setValue("Coupon_Id", couponItem.id);
 
-  setValue("Coupon_Code", couponItem.code);
+    setValue("Coupon_Code", couponItem.code);
 
-  setValue(
-    "Coupon_Discount_Type",
-    couponItem.discount_type === "PERCENT"
-      ? "percentage"
-      : "amount"
-  );
+    setValue(
+      "Coupon_Discount_Type",
+      couponItem.discount_type === "PERCENT" ? "percentage" : "amount",
+    );
 
-  setValue(
-    "Coupon_Discount_Value",
-    couponItem.discount_value
-  );
+    setValue("Coupon_Discount_Value", couponItem.discount_value);
 
-  setValue("Amount", finalAmount.toFixed(2));
-};
-  // const handleGenerateInvoice= async (data) => {
-  //    console.log(data);
-  //  if (!data.items || data.items.length === 0) {
-  //       toast.error("Please add at least one item before saving.");
-  //       return;
-  //     }
+    setValue("Amount", finalAmount.toFixed(2));
+  };
 
-
-
-  //     // Remove empty rows
-  //     const cleanedItems = data.items.filter(
-  //       (it) => it.Item_Name && it.Item_Name.trim() !== ""
-  //     );
-  //     for (const item of cleanedItems) {
-  //   if (!item.Item_Quantity || Number(item.Item_Quantity) <= 0) {
-  //     toast.error(`Quantity for "${item.Item_Name}" must be greater than zero`);
-  //     return;
-  //   }
-  // }
-
-  //     if (cleanedItems.length === 0) {
-  //       toast.error("Please add at least one  item .");
-  //       return;
-  //     }
-  //   try {
-  //     const payload = {
-  //       userId: user?.User_Id,
-
-  //       items: data.items,
-  //       Sub_Total: data.Sub_Total,
-  //       // Final_Amount: data.Final_Amount,
-  //       Customer_Name: data.Customer_Name,
-  //       Customer_Phone: data.Customer_Phone,
-  //       Discount: data.Discount,
-  //       Discount_Type: data.Discount_Type,
-  //       Payment_Type: data.Payment_Type,
-  //       // Sub_Total: data.Sub_Total,
-  //       Final_Amount: data.Amount,
-  //       // items: orderDetails?.items,
-  //       // Sub_Total: orderDetails?.Sub_Total,
-  //       // Final_Amount: invoiceDetails?.Final_Amount,
-  //       // Customer_Name: invoiceDetails?.Customer_Name,
-  //       // Customer_Phone: invoiceDetails?.Customer_Phone,
-  //       // Discount: invoiceDetails?.Discount,
-  //       // Discount_Type: invoiceDetails?.Discount_Type,
-  //       // Payment_Type: invoiceDetails?.Payment_Type,
-  //     };
-  //     console.log(payload);
-
-  //     const response=await takeawayAddOrdersAndGenerateInvoices(payload).unwrap();
-  //     // console.log(response,"response");
-  // const { invoice, items } = response;
-
-  // // ✅ PRINT FIRST (IMPORTANT)
-  // printInvoiceWindow(invoice, { items });
-  //     toast.success("Takeaway Add Order Successfully!");
-
-  //     dispatch(kitchenStaffApi.util.invalidateTags(["Kitchen-Staff"]));
-  //     dispatch(orderApi.util.invalidateTags(["Order"]));
-  //     // renderInvoiceHTML(printWindow);
-
-
-  //     // navigate("/staff/orders/all-orders");
-
-  //   } catch (err) {
-  //    console.error(err);
-
-  //          toast.error(err?.data?.message || "Failed to submit order.");
-  //   }
-  // }
   const resetOrderForm = () => {
-    remove();                 
+    remove();
     reset({
       Customer_Name: "",
       Customer_Phone: "",
@@ -812,17 +453,16 @@ const finalAmount = Number(
       Sub_Total: "0.00",
       Amount: "0.00",
       items: [],
-      
     });
 
-    setCart({});               // clear cart
-    itemRowMap.current = {};   // clear map
+    setCart({}); // clear cart
+    itemRowMap.current = {}; // clear map
     lastUpdatedItemRef.current = null;
     setShowSummary(false);
     setSelectedCoupon(null);
   };
   const resetCustomerUI = () => {
-    setCustomerSearch("");        // 🔥 clears phone input
+    setCustomerSearch(""); // 🔥 clears phone input
     setIsExistingCustomer(false);
     setCustomerDropdownOpen(false);
     setSelectedCoupon(null);
@@ -833,21 +473,39 @@ const finalAmount = Number(
       toast.error("Please add at least one item before saving.");
       return;
     }
-    if (isSubmittingRef.current) return; //  block multiple clicks
 
-    isSubmittingRef.current = true;
+    if (isSubmittingRef.current) return;
+
     const cleanedItems = data.items.filter(
-      (it) => it.Item_Name && it.Item_Name.trim() !== ""
+      (it) => it.Item_Name && it.Item_Name.trim() !== "",
     );
 
     for (const item of cleanedItems) {
       if (!item.Item_Quantity || Number(item.Item_Quantity) <= 0) {
-        toast.error(`Quantity for "${item.Item_Name}" must be greater than zero`);
+        toast.error(
+          `Quantity for "${item.Item_Name}" must be greater than zero`,
+        );
         return;
       }
     }
 
+    isSubmittingRef.current = true;
+
     try {
+      // Mobile only: check Cleanter before creating the order.
+      const useCleanter = isMobileDevice();
+
+      if (useCleanter) {
+        try {
+          await checkCleanterReady();
+        } catch (error) {
+          toast.error(`${error.message} No order was submitted.`, {
+            autoClose: 10000,
+          });
+          return;
+        }
+      }
+
       const payload = {
         userId: user?.User_Id,
         items: cleanedItems,
@@ -858,53 +516,51 @@ const finalAmount = Number(
         Discount: data.Discount,
         Discount_Type: data.Discount_Type,
         Payment_Type: data.Payment_Type,
-         Coupon_Id: selectedCoupon?.id,
-
+        Coupon_Id: selectedCoupon?.id,
         Coupon_Code: selectedCoupon?.code,
-
-        Coupon_Discount_Type:selectedCoupon?.discount_type,
-
-        Coupon_Discount_Value:selectedCoupon?.discount_value
+        Coupon_Discount_Type: selectedCoupon?.discount_type,
+        Coupon_Discount_Value: selectedCoupon?.discount_value,
       };
 
-      const response = await takeawayAddOrdersAndGenerateInvoices(payload).unwrap();
+      const response =
+        await takeawayAddOrdersAndGenerateInvoices(payload).unwrap();
 
       const { invoice, items } = response;
-      console.log(response, "response");
-      //  PRINT
-      printInvoiceWindow(invoice, { items });
 
-      toast.success("Takeaway Order Added & Invoice Printed!");
+      if (useCleanter) {
+        // Mobile: print through Cleanter.
+        try {
+          await printInvoiceViaCleanter(invoice, { items });
+          toast.success("Takeaway Order Added & Invoice Printed!");
+        } catch (printError) {
+          toast.error(
+            `Order saved, but printing failed (${printError.message}). Do not submit the order again.`,
+          );
+        }
+      } else {
+        // PC: preserve the existing browser-print function.
+        printInvoiceWindow(invoice, { items });
+        toast.success("Takeaway Order Added & Invoice Printed!");
+      }
 
-      //  RESET EVERYTHING (IMPORTANT)
       resetOrderForm();
       resetCustomerUI();
 
-      // optional
       setShowSummary(false);
 
       dispatch(kitchenStaffApi.util.invalidateTags(["Kitchen-Staff"]));
       dispatch(orderApi.util.invalidateTags(["Order"]));
       dispatch(foodItemApi.util.invalidateTags(["Daily-Food-Item-Stock"]));
       refetchMenuItems();
-      isSubmittingRef.current = false;
-      //  NO NAVIGATE
-      // stay on same page with blank form
-
     } catch (err) {
       console.error(err);
       toast.error(err?.data?.message || "Failed to submit order.");
-
     } finally {
-      isSubmittingRef.current = false; // reset flag
+      isSubmittingRef.current = false;
     }
   };
 
-  //const isSharingRef = useRef(false);
   const handleShareSMS = async (data) => {
-    //if (isSharingRef.current) return; // 🚫 block multiple clicks
-
-    //isSharingRef.current = true;
     try {
       const payload = {
         userId: user?.User_Id,
@@ -921,47 +577,267 @@ const finalAmount = Number(
 
         Coupon_Code: selectedCoupon?.code,
 
-        Coupon_Discount_Type:selectedCoupon?.discount_type,
+        Coupon_Discount_Type: selectedCoupon?.discount_type,
 
-        Coupon_Discount_Value:selectedCoupon?.discount_value
-        // Customer_Name: invoiceDetails?.Customer_Name,
-        // Customer_Phone: invoiceDetails?.Customer_Phone,
-        // Discount_Type: invoiceDetails?.Discount_Type,
-        // Discount: invoiceDetails?.Discount,
-        // Service_Charge: invoiceDetails?.Service_Charge,
-        // Payment_Type: invoiceDetails?.Payment_Type,
-        // Final_Amount: invoiceDetails?.Final_Amount,
+        Coupon_Discount_Value: selectedCoupon?.discount_value,
       };
       console.log(payload, "payload");
 
       const response = await generateSmsForTakeaway({
-
         payload,
       }).unwrap();
 
-      toast.success("📩 Bill sent via SMS successfully");
+      toast.success(" Bill sent via SMS successfully");
       console.log(response, "response");
-      //    if (response?.success === true) {
-      //   toast.success("📩 Bill sent via SMS successfully");
-      // }
       resetOrderForm();
       resetCustomerUI();
       dispatch(kitchenStaffApi.util.invalidateTags(["Kitchen-Staff"]));
-      //isSharingRef.current = false; // reset flag
-
-      // navigate("/staff/orders/all-orders");
     } catch (err) {
       console.error(err);
-      toast.warning(
-        "⚠️ SMS request processed.it may take time.",
-        { autoClose: 5000 }
-      );
-      // toast.error(err?.data?.message || "Failed to send SMS");
+      toast.warning(" SMS request processed.it may take time.", {
+        autoClose: 5000,
+      });
     }
   };
-  const printInvoiceWindow = (invoiceDetails, data) => {
-    const getCurrentDate = () =>
-      new Date().toLocaleDateString("en-GB");
+
+  // Mobile-only: print takeaway bill through Cleanter.
+ const printInvoiceViaCleanter = async (invoiceDetails, data) => {
+    try {
+      const getCurrentDate = () => new Date().toLocaleDateString("en-GB");
+
+      const getCurrentTime = () =>
+        new Date().toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        });
+
+      const content = [];
+
+      content.push({
+        type: "text",
+        text: "HELLO GUYS",
+        align: "center",
+        bold: true,
+        size: "large",
+      });
+
+      content.push({
+        type: "text",
+        text: "Ph: +91 9903106989",
+        align: "center",
+      });
+
+      content.push({
+        type: "text",
+        text: "Address: Shakuntala Park, Kolkata 700061",
+        align: "center",
+      });
+
+      content.push({
+        type: "text",
+        text: "FSSAI No: 12826019000014",
+        align: "center",
+      });
+
+      content.push({ type: "divider" });
+
+      if (invoiceDetails?.Customer_Name) {
+        content.push({
+          type: "row",
+          left: "Customer:",
+          right: invoiceDetails.Customer_Name,
+        });
+      }
+
+      if (invoiceDetails?.Customer_Phone) {
+        content.push({
+          type: "row",
+          left: "Phone:",
+          right: invoiceDetails.Customer_Phone,
+        });
+      }
+
+      content.push({ type: "divider" });
+
+      content.push({
+        type: "text",
+        text: "TAKEAWAY",
+        align: "center",
+        bold: true,
+      });
+
+      content.push({
+        type: "row",
+        left: `Date: ${getCurrentDate()}`,
+        right: getCurrentTime(),
+      });
+
+      content.push({
+        type: "row",
+        left: "Invoice:",
+        right: invoiceDetails?.Invoice_Number ?? "-",
+      });
+
+      content.push({ type: "divider" });
+
+      content.push({
+        type: "row",
+        left: "ITEM / QTY",
+        right: "AMT",
+        bold: true,
+      });
+
+      (data?.items || []).forEach((item) => {
+        content.push({
+          type: "row",
+          left: `${item?.Item_Name || ""} x${Number(item?.Item_Quantity || 0)}`,
+          right: `Rs.${Number(item?.Amount || 0).toFixed(2)}`,
+        });
+      });
+
+      content.push({ type: "divider" });
+
+      content.push({
+        type: "row",
+        left: "Subtotal",
+        right: `Rs.${Number(invoiceDetails?.Sub_Total || 0).toFixed(2)}`,
+      });
+
+      if (invoiceDetails?.Discount) {
+        content.push({
+          type: "row",
+          left: "Discount",
+          right:
+            invoiceDetails.Discount_Type === "percentage"
+              ? `${invoiceDetails.Discount}%`
+              : `Rs.${invoiceDetails.Discount}`,
+        });
+      }
+
+      if (invoiceDetails?.Coupon_Code) {
+        content.push({
+          type: "row",
+          left: "Coupon Discount",
+          right:
+            invoiceDetails.Coupon_Discount_Type === "PERCENT"
+              ? `${invoiceDetails.Coupon_Discount_Value}%`
+              : `Rs.${invoiceDetails.Coupon_Discount_Value}`,
+        });
+      }
+
+      content.push({ type: "divider" });
+
+      content.push({
+        type: "row",
+        left: "TOTAL",
+        right: `Rs.${Number(invoiceDetails?.Final_Amount || 0).toFixed(2)}`,
+        bold: true,
+      });
+
+      content.push({ type: "divider" });
+
+      content.push({
+        type: "text",
+        text: "THANK YOU!",
+        align: "center",
+        bold: true,
+      });
+
+      content.push({
+        type: "text",
+        text: "Please Visit Again",
+        align: "center",
+      });
+
+      content.push({
+        type: "feed",
+        lines: 3,
+      });
+
+      await printViaCleanter(content);
+    } catch (error) {
+      console.error("Cleanter invoice print error:", error);
+      throw error;
+    }
+  };
+
+  // Mobile-only: print takeaway KOT through Cleanter.
+  const printKOTViaCleanter = async (kitchens) => {
+    try {
+      const getCurrentDate = () => new Date().toLocaleDateString("en-GB");
+
+      const getCurrentTime = () =>
+        new Date().toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        });
+
+      const content = [];
+
+      Object.entries(kitchens).forEach(([kitchenName, items], kitchenIndex) => {
+        if (kitchenIndex > 0) {
+          content.push({ type: "divider" });
+        }
+
+        content.push({
+          type: "text",
+          text: "TAKEAWAY",
+          align: "center",
+          bold: true,
+        });
+
+        content.push({
+          type: "text",
+          text: kitchenName,
+          align: "center",
+          bold: true,
+          size: "large",
+        });
+
+        content.push({ type: "divider" });
+
+        content.push({
+          type: "row",
+          left: `Date: ${getCurrentDate()}`,
+          right: getCurrentTime(),
+        });
+
+        content.push({ type: "divider" });
+
+        content.push({
+          type: "row",
+          left: "NO.  ITEM",
+          right: "QTY",
+          bold: true,
+        });
+
+        items.forEach((item, index) => {
+          content.push({
+            type: "row",
+            left: `${index + 1}. ${item?.Item_Name || ""}`,
+            right: `${item?.Item_Quantity || 0}`,
+          });
+        });
+      });
+
+      content.push({
+        type: "feed",
+        lines: 3,
+      });
+
+      await printViaCleanter(content);
+      toast.success("KOT printed successfully!");
+    } catch (error) {
+      console.error("Cleanter KOT print error:", error);
+      toast.error(`Could not print KOT: ${error.message}`);
+      throw error;
+    }
+  };
+
+   const printInvoiceWindow = (invoiceDetails, data) => {
+    const getCurrentDate = () => new Date().toLocaleDateString("en-GB");
 
     const getCurrentTime = () =>
       new Date().toLocaleTimeString("en-US", {
@@ -970,7 +846,6 @@ const finalAmount = Number(
         hour12: true,
       });
     const total = invoiceDetails?.Final_Amount ?? 0;
-
 
     const html = `<!DOCTYPE html>
 <html>
@@ -1144,20 +1019,32 @@ const finalAmount = Number(
       <div style="font-size:9px">
         Address:Shakuntala Park, Kolkata 700061
       </div>
+
+      <div style="font-size:9px">
+        FSSAI No: 12826019000014
+      </div>
      
     </div>
 
-    ${invoiceDetails?.Customer_Name ? `
+    ${
+      invoiceDetails?.Customer_Name
+        ? `
     <div class="info-row">
       <span class="info-label">Customer:</span>
       <span>${invoiceDetails.Customer_Name}</span>
-    </div>` : ``}
+    </div>`
+        : ``
+    }
 
-    ${invoiceDetails?.Customer_Phone ? `
+    ${
+      invoiceDetails?.Customer_Phone
+        ? `
     <div class="info-row">
       <span class="info-label">Phone:</span>
       <span>${invoiceDetails.Customer_Phone}</span>
-    </div>` : ``}
+    </div>`
+        : ``
+    }
 
     <div class="line"></div>
 
@@ -1182,14 +1069,18 @@ const finalAmount = Number(
       <div class="item-amount">AMT</div>
     </div>
 
-    ${(data?.items || []).map((it, i) => `
+    ${(data?.items || [])
+      .map(
+        (it, i) => `
       <div class="item-row">
         <div class="col-no">${i + 1}</div>
         <div class="item-name">${it.Item_Name}</div>
         <div class="item-qty">${it.Item_Quantity}</div>
         <div class="item-amount">₹${Number(it.Amount).toFixed(2)}</div>
       </div>
-    `).join("")}
+    `,
+      )
+      .join("")}
 
     <div class="line-solid"></div>
 
@@ -1199,24 +1090,36 @@ const finalAmount = Number(
         <span>₹${Number(invoiceDetails?.Sub_Total).toFixed(2)}</span>
       </div>
 
-      ${invoiceDetails?.Discount ? `
+      ${
+        invoiceDetails?.Discount
+          ? `
       <div class="summary-row">
         <span>Discount</span>
         <span>
-          ${invoiceDetails.Discount_Type === "percentage"
-          ? invoiceDetails.Discount + "%"
-          : "₹" + invoiceDetails.Discount}
+          ${
+            invoiceDetails.Discount_Type === "percentage"
+              ? invoiceDetails.Discount + "%"
+              : "₹" + invoiceDetails.Discount
+          }
         </span>
-      </div>` : ``}
-      ${invoiceDetails?.Coupon_Code ? `
+      </div>`
+          : ``
+      }
+      ${
+        invoiceDetails?.Coupon_Code
+          ? `
       <div class="summary-row">
         <span>Coupon Discount</span>
         <span>
-          ${invoiceDetails.Coupon_Discount_Type === "PERCENT"
-          ? invoiceDetails.Coupon_Discount_Value + "%"
-          : "₹" + invoiceDetails.Coupon_Discount_Value}
+          ${
+            invoiceDetails.Coupon_Discount_Type === "PERCENT"
+              ? invoiceDetails.Coupon_Discount_Value + "%"
+              : "₹" + invoiceDetails.Coupon_Discount_Value
+          }
         </span>
-      </div>` : ``}
+      </div>`
+          : ``
+      }
 
       <div class="summary-row total">
         <span>TOTAL</span>
@@ -1237,59 +1140,8 @@ const finalAmount = Number(
   </div>
 </body>
 </html>
-`
+`;
 
-    // 🔥 CREATE HIDDEN IFRAME
-    // const iframe = document.createElement("iframe");
-    // iframe.style.position = "fixed";
-    // iframe.style.right = "0";
-    // iframe.style.bottom = "0";
-    // iframe.style.width = "0";
-    // iframe.style.height = "0";
-    // iframe.style.border = "0";
-
-    // document.body.appendChild(iframe);
-
-    // const doc = iframe.contentWindow.document;
-    // doc.open();
-    // doc.write(html);
-    // doc.close();
-
-    // // ✅ THIS WAS MISSING
-    // iframe.onload = () => {
-    //   iframe.contentWindow.focus();
-    //   iframe.contentWindow.print();
-    // };
-
-    // // 🧹 CLEANUP AFTER PRINT
-    // setTimeout(() => {
-    //   document.body.removeChild(iframe);
-    // }, 1000);
-    //  const iframe = document.createElement("iframe");
-    // iframe.style.position = "fixed";
-    // iframe.style.right = "0";
-    // iframe.style.bottom = "0";
-    // iframe.style.width = "0";
-    // iframe.style.height = "0";
-    // iframe.style.border = "0";
-
-    // document.body.appendChild(iframe);
-
-    // const doc = iframe.contentWindow.document;
-    // doc.open();
-    // doc.write(html);
-    // doc.close();
-
-    // // ✅ THIS WAS MISSING
-    // iframe.onload = () => {
-    //   iframe.contentWindow.focus();
-    //   iframe.contentWindow.print();
-    // };
-
-    // // 🧹 CLEANUP AFTER PRINT
-    // setTimeout(() => {
-    //   document.body.removeChild(iframe);
-    // }, 1000);
     const iframe = document.createElement("iframe");
     iframe.style.display = "none";
     document.body.appendChild(iframe);
@@ -1303,108 +1155,13 @@ const finalAmount = Number(
     };
 
     setTimeout(() => document.body.removeChild(iframe), 1000);
-    // const isAndroid = /Android/i.test(navigator.userAgent);
-    //   const isWindows = /Windows/i.test(navigator.userAgent);
-
-    //   /* ================= ANDROID (RawBT Bluetooth) ================= */
-    //   if (isAndroid) {
-    //     const encoded = encodeURIComponent(html);
-    //     window.location.href = `rawbt://print?text=${encoded}`;
-    //     return;
-    //   }
-
-    //   /* ================= WINDOWS (USB Printer) ================= */
-    //   if (isWindows) {
-    //     const iframe = document.createElement("iframe");
-    //     iframe.style.display = "none";
-    //     document.body.appendChild(iframe);
-
-    //     iframe.contentDocument.open();
-    //     iframe.contentDocument.write(html);
-    //     iframe.contentDocument.close();
-
-    //     iframe.onload = () => {
-    //       iframe.contentWindow.print();
-    //     };
-
-    //     setTimeout(() => document.body.removeChild(iframe), 1000);
-    //     return;
-    //   }
-    // const w = window.open("", "_blank", "width=320,height=600");
-    // const w = window.open("", "_blank");
-    //   if (!w) {
-    //     alert("Please allow pop-ups to print the invoice.");
-    //     return;
-    //   }
-
-    //   w.document.write(html);
-    //   w.document.write(`
-    //   <button onclick="window.print()" 
-    //     style="position:fixed;top:10px;right:10px;padding:8px 12px;
-    //            background:#ff0000;color:white;border:none;border-radius:4px;
-    //            font-size:14px;cursor:pointer;z-index:9999;">
-    //       Print
-    //   </button>
-    // `);
-    // const w = window.open("", "_blank");
-    //   if (!w) {
-    //     alert("Please allow pop-ups to print the invoice.");
-    //     return;
-    //   }
-
-    //   w.document.write(html);
-    //   w.document.write(`
-    //   <button onclick="window.print()" 
-    //     class="no-print"
-    //     style="position:fixed;top:10px;right:10px;padding:8px 12px;
-    //            background:#ff0000;color:white;border:none;border-radius:4px;
-    //            font-size:14px;cursor:pointer;z-index:9999;">
-    //       Print
-    //   </button>
-    // `);
-    //w.document.close();
-
   };
   useEffect(() => {
     setValue("Amount", finalAmount.toFixed(2));
   }, [finalAmount, setValue]);
 
-  //   const generateReadableKOTId = () => {
-  //   const now = new Date();
-
-  //   const day = String(now.getDate()).padStart(2, "0");
-  //   const month = String(now.getMonth() + 1).padStart(2, "0");
-
-  //   const hours = String(now.getHours()).padStart(2, "0");
-  //   const minutes = String(now.getMinutes()).padStart(2, "0");
-
-  //   const random = Math.floor(Math.random() * 100);
-
-  //   return `KOT-${day}/${month}/-${hours}/${minutes}-${random}`;
-  // };
-  // const generateReadableKOTId = () => {
-  //   const now = new Date();
-
-  //   const day = String(now.getDate()).padStart(2, "0");
-  //   const month = String(now.getMonth() + 1).padStart(2, "0");
-
-  //   let hours = now.getHours();
-  //   const minutes = String(now.getMinutes()).padStart(2, "0");
-
-  //   const ampm = hours >= 12 ? "PM" : "AM";
-
-  //   // convert to 12 hour
-  //   hours = hours % 12;
-  //   hours = hours ? hours : 12; // 0 → 12
-  //   hours = String(hours).padStart(2, "0");
-
-  //   // const random = Math.floor(Math.random() * 100);
-  //   const seconds = String(now.getSeconds()).padStart(2, "0");
-  //   return `KOT-${day}/${month}-${hours}:${minutes}:${seconds}${ampm}`;
-  // };
   const printKOTInvoice = (kitchens) => {
-    const getCurrentDate = () =>
-      new Date().toLocaleDateString("en-GB");
+    const getCurrentDate = () => new Date().toLocaleDateString("en-GB");
 
     const getCurrentTime = () =>
       new Date().toLocaleTimeString("en-US", {
@@ -1412,9 +1169,9 @@ const finalAmount = Number(
         minute: "2-digit",
         hour12: true,
       });
-    //const kotId = generateReadableKOTId();
     const kitchenSections = Object.entries(kitchens)
-      .map(([kitchenName, items], index) => `
+      .map(
+        ([kitchenName, items], index) => `
       ${index > 0 ? `<div class="line"></div>` : ``}
 
       <div class="invoice-kitchen">
@@ -1439,15 +1196,20 @@ const finalAmount = Number(
           <div class="item-qty">QTY</div>
         </div>
 
-        ${items.map((it, i) => `
+        ${items
+          .map(
+            (it, i) => `
           <div class="item-row">
             <div class="col-no">${i + 1}</div>
             <div class="item-name">${it.Item_Name}</div>
             <div class="item-qty">${it.Item_Quantity}</div>
           </div>
-        `).join("")}
+        `,
+          )
+          .join("")}
       </div>
-    `)
+    `,
+      )
       .join("");
 
     const html = `<!DOCTYPE html>
@@ -1524,87 +1286,6 @@ const finalAmount = Number(
 </body>
 </html>`;
 
-    // const win = window.open(
-    //   "",
-    //   "_blank",
-    //   `width=${screen.width},height=${screen.height},left=0,top=0`
-    // );
-    // const win = window.open(
-    //   "",
-    //   "_blank",
-    //   "width=800,height=600,left=0,top=0"
-    // );
-    // if (!win) return;
-
-    // win.document.open();
-    // win.document.write(html);
-    // win.document.close();
-
-    // win.onload = () => {
-    //   setTimeout(() => {
-    //     win.focus();
-    //     win.print();
-    //     win.close();
-    //   }, 300);
-    // };
-    // const isAndroid = /Android/i.test(navigator.userAgent);
-    //   const isWindows = /Windows/i.test(navigator.userAgent);
-
-    //   /* ================= ANDROID (RawBT Bluetooth) ================= */
-    //   if (isAndroid) {
-    //     const encoded = encodeURIComponent(html);
-    //     window.location.href = `rawbt://print?text=${encoded}`;
-    //     return;
-    //   }
-
-    //   /* ================= WINDOWS (USB Printer) ================= */
-    //   if (isWindows) {
-    //     const iframe = document.createElement("iframe");
-    //     iframe.style.display = "none";
-    //     document.body.appendChild(iframe);
-
-    //     iframe.contentDocument.open();
-    //     iframe.contentDocument.write(html);
-    //     iframe.contentDocument.close();
-
-    //     iframe.onload = () => {
-    //       iframe.contentWindow.print();
-    //     };
-
-    //     setTimeout(() => document.body.removeChild(iframe), 1000);
-    //     return;
-    //   }
-
-    // const iframe = document.createElement("iframe");
-    // iframe.style.display = "none";
-    // document.body.appendChild(iframe);
-
-    // iframe.contentDocument.open();
-    // iframe.contentDocument.write(html);
-    // iframe.contentDocument.close();
-
-    // iframe.onload = () => {
-    //   iframe.contentWindow.print();
-    // };
-
-    // setTimeout(() => document.body.removeChild(iframe), 1000);
-
-    // const w = window.open("", "_blank");
-    //   if (!w) {
-    //     alert("Please allow pop-ups to print the invoice.");
-    //     return;
-    //   }
-
-    //   w.document.write(html);
-    //   w.document.write(`
-    //   <button onclick="window.print()" 
-    //     class="no-print"
-    //     style="position:fixed;top:10px;right:10px;padding:8px 12px;
-    //            background:#ff0000;color:white;border:none;border-radius:4px;
-    //            font-size:14px;cursor:pointer;z-index:9999;">
-    //       Print
-    //   </button>
-    // `);
     const iframe = document.createElement("iframe");
     iframe.style.display = "none";
     document.body.appendChild(iframe);
@@ -1617,33 +1298,7 @@ const finalAmount = Number(
     iframe.contentDocument.write(html);
     iframe.contentDocument.close();
 
-
     setTimeout(() => document.body.removeChild(iframe), 1000);
-    //   w.document.write(`
-    //   <button onclick="window.print()" 
-    //     style="position:fixed;top:10px;right:10px;padding:8px 12px;
-    //            background:#ff0000;color:white;border:none;border-radius:4px;
-    //            font-size:14px;cursor:pointer;z-index:9999;">
-    //       Print
-    //   </button>
-    // `);
-    //w.document.close();
-
-    // // ✅ OPEN NEW TAB
-    // const win = window.open(
-    //   "",
-    //   "_blank",
-    //   "width=400,height=600,left=0,top=0"
-    // );
-
-    // if (!win) {
-    //   alert("Popup blocked! Please allow popups for printing.");
-    //   return;
-    // }
-
-    // win.document.open();
-    // win.document.write(html);
-    // win.document.close();
   };
 
   const handlePrintKOT = async () => {
@@ -1653,39 +1308,52 @@ const finalAmount = Number(
     }
 
     const cleanedItems = summaryItems.filter(
-      (it) => it.Item_Name && it.Item_Name.trim() !== ""
+      (it) => it.Item_Name && it.Item_Name.trim() !== "",
     );
 
     for (const item of cleanedItems) {
       if (!item.Item_Quantity || Number(item.Item_Quantity) <= 0) {
-        toast.error(`Quantity for "${item.Item_Name}" must be greater than zero`);
+        toast.error(
+          `Quantity for "${item.Item_Name}" must be greater than zero`,
+        );
         return;
       }
     }
 
-    try {
-      const response = await elligibleForKotPrint(cleanedItems).unwrap();
-      console.log("KOT eligible response:", response);
+    let response;
 
-      if (response.success && response?.elligibleItems && Object.keys(response.elligibleItems).length > 0
-      ) {
-        // printKOTInvoice({ items: response.elligibleItems });
-        printKOTInvoice(response.elligibleItems);
-      }
+    try {
+      response = await elligibleForKotPrint(cleanedItems).unwrap();
+      console.log("KOT eligible response:", response);
     } catch (err) {
       console.error(err);
       toast.error("Failed to check KOT eligibility");
+      return;
+    }
+
+    if (
+      response.success &&
+      response?.elligibleItems &&
+      Object.keys(response.elligibleItems).length > 0
+    ) {
+      if (isMobileDevice()) {
+        // Mobile: Cleanter printing.
+        try {
+          await printKOTViaCleanter(response.elligibleItems);
+        } catch {
+          // The printing helper already displays the error toast.
+        }
+      } else {
+        // PC: preserve the existing browser-print function.
+        printKOTInvoice(response.elligibleItems);
+      }
     }
   };
 
-  // const customerName = watch("Customer_Name");
-  // const customerPhone = watch("Customer_Phone");
   const watchedCustomerName = watch("Customer_Name");
   return (
     <>
-
-
-      <div className="sb2-2-2">
+       <div className="sb2-2-2">
         <ul>
           <li>
             {/* <NavLink to="/">
@@ -2417,7 +2085,9 @@ const finalAmount = Number(
                                 )}
                                 <div className="relative h-32 bg-gradient-to-br from-[#4CA1AF22] to-[#4CA1AF44]">
                                   {item?.Item_Image && (
-                                    <img loading="lazy" src={`https://helloguys.co.in/billmeal/backend/uploads/food-item/${item.Item_Image}`} alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
+                                    <img loading="lazy" 
+                                     src={`http://192.168.0.111:4000/uploads/food-item/${item.Item_Image}`}
+                                     alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
                                   )}
                                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
                                   <div className="absolute top-2 right-2">
@@ -2871,7 +2541,9 @@ const finalAmount = Number(
                               )}
                               <div className="relative h-28 bg-gradient-to-br from-[#4CA1AF22] to-[#4CA1AF44]">
                                 {item?.Item_Image && (
-                                  <img loading="lazy" src={`https://helloguys.co.in/billmeal/backend/uploads/food-item/${item.Item_Image}`} alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
+                                  <img loading="lazy"
+                                   src={`http://192.168.0.111:4000/uploads/food-item/${item.Item_Image}`}
+                                   alt={item?.Item_Name} className="w-full h-full object-cover opacity-90" />
                                 )}
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
                                 <div className="absolute top-1 right-1">
@@ -3115,4 +2787,3 @@ const finalAmount = Number(
     </>
   );
 }
-

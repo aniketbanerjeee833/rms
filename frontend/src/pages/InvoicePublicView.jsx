@@ -22,22 +22,21 @@ export default function InvoicePublicView() {
   const [orderTypeLabel, setOrderTypeLabel] = useState("");
 const [tables, setTables] = useState([]);
 // const{data:invoiceNumberData}=useNextInvoiceNumberQuery();
-  useEffect(() => {
+    useEffect(() => {
     const fetchInvoice = async () => {
       try {
         const res = await axios.get(
-          `http://192.168.0.111:4000/api/staff/order/${Invoice_Id}`
+          `http://192.168.0.113:4000/api/staff/order/${Invoice_Id}`,
         );
 
         // EXPECTED BACKEND RESPONSE:
         // { invoice: {...}, items: [...] }
 
         setInvoice(res.data.invoice);
-         setOrderTypeLabel(res.data.orderTypeLabel);
+        setOrderTypeLabel(res.data.orderTypeLabel);
         setItems(res.data.items);
         setTables(res.data.tables);
       } catch (err) {
-       
         setError("Unable to load invoice");
       } finally {
         setLoading(false);
@@ -71,7 +70,7 @@ const [tables, setTables] = useState([]);
       </div>
     );
   }
-const html = ` 
+  const html = ` 
 <!DOCTYPE html>
 <html>
   <head>
@@ -263,22 +262,34 @@ const html = `
       <div style="font-size:9px">
         Address:Shakuntala Park, Kolkata 700061
       </div>
+
+      <div style="font-size:9px">
+        FSSAI No: 12826019000014
+      </div>
      
     </div>
 
       <!-- CUSTOMER INFO -->
-       ${invoice?.Customer_Name ? `
+       ${
+         invoice?.Customer_Name
+           ? `
     <div class="info-row">
       <span class="info-label">Customer: </span>
       <span>${invoice.Customer_Name}</span>
-    </div>` : ``}
+    </div>`
+           : ``
+       }
       
 
-      ${invoice?.Customer_Phone ? `
+      ${
+        invoice?.Customer_Phone
+          ? `
       <div class="info-row">
         <span><span class="info-label">Phone:</span> ${invoice?.Customer_Phone}</span>
       </div>
-      ` : ""}
+      `
+          : ""
+      }
 
       <div class="line"></div>
 
@@ -291,17 +302,21 @@ const html = `
    <span><span class="info-label">invoice:</span> ${Invoice_Id}</span>
 </div>
 
-${orderTypeLabel === "TAKEAWAY" ?`<div style="text-align:center; font-weight:bold; font-size:11px; margin:4px 0;">
+${
+  orderTypeLabel === "TAKEAWAY"
+    ? `<div style="text-align:center; font-weight:bold; font-size:11px; margin:4px 0;">
   ${orderTypeLabel}
-</div>`:`<div class="header-middle">
+</div>`
+    : `<div class="header-middle">
   <b>
     TABLE: ${
       Array.isArray(tables) && tables.length > 0
-        ? tables.map(t => t.Table_Name).join(", ")
+        ? tables.map((t) => t.Table_Name).join(", ")
         : "-"
     }
   </b>
-</div>`}
+</div>`
+}
       <div class="line-solid"></div>
 
       <!-- ITEMS HEADER -->
@@ -313,16 +328,18 @@ ${orderTypeLabel === "TAKEAWAY" ?`<div style="text-align:center; font-weight:bol
       </div>
 
       <!-- ITEMS -->
-      ${
-        items?.map((it, i) => `
+      ${items
+        ?.map(
+          (it, i) => `
           <div class="item-row">
             <div style="width:30px;">${i + 1}.</div>
             <div class="item-name">${it.Item_Name}</div>
             <div class="item-qty">${it.Item_Quantity}</div>
             <div class="item-amount">₹${Number(it.Amount).toFixed(2)}</div>
           </div>
-        `).join("")
-      }
+        `,
+        )
+        .join("")}
 
       <div class="line-solid"></div>
 
@@ -333,13 +350,19 @@ ${orderTypeLabel === "TAKEAWAY" ?`<div style="text-align:center; font-weight:bol
               <span>Subtotal</span>
               <span>₹${Number(invoice?.Sub_Total ?? 0).toFixed(2)}</span>
             </div>
-            ${Number(invoice?.Service_Charge ?? 0) > 0 ? `
+            ${
+              Number(invoice?.Service_Charge ?? 0) > 0
+                ? `
             <div class="summary-row">
               <span>Service Charge</span>
               <span>₹${Number(invoice?.Service_Charge).toFixed(2)}</span>
             </div>
-            ` : ''}
-            ${invoice?.Discount && Number(invoice.Discount) > 0 ? `
+            `
+                : ""
+            }
+            ${
+              invoice?.Discount && Number(invoice.Discount) > 0
+                ? `
             <div class="summary-row">
               <span>Discount</span>
               <span>${
@@ -348,8 +371,13 @@ ${orderTypeLabel === "TAKEAWAY" ?`<div style="text-align:center; font-weight:bol
                   : `₹${invoice?.Discount_Value}`
               }</span>
             </div>
-            ` : ''}
-              ${invoice?.Coupon_Discount_Value && Number(invoice.Coupon_Discount_Value) > 0 ? `
+            `
+                : ""
+            }
+              ${
+                invoice?.Coupon_Discount_Value &&
+                Number(invoice.Coupon_Discount_Value) > 0
+                  ? `
             <div class="summary-row">
               <span>Coupon Discount</span>
               <span>${
@@ -358,7 +386,9 @@ ${orderTypeLabel === "TAKEAWAY" ?`<div style="text-align:center; font-weight:bol
                   : `₹${invoice?.Coupon_Discount_Amount}`
               }</span>
             </div>
-            ` : ''}
+            `
+                  : ""
+              }
             
             <div class="summary-row total">
               <span>TOTAL</span>
